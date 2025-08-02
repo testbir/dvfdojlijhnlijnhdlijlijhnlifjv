@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Optional
 from datetime import datetime
 import httpx
-from utils.auth import get_current_user
 from core.config import settings
 from pydantic import BaseModel
 from utils.auth import get_current_admin_user

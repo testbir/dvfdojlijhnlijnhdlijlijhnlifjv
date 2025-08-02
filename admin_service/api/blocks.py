@@ -6,7 +6,6 @@ from fastapi import APIRouter, HTTPException
 from schemas import ContentBlockCreate, BlockOrderUpdateSchema
 from typing import List
 from core.config import settings
-from utils.auth import get_current_user
 from fastapi import Depends
 from utils.auth import get_current_admin_user
 from models.admin import AdminUser

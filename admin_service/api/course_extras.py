@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Body
 from typing import List, Optional, Dict, Any
-from utils.auth import get_current_user
 from core.config import settings
 import httpx
 from utils.auth import get_current_admin_user

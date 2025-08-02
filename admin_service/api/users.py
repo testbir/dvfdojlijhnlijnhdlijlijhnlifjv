@@ -5,17 +5,45 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta
 from db import get_db
-from utils.auth import get_current_user
 import httpx
 from core.config import settings
 from utils.auth import get_current_admin_user
 from models.admin import AdminUser
+import logging
+import os
 
 router = APIRouter(prefix="/admin/users", tags=["Admin Users"])
+logger = logging.getLogger(__name__)
 
-# Используем auth_service для получения данных о пользователях
-AUTH_SERVICE_URL = "http://auth_service:8000"
+# Используем переменные окружения для URL сервисов
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://authservice:8000")
 CATALOG_SERVICE_URL = settings.CATALOG_SERVICE_URL
+
+# Настройки для HTTP клиента
+HTTP_TIMEOUT = 30.0
+MAX_RETRIES = 3
+
+
+async def make_http_request(client: httpx.AsyncClient, method: str, url: str, **kwargs):
+    """
+    Обертка для HTTP запросов с обработкой ошибок
+    """
+    try:
+        response = await client.request(method, url, timeout=HTTP_TIMEOUT, **kwargs)
+        response.raise_for_status()
+        return response
+    except httpx.TimeoutException:
+        logger.error(f"Timeout при запросе к {url}")
+        raise HTTPException(status_code=504, detail=f"Сервис недоступен: timeout")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP ошибка при запросе к {url}: {e.response.status_code}")
+        raise HTTPException(
+            status_code=e.response.status_code, 
+            detail=f"Ошибка внешнего сервиса: {e.response.text}"
+        )
+    except httpx.RequestError as e:
+        logger.error(f"Ошибка соединения с {url}: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Сервис недоступен: {str(e)}")
 
 
 @router.get("/", summary="Получить список всех пользователей")
@@ -26,141 +54,292 @@ async def get_users(
     current_admin: AdminUser = Depends(get_current_admin_user)
 ):
     """Получает список пользователей из auth_service с дополнительной информацией"""
+    logger.info(f"Админ {current_admin.username} запрашивает список пользователей (page={page}, limit={limit})")
+    
     try:
-        # Получаем пользователей из auth_service
         async with httpx.AsyncClient() as client:
+            # Получаем пользователей из auth_service
             params = {"page": page, "limit": limit}
             if search:
                 params["search"] = search
                 
-            auth_response = await client.get(
+            auth_response = await make_http_request(
+                client, "GET", 
                 f"{AUTH_SERVICE_URL}/api/admin/users/",
                 params=params
             )
-            auth_response.raise_for_status()
             users_data = auth_response.json()
             
             # Для каждого пользователя получаем количество купленных курсов
             for user in users_data.get("users", []):
-                courses_response = await client.get(
-                    f"{CATALOG_SERVICE_URL}/internal/users/{user['id']}/courses-count/"
-                )
-                if courses_response.status_code == 200:
-                    user["courses_purchased"] = courses_response.json().get("count", 0)
-                else:
-                    user["courses_purchased"] = 0
-                    
-        return users_data
-        
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+                user_id = user.get("id")
+                if user_id:
+                    try:
+                        # Получаем статистику курсов пользователя
+                        courses_response = await make_http_request(
+                            client, "GET",
+                            f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/courses-count/"
+                        )
+                        courses_stats = courses_response.json()
+                        user["courses_count"] = courses_stats.get("count", 0)
+                        user["completed_courses"] = courses_stats.get("completed", 0)
+                    except HTTPException:
+                        # Если не удалось получить статистику курсов, ставим 0
+                        user["courses_count"] = 0
+                        user["completed_courses"] = 0
+            
+            return users_data
+            
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка при получении пользователей: {str(e)}")
+        logger.error(f"Неожиданная ошибка при получении пользователей: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка: {str(e)}")
 
 
-@router.get("/{user_id}/courses/", summary="Получить курсы пользователя")
-async def get_user_courses(
+@router.get("/{user_id}", summary="Получить детальную информацию о пользователе")
+async def get_user_detail(
     user_id: int,
-    admin_id: str = Depends(get_current_user)
+    current_admin: AdminUser = Depends(get_current_admin_user)
 ):
-    """Получает список курсов, к которым у пользователя есть доступ"""
+    """Получает детальную информацию о пользователе"""
+    logger.info(f"Админ {current_admin.username} запрашивает данные пользователя {user_id}")
+    
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/courses/"
+            # Получаем основные данные пользователя
+            user_response = await make_http_request(
+                client, "GET",
+                f"{AUTH_SERVICE_URL}/api/admin/users/{user_id}/"
             )
-            response.raise_for_status()
+            user_data = user_response.json()
+            
+            # Получаем курсы пользователя
+            try:
+                courses_response = await make_http_request(
+                    client, "GET",
+                    f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/courses/"
+                )
+                user_data["courses"] = courses_response.json()
+            except HTTPException:
+                user_data["courses"] = []
+            
+            # Получаем прогресс обучения
+            try:
+                progress_response = await make_http_request(
+                    client, "GET",
+                    f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/progress/"
+                )
+                user_data["progress"] = progress_response.json()
+            except HTTPException:
+                user_data["progress"] = {}
+            
+            return user_data
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при получении данных пользователя {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка: {str(e)}")
+
+
+@router.post("/{user_id}/ban", summary="Заблокировать пользователя")
+async def ban_user(
+    user_id: int,
+    reason: str = Query(..., description="Причина блокировки"),
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """Блокирует пользователя"""
+    logger.warning(f"Админ {current_admin.username} блокирует пользователя {user_id}. Причина: {reason}")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await make_http_request(
+                client, "POST",
+                f"{AUTH_SERVICE_URL}/api/admin/users/{user_id}/ban/",
+                json={"reason": reason, "banned_by": current_admin.username}
+            )
             return response.json()
             
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при блокировке пользователя {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка блокировки: {str(e)}")
 
 
-@router.patch("/{user_id}/toggle-active/", summary="Активировать/деактивировать пользователя")
-async def toggle_user_active(
+@router.post("/{user_id}/unban", summary="Разблокировать пользователя")
+async def unban_user(
     user_id: int,
-    is_active: bool,
-    admin_id: str = Depends(get_current_user)
+    current_admin: AdminUser = Depends(get_current_admin_user)
 ):
-    """Изменяет статус активности пользователя"""
+    """Разблокирует пользователя"""
+    logger.info(f"Админ {current_admin.username} разблокирует пользователя {user_id}")
+    
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.patch(
-                f"{AUTH_SERVICE_URL}/api/admin/users/{user_id}/toggle-active/",
-                json={"is_active": is_active}
+            response = await make_http_request(
+                client, "POST",
+                f"{AUTH_SERVICE_URL}/api/admin/users/{user_id}/unban/",
+                json={"unbanned_by": current_admin.username}
             )
-            response.raise_for_status()
-            return {"success": True, "is_active": is_active}
+            return response.json()
             
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при разблокировке пользователя {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка разблокировки: {str(e)}")
 
 
-@router.post("/{user_id}/grant-access/", summary="Предоставить доступ к курсу")
+@router.post("/{user_id}/grant-access/{course_id}", summary="Предоставить доступ к курсу")
 async def grant_course_access(
     user_id: int,
     course_id: int,
-    admin_id: str = Depends(get_current_user)
+    current_admin: AdminUser = Depends(get_current_admin_user)
 ):
     """Предоставляет пользователю доступ к курсу"""
+    logger.info(f"Админ {current_admin.username} предоставляет доступ к курсу {course_id} пользователю {user_id}")
+    
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/grant-access/",
-                json={"course_id": course_id}
+            response = await make_http_request(
+                client, "POST",
+                f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/grant-access/{course_id}/",
+                json={"granted_by": current_admin.username}
             )
-            response.raise_for_status()
-            return {"success": True, "message": "Доступ предоставлен"}
+            return response.json()
             
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 409:
-            raise HTTPException(status_code=409, detail="У пользователя уже есть доступ к этому курсу")
-        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при предоставлении доступа к курсу {course_id} пользователю {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка предоставления доступа: {str(e)}")
 
 
-@router.post("/{user_id}/remove-access/", summary="Отозвать доступ к курсу")
-async def remove_course_access(
+@router.delete("/{user_id}/remove-access/{course_id}", summary="Отозвать доступ к курсу")
+async def revoke_course_access(
     user_id: int,
     course_id: int,
-    admin_id: str = Depends(get_current_user)
+    current_admin: AdminUser = Depends(get_current_admin_user)
 ):
-    """Отзывает у пользователя доступ к курсу"""
+    """Отзывает доступ пользователя к курсу"""
+    logger.warning(f"Админ {current_admin.username} отзывает доступ к курсу {course_id} у пользователя {user_id}")
+    
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.delete(
-                f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/remove-access/{course_id}/"
+            response = await make_http_request(
+                client, "DELETE",
+                f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/remove-access/{course_id}/",
+                json={"revoked_by": current_admin.username}
             )
-            response.raise_for_status()
             return {"success": True, "message": "Доступ отозван"}
             
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при отзыве доступа к курсу {course_id} у пользователя {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка отзыва доступа: {str(e)}")
 
 
 @router.get("/{user_id}/activity/", summary="История активности пользователя")
 async def get_user_activity(
     user_id: int,
     days: int = Query(30, ge=1, le=365),
-    admin_id: str = Depends(get_current_user)
+    current_admin: AdminUser = Depends(get_current_admin_user)
 ):
     """Получает историю активности пользователя"""
+    logger.info(f"Админ {current_admin.username} запрашивает активность пользователя {user_id} за {days} дней")
+    
     try:
         async with httpx.AsyncClient() as client:
+            activity_data = {}
+            
             # Получаем прогресс по курсам
-            progress_response = await client.get(
-                f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/progress/"
-            )
+            try:
+                progress_response = await make_http_request(
+                    client, "GET",
+                    f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/progress/"
+                )
+                activity_data["progress"] = progress_response.json()
+            except HTTPException:
+                activity_data["progress"] = []
             
             # Получаем историю входов
-            auth_response = await client.get(
-                f"{AUTH_SERVICE_URL}/api/admin/users/{user_id}/login-history/",
-                params={"days": days}
-            )
+            try:
+                auth_response = await make_http_request(
+                    client, "GET",
+                    f"{AUTH_SERVICE_URL}/api/admin/users/{user_id}/login-history/",
+                    params={"days": days}
+                )
+                activity_data["login_history"] = auth_response.json()
+            except HTTPException:
+                activity_data["login_history"] = []
             
-            return {
-                "progress": progress_response.json() if progress_response.status_code == 200 else [],
-                "login_history": auth_response.json() if auth_response.status_code == 200 else []
-            }
+            # Получаем статистику обучения
+            try:
+                stats_response = await make_http_request(
+                    client, "GET",
+                    f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/learning-stats/",
+                    params={"days": days}
+                )
+                activity_data["learning_stats"] = stats_response.json()
+            except HTTPException:
+                activity_data["learning_stats"] = {}
             
+            return activity_data
+            
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка при получении активности: {str(e)}")
+        logger.error(f"Ошибка при получении активности пользователя {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка получения активности: {str(e)}")
+
+
+@router.post("/{user_id}/reset-password", summary="Сбросить пароль пользователя")
+async def reset_user_password(
+    user_id: int,
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """Сбрасывает пароль пользователя и отправляет новый по email"""
+    logger.warning(f"Админ {current_admin.username} сбрасывает пароль пользователю {user_id}")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await make_http_request(
+                client, "POST",
+                f"{AUTH_SERVICE_URL}/api/admin/users/{user_id}/reset-password/",
+                json={"reset_by": current_admin.username}
+            )
+            return response.json()
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при сбросе пароля пользователю {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка сброса пароля: {str(e)}")
+
+
+@router.get("/{user_id}/purchases/", summary="История покупок пользователя")
+async def get_user_purchases(
+    user_id: int,
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """Получает историю покупок пользователя"""
+    logger.info(f"Админ {current_admin.username} запрашивает историю покупок пользователя {user_id}")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # В будущем здесь будет запрос к payment service
+            # Пока возвращаем данные из catalog service
+            response = await make_http_request(
+                client, "GET",
+                f"{CATALOG_SERVICE_URL}/internal/users/{user_id}/purchase-history/"
+            )
+            return response.json()
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при получении истории покупок пользователя {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка получения истории покупок: {str(e)}")
