@@ -1,0 +1,23 @@
+# admin_service/requirements.txt
+
+fastapi
+uvicorn
+httpx
+pydantic-settings
+sqlalchemy
+passlib
+python-jose
+alembic
+python-dotenv
+psycopg2-binary
+python-multipart
+aiobotocore
+sqlmodel
+
+# 🎬 Для обработки видео
+ffmpeg-python
+asyncio
+aiofiles
+
+celery[redis]
+redis

@@ -1,0 +1,21 @@
+# auth_service/requirements.txt
+
+
+Django==5.2
+dj-database-url==1.0.0
+python-dotenv==1.0.1
+djangorestframework
+drf-spectacular
+drf-spectacular[sidecar]
+djangorestframework-simplejwt==5.5.0
+celery
+redis
+python-jose
+Django>=4.0
+djangorestframework
+dj-database-url
+psycopg2-binary
+djangorestframework-simplejwt
+django-ratelimit
+alembic
+django-redis

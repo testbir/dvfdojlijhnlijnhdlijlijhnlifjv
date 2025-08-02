@@ -1,0 +1,36 @@
+# catalog_service/api/promo.py
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from db.dependencies import get_db_session
+from models.promo import PromoImage
+from schemas.promo import PromoSchema, PromoCreateSchema
+from typing import List
+
+router = APIRouter()
+
+@router.get("/internal/promos/", response_model=List[PromoSchema])
+async def list_promos(db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(
+        select(PromoImage).order_by(PromoImage.order)
+    )
+    return result.scalars().all()
+
+@router.post("/internal/promos/")
+async def create_promo(data: PromoCreateSchema, db: AsyncSession = Depends(get_db_session)):
+    promo = PromoImage(**data.dict())
+    db.add(promo)
+    await db.commit()
+    await db.refresh(promo)
+    return {"id": promo.id, "message": "Промо добавлено"}
+
+@router.delete("/internal/promos/{promo_id}")
+async def delete_promo(promo_id: int, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(PromoImage).where(PromoImage.id == promo_id))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Промо не найдено")
+    await db.delete(promo)
+    await db.commit()
+    return {"message": "Промо удалено"}
