@@ -15,7 +15,8 @@ from django.contrib.auth import login
 
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from accounts.tasks import send_email_task
-
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
 
 @extend_schema(
@@ -45,10 +46,19 @@ class RegisterAPIView(APIView):
 
 @extend_schema(
     summary="Подтверждение email-кода",
-    description="Подтверждает email по 4-значному коду. После этого пользователь активируется и выполняется вход.",
+    description="Подтверждает email по 4-значному коду. После этого пользователь активируется и возвращаются JWT токены для автоматического входа.",
     request=VerifyCodeSerializer,
     responses={
-        200: OpenApiResponse(response={'message': 'Email подтвержден, вход выполнен'}),
+        200: OpenApiResponse(response={
+            'message': 'Email подтвержден', 
+            'access': 'JWT access token',
+            'refresh': 'JWT refresh token',
+            'user': {
+                'id': 'user_id',
+                'username': 'username',
+                'email': 'email'
+            }
+        }),
         400: OpenApiResponse(response={'error': 'Неверный или просроченный код'}),
     }
 )
@@ -57,16 +67,40 @@ class VerifyCodeAPIView(APIView):
         serializer = VerifyCodeSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data['user']
+            
+            # Активируем пользователя
             user.is_active = True
             user.is_email_confirmed = True
             user.save()
-            login(request, user)
-            return Response({'message': 'Email подтвержден, вход выполнен'}, status=200)
+            
+            # Генерируем JWT токены для автоматического входа
+            refresh = RefreshToken.for_user(user)
+            
+            # Добавляем кастомные поля в токен
+            refresh['user_id'] = user.id
+            refresh['email'] = user.email
+            refresh['username'] = user.username
+            
+            # Удаляем использованный код подтверждения
+            EmailConfirmationCode.objects.filter(
+                user=user, 
+                purpose='register'
+            ).delete()
+            
+            return Response({
+                'message': 'Email подтвержден. Добро пожаловать!',
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email
+                }
+            }, status=200)
         return Response(serializer.errors, status=400)
 
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+
 
 @extend_schema(
     summary="Проверка авторизации",

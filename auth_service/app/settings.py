@@ -125,10 +125,21 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=90),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=180),
+    # Удобно для пользователей - долго не выходят  
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=30),   # 30 дней
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=90),  # 90 дней
+    
+    # Автообновление токенов
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+    
+    # Кастомные поля в токене
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    
+    # Алгоритм
+    'ALGORITHM': 'HS256',
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 AUTH_USER_MODEL = 'accounts.CustomUser'

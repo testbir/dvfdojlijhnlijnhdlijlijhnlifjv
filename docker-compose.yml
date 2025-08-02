@@ -6,7 +6,7 @@ services:
 
   db:
     image: postgres:15
-    container_name: postgres
+    container_name: postgres_team
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -25,13 +25,13 @@ services:
 
   redis_cache:
     image: redis:7-alpine
-    container_name: redis_cache
+    container_name: redis_cache_team
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
 
   authservice:
     build:
       context: ./auth_service  # Оставляем реальный путь к папке
-    container_name: authservice
+    container_name: authservice_team
     command: sh -c "./init_db.sh && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./auth_service:/app  # Оставляем реальный путь к папке
@@ -46,7 +46,7 @@ services:
   celeryworker:  # Изменено имя сервиса
     build:
       context: ./auth_service  # Оставляем реальный путь к папке
-    container_name: celeryworker  # Изменено имя контейнера
+    container_name: celeryworker_team  # Изменено имя контейнера
     command: celery -A app worker -l info
     volumes:
       - ./auth_service:/app  # Оставляем реальный путь к папке
@@ -54,12 +54,12 @@ services:
       - ./auth_service/.env  # Оставляем реальный путь к папке
     depends_on:
       - authservice
-      - redis
+      - redis_cache
 
   catalogservice:
     build:
       context: ./catalog_service  # Оставляем реальный путь к папке
-    container_name: catalogservice
+    container_name: catalogservice_team
     working_dir: /app
     command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
     volumes:
@@ -75,7 +75,7 @@ services:
   adminservice:
     build:
       context: ./admin_service  # Оставляем реальный путь к папке
-    container_name: adminservice
+    container_name: adminservice_team
     command: sh -c "./init_db.sh && uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
     volumes:
       - ./admin_service:/app  # Оставляем реальный путь к папке
@@ -92,7 +92,7 @@ services:
   adminfrontend:  # Изменено имя сервиса
     build:
       context: ./admin-frontend
-    container_name: adminfrontend  # Изменено имя контейнера
+    container_name: adminfrontend_team  # Изменено имя контейнера
     ports:
       - "3000:80"
     depends_on:
@@ -101,7 +101,7 @@ services:
   frontend:
     build:
       context: ./frontend
-    container_name: frontend
+    container_name: frontend_team
     ports:
       - "5173:5173"
     volumes:
@@ -117,7 +117,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: pgadmin
+    container_name: pgadmin_name
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
