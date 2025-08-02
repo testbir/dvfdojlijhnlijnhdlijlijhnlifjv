@@ -1,0 +1,1185 @@
+// src/styles/auth.scss
+
+
+
+
+/* ========================================================================
+   ШРИФТЫ И ТИПОГРАФИЯ
+   ======================================================================== */
+
+// Утилитарный класс для шрифта Sora
+.sora-text {
+  font-family: 'Sora', sans-serif;
+}
+
+// Утилитарный класс для шрифта Space Grotesk
+.spaceglotesk-text {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* ========================================================================
+   ОСНОВНАЯ СТРУКТУРА СТРАНИЦЫ АВТОРИЗАЦИИ
+   ======================================================================== */
+
+// Внешний контейнер - центрирует всю форму авторизации на странице
+.auth-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  
+  @media (max-width: 768px) {
+    align-items: flex-start; // На мобилке прижимаем к верху
+    padding: 40px 10px 10px;
+  }
+
+
+}
+
+// Основной блок формы авторизации - содержит левую и правую части
+.auth-box {
+  display: flex;
+  max-width: 900px;
+  height: 580px;
+  border-radius: 25px;
+  overflow: hidden;
+  box-shadow: 0 20px 20px rgba(0, 0, 0, 0.05);
+
+  @media (max-width: 768px) {
+    margin-top: 20px;
+    height: 650px;
+    border-radius: 30px;
+  }
+}
+
+/* ========================================================================
+   ЛЕВАЯ И ПРАВАЯ ЧАСТИ ФОРМЫ
+   ======================================================================== */
+
+// Базовый класс для половинок формы (левая и правая части)
+.auth-side {
+  flex: 1;
+
+  // ЛЕВАЯ ЧАСТЬ: логотип и фоновое оформление
+  &--left {
+    position: relative; 
+    display: flex;
+    flex-direction: column;
+    flex: 0.9; // Немного меньше правой части
+    background-color: #F7FAFB;
+    justify-content: center;
+
+    @media (max-width: 768px) {
+      display: none;
+    }
+
+  }
+
+  // ПРАВАЯ ЧАСТЬ: форма авторизации и поля ввода
+  &--right {
+    flex: 1.1; // Немного больше левой части
+    width: 530px;
+    background-color: #ffffff;
+    padding: 25px 35px 32px;
+    display: flex;
+    flex-direction: column;
+
+      @media (max-width: 768px) {
+        padding: 15px  20px 70px  20px; // Можно изменить на мобилке
+      }
+    
+  }
+}
+
+/* ========================================================================
+   ЭЛЕМЕНТЫ ЛЕВОЙ ЧАСТИ (ЛОГОТИП И НАВИГАЦИЯ)
+   ======================================================================== */
+
+// Кнопка "← На Главную" в верхней части левого блока
+.auth-back {
+  font-family: "Sora", sans-serif;
+  position: absolute;
+  top: 35px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  color: #777777;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  // Иконка стрелки "назад"
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+    color: #777777;
+    font-size: 18px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+// Контейнер логотипа - центрирует логотип в левой части
+.auth-logo-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+// Сам логотип компании
+.auth-logo {
+  width: 80%;
+  max-width: 280px;
+}
+
+/* ========================================================================
+   ЭЛЕМЕНТЫ ПРАВОЙ ЧАСТИ (ФОРМА И КОНТЕНТ)
+   ======================================================================== */
+
+// Заголовок формы (например, "Вход", "Регистрация")
+.auth-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 32px;
+  font-weight: 600;
+  color: #479EFD;
+  text-align: center;
+  align-self: center;
+
+  @media (max-width: 768px) {
+    margin-top: 45px;
+    font-size: 30px;
+
+    @media (max-width: 430px) {
+      font-size: 25px;
+    }
+  }
+}
+
+// Основной контент правой части - обертка для формы
+.auth-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+// Контейнер самой формы
+.auth-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========================================================================
+   ПОЛЯ ВВОДА И ПЛАВАЮЩИЕ PLACEHOLDER'Ы
+   ======================================================================== */
+
+// Обертка для каждого поля ввода с анимированным placeholder
+.auth-input-wrapper {
+  position: relative;
+  width: 75%;
+  align-self: center;
+  margin-bottom: 16px;
+
+  @media (max-width: 768px) {
+    width: 90%;
+  }
+
+  // Само поле ввода
+  .auth-input {
+    width: 100%;
+    height: 40px;
+    padding: 10px 12px;
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(0, 0, 0, 0.8);
+    background: white;
+    border: 1.5px solid rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    outline: none;
+    
+    /* ОПТИМИЗАЦИЯ ДЛЯ ПЛАВНОСТИ */
+    will-change: border-color, box-shadow; // Подготавливаем к изменениям
+    transform: translateZ(0); // Создаем композитный слой
+    backface-visibility: hidden; // Оптимизация рендеринга
+    
+    // Плавные переходы с оптимизированными кривыми
+    transition: 
+      border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    // Оптимизация шрифтов
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
+    font-kerning: auto;
+
+    @media (max-width: 768px) {
+      height: 45px;
+      border-radius: 12px;
+    }
+    
+
+    
+    // Состояние при наведении
+    &:hover:not(:focus) {
+      border-color: rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  // Анимированный placeholder (плавает над полем при фокусе)
+  .auth-placeholder {
+    position: absolute;
+    font-family: "Sora", sans-serif;
+    font-weight: 500;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: rgba(0, 0, 0, 0.5);
+    background: white;
+    padding: 0px 4px 0px;
+    transition: all 0.2s ease;
+    pointer-events: none;
+  }
+
+  // Состояние placeholder при фокусе или заполненном поле
+  &.focused .auth-placeholder,
+  &.filled .auth-placeholder {
+    top: 0px;
+    left: 10px;
+    font-size: 11px;
+  }
+
+  // Специальные стили для поля пароля (увеличенный letter-spacing)
+  .password-input {
+    letter-spacing: 1.5px;
+    font-size: 16px;
+  }
+}
+
+/* ========================================================================
+   КНОПКИ
+   ======================================================================== */
+
+// Главная кнопка действия (Войти, Зарегистрироваться и т.д.)
+.auth-button {
+  font-family: "Sora", sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: linear-gradient(to top, rgba(28, 121, 221, 1), rgba(0, 122, 255, 0.7));
+  border: none;
+  border-radius: 10px;
+  width: 75%;
+  height: 40px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  align-self: center;
+  margin-top: auto;
+
+  @media (max-width: 768px) {
+    width: 90%;
+    height: 45px;
+  }
+
+  // Состояние при наведении
+  &:hover {
+    background: linear-gradient(to top, rgba(28, 121, 221,0.95), rgba(0, 122, 255, 0.65));
+  }
+
+  // Состояние при клике
+  &:active {
+    transform: translateY(0.5px);
+    box-shadow: 0 2px 6px rgba(0, 122, 255, 0.1);
+  }
+
+  // Заблокированное состояние (во время загрузки)
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+    transition: opacity 0.1s;
+  }
+}
+
+/* ========================================================================
+   БЛОК ОТОБРАЖЕНИЯ ОШИБОК
+   ======================================================================== */
+
+// Контейнер для сообщений об ошибках
+.auth-error {
+  width: 75%;
+  align-self: center;
+  margin-top: 10px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(255, 94, 94, 0.7), rgba(255, 36, 36, 0.7));
+  backdrop-filter: blur(10px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 10px;
+  font-family: "Sora", sans-serif;
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(255, 36, 36, 0.2);
+  position: relative;
+  overflow: hidden;
+  animation: fadeSlideIn 0.2s ease, shake 0.3s ease 0.4s;
+
+  @media (max-width: 768px) {
+    width: 90%;
+    gap: 4px;
+  }
+
+  // Иконка предупреждения перед текстом ошибки
+  &::before {
+    content: '⚠';
+    font-size: 18px;
+    color: #fff;
+  }
+
+  // Кнопка активации аккаунта (показывается при ошибке активации)
+  .activation-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: "Sora", sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+
+    // Состояние при наведении на кнопку активации
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: translateY(-1px);
+    }
+
+    // Состояние при клике на кнопку активации
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  // Автоматическое исчезновение ошибки (если нет кнопки активации)
+  &:not(:has(.activation-btn)) {
+    animation: fadeSlideIn 0.2s ease, shake 0.3s ease 0.4s, fadeOut 0.6s ease 4.2s forwards;
+  }
+}
+
+/* ========================================================================
+   АНИМАЦИИ
+   ======================================================================== */
+
+// Анимация появления блока ошибки с плавным движением сверху
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Анимация легкого встряхивания для привлечения внимания
+@keyframes shake {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-1px); }
+  40% { transform: translateX(1px); }
+  60% { transform: translateX(-1px); }
+  80% { transform: translateX(1px); }
+  100% { transform: translateX(0); }
+}
+
+// Анимация исчезновения с размытием и уменьшением
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+    filter: blur(3px);
+  }
+}
+
+/* ========================================================================
+   МАТЕРИАЛ ИКОНКИ (БАЗОВЫЕ СТИЛИ)
+   ======================================================================== */
+
+// Базовые стили для Material Icons
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: normal;
+  font-display: block;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ========================================================================
+   МОБИЛЬНЫЕ ЭЛЕМЕНТЫ (скрыты на десктопе)
+   ======================================================================== */
+
+
+.mobile-logo-container {
+ display: none;
+ @media (max-width: 768px) {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   width: 90%;
+   align-self: center;
+   position: relative;
+   
+   // Линия на всю ширину auth-side--right
+   &::after {
+     content: '';
+     position: absolute;
+     left: -13%; // Расширяем влево до края right
+     right: -13%; // Расширяем вправо до края right
+     height: 3px;
+     background: #EEF1F6;
+   }
+
+     &::after {
+    bottom: -15px; // Линия ниже контейнера
+  }
+ }
+}
+
+// src/styles/auth.scss
+
+
+
+
+/* ========================================================================
+   ШРИФТЫ И ТИПОГРАФИЯ
+   ======================================================================== */
+
+// Утилитарный класс для шрифта Sora
+.sora-text {
+  font-family: 'Sora', sans-serif;
+}
+
+// Утилитарный класс для шрифта Space Grotesk
+.spaceglotesk-text {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* ========================================================================
+   ОСНОВНАЯ СТРУКТУРА СТРАНИЦЫ АВТОРИЗАЦИИ
+   ======================================================================== */
+
+// Внешний контейнер - центрирует всю форму авторизации на странице
+.auth-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  
+  @media (max-width: 768px) {
+    align-items: flex-start; // На мобилке прижимаем к верху
+    padding: 40px 10px 10px;
+  }
+
+
+}
+
+// Основной блок формы авторизации - содержит левую и правую части
+.auth-box {
+  display: flex;
+  max-width: 900px;
+  height: 580px;
+  border-radius: 25px;
+  overflow: hidden;
+  box-shadow: 0 20px 20px rgba(0, 0, 0, 0.05);
+
+  @media (max-width: 768px) {
+    margin-top: 20px;
+    height: 650px;
+    border-radius: 30px;
+  }
+}
+
+/* ========================================================================
+   ЛЕВАЯ И ПРАВАЯ ЧАСТИ ФОРМЫ
+   ======================================================================== */
+
+// Базовый класс для половинок формы (левая и правая части)
+.auth-side {
+  flex: 1;
+
+  // ЛЕВАЯ ЧАСТЬ: логотип и фоновое оформление
+  &--left {
+    position: relative; 
+    display: flex;
+    flex-direction: column;
+    flex: 0.9; // Немного меньше правой части
+    background-color: #F7FAFB;
+    justify-content: center;
+
+    @media (max-width: 768px) {
+      display: none;
+    }
+
+  }
+
+  // ПРАВАЯ ЧАСТЬ: форма авторизации и поля ввода
+  &--right {
+    flex: 1.1; // Немного больше левой части
+    width: 530px;
+    background-color: #ffffff;
+    padding: 25px 35px 32px;
+    display: flex;
+    flex-direction: column;
+
+      @media (max-width: 768px) {
+        padding: 15px  20px 70px  20px; // Можно изменить на мобилке
+      }
+    
+  }
+}
+
+/* ========================================================================
+   ЭЛЕМЕНТЫ ЛЕВОЙ ЧАСТИ (ЛОГОТИП И НАВИГАЦИЯ)
+   ======================================================================== */
+
+// Кнопка "← На Главную" в верхней части левого блока
+.auth-back {
+  font-family: "Sora", sans-serif;
+  position: absolute;
+  top: 35px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  color: #777777;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  // Иконка стрелки "назад"
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+    color: #777777;
+    font-size: 18px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+// Контейнер логотипа - центрирует логотип в левой части
+.auth-logo-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+// Сам логотип компании
+.auth-logo {
+  width: 80%;
+  max-width: 280px;
+}
+
+/* ========================================================================
+   ЭЛЕМЕНТЫ ПРАВОЙ ЧАСТИ (ФОРМА И КОНТЕНТ)
+   ======================================================================== */
+
+// Заголовок формы (например, "Вход", "Регистрация")
+.auth-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 32px;
+  font-weight: 600;
+  color: #479EFD;
+  text-align: center;
+  align-self: center;
+
+  @media (max-width: 768px) {
+    margin-top: 45px;
+    font-size: 30px;
+
+    @media (max-width: 430px) {
+      font-size: 25px;
+    }
+  }
+}
+
+// Основной контент правой части - обертка для формы
+.auth-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+// Контейнер самой формы
+.auth-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========================================================================
+   ПОЛЯ ВВОДА И ПЛАВАЮЩИЕ PLACEHOLDER'Ы
+   ======================================================================== */
+
+// Обертка для каждого поля ввода с анимированным placeholder
+.auth-input-wrapper {
+  position: relative;
+  width: 75%;
+  align-self: center;
+  margin-bottom: 16px;
+
+  @media (max-width: 768px) {
+    width: 90%;
+  }
+
+  // Само поле ввода
+  .auth-input {
+    width: 100%;
+    height: 40px;
+    padding: 10px 12px;
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(0, 0, 0, 0.8);
+    background: white;
+    border: 1.5px solid rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    outline: none;
+
+        // Состояние фокуса с плавной анимацией
+    &:focus {
+      border-color: #479EFD;
+      box-shadow: 0 0 0 3px rgba(71, 158, 253, 0.1);
+    }
+
+      // Состояние при наведении
+    &:hover:not(:focus) {
+      border-color: rgba(0, 0, 0, 0.4);
+    }
+
+    @media (max-width: 768px) {
+      height: 45px;
+      border-radius: 12px;
+    }
+
+      @keyframes letterAppear {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animated-letter {
+    animation: letterAppear 0.15s ease forwards;
+  }
+  }
+
+  // Анимированный placeholder (плавает над полем при фокусе)
+  .auth-placeholder {
+    position: absolute;
+    font-family: "Sora", sans-serif;
+    font-weight: 500;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: rgba(0, 0, 0, 0.5);
+    background: white;
+    padding: 0px 4px 0px;
+    transition: all 0.2s ease;
+    pointer-events: none;
+  }
+
+  // Состояние placeholder при фокусе или заполненном поле
+  &.focused .auth-placeholder,
+  &.filled .auth-placeholder {
+    top: 0px;
+    left: 10px;
+    font-size: 11px;
+  }
+
+  // Специальные стили для поля пароля (увеличенный letter-spacing)
+  .password-input {
+    letter-spacing: 1.5px;
+    font-size: 16px;
+  }
+}
+
+/* ========================================================================
+   КНОПКИ
+   ======================================================================== */
+
+// Главная кнопка действия (Войти, Зарегистрироваться и т.д.)
+.auth-button {
+  font-family: "Sora", sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: linear-gradient(to top, rgba(28, 121, 221, 1), rgba(0, 122, 255, 0.7));
+  border: none;
+  border-radius: 10px;
+  width: 75%;
+  height: 40px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  align-self: center;
+  margin-top: auto;
+
+  @media (max-width: 768px) {
+    width: 90%;
+    height: 45px;
+  }
+
+  // Состояние при наведении
+  &:hover {
+    background: linear-gradient(to top, rgba(28, 121, 221,0.95), rgba(0, 122, 255, 0.65));
+  }
+
+  // Состояние при клике
+  &:active {
+    transform: translateY(0.5px);
+    box-shadow: 0 2px 6px rgba(0, 122, 255, 0.1);
+  }
+
+  // Заблокированное состояние (во время загрузки)
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+    transition: opacity 0.1s;
+  }
+}
+
+/* ========================================================================
+   БЛОК ОТОБРАЖЕНИЯ ОШИБОК
+   ======================================================================== */
+
+// Контейнер для сообщений об ошибках
+.auth-error {
+  width: 75%;
+  align-self: center;
+  margin-top: 12px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(255, 94, 94, 0.7), rgba(255, 36, 36, 0.7));
+  backdrop-filter: blur(10px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14.5px;
+  font-family: "Sora", sans-serif;
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(255, 36, 36, 0.2);
+  position: relative;
+  overflow: hidden;
+  animation: fadeSlideIn 0.2s ease, shake 0.3s ease 0.4s;
+
+  @media (max-width: 768px) {
+    width: 90%;
+    gap: 4px;
+  }
+
+  // Иконка предупреждения перед текстом ошибки
+  &::before {
+    content: '⚠';
+    font-size: 18px;
+    color: #fff;
+  }
+
+  // Кнопка активации аккаунта (показывается при ошибке активации)
+  .activation-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: "Sora", sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+
+    // Состояние при наведении на кнопку активации
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: translateY(-1px);
+    }
+
+    // Состояние при клике на кнопку активации
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  // Автоматическое исчезновение ошибки (если нет кнопки активации)
+  &:not(:has(.activation-btn)) {
+    animation: fadeSlideIn 0.2s ease, shake 0.3s ease 0.4s, fadeOut 0.6s ease 4.2s forwards;
+  }
+}
+
+/* ========================================================================
+   АНИМАЦИИ
+   ======================================================================== */
+
+// Анимация появления блока ошибки с плавным движением сверху
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Анимация легкого встряхивания для привлечения внимания
+@keyframes shake {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-1px); }
+  40% { transform: translateX(1px); }
+  60% { transform: translateX(-1px); }
+  80% { transform: translateX(1px); }
+  100% { transform: translateX(0); }
+}
+
+// Анимация исчезновения с размытием и уменьшением
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+    filter: blur(3px);
+  }
+}
+
+/* ========================================================================
+   МАТЕРИАЛ ИКОНКИ (БАЗОВЫЕ СТИЛИ)
+   ======================================================================== */
+
+// Базовые стили для Material Icons
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: normal;
+  font-display: block;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ========================================================================
+   МОБИЛЬНЫЕ ЭЛЕМЕНТЫ (скрыты на десктопе)
+   ======================================================================== */
+
+
+.mobile-logo-container {
+ display: none;
+ @media (max-width: 768px) {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   width: 90%;
+   align-self: center;
+   position: relative;
+   
+   // Линия на всю ширину auth-side--right
+   &::after {
+     content: '';
+     position: absolute;
+     left: -13%; // Расширяем влево до края right
+     right: -13%; // Расширяем вправо до края right
+     height: 3px;
+     background: #EEF1F6;
+   }
+
+     &::after {
+    bottom: -15px; // Линия ниже контейнера
+  }
+ }
+}
+
+.mobile-auth-back {
+  display: none;
+  font-family: "Sora", sans-serif;
+  text-decoration: none;
+  color: #777777;
+
+  @media (max-width: 768px) {
+    display: flex;
+    align-items: center;
+    height: 20px; // Уменьшено с 25px до 20px
+    gap: 4px; // Уменьшено с 6px до 4px
+    opacity: 0.6; // Чуть увеличил прозрачность
+    transition: opacity 0.2s ease;
+    
+    // При наведении становится более видимым
+    &:hover {
+      opacity: 0.8;
+    }
+    
+    // Иконка стрелки
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      color: #888888; // Чуть светлее основного текста
+      font-size: 16px; // Уменьшено с 18px
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease;
+    }
+    
+    // Анимация иконки при наведении
+    &:hover .material-symbols-outlined {
+      transform: translateX(-1px);
+      color: #666666;
+    }
+    
+    // Стили текста
+    font-size: 12px; // Уменьшено с 14px
+    font-weight: 500; // Чуть жирнее
+    letter-spacing: 0.2px; // Небольшой межбуквенный интервал
+    
+    // На очень маленьких экранах делаем еще компактнее
+    @media (max-width: 400px) {
+      height: 18px;
+      gap: 3px;
+      font-size: 12px;
+      
+      .material-symbols-outlined {
+        font-size: 18px;
+      }
+    }
+  }
+}
+
+
+
+/* ========================================================================
+   МОБИЛЬНЫЕ ЭЛЕМЕНТЫ - ДОПОЛНЕНИЕ К auth.scss
+   ======================================================================== */
+
+// Модификатор для центрирования мобильного логотипа (когда он единственный элемент)
+.mobile-logo-container--center {
+  @media (max-width: 768px) {
+    justify-content: center !important; // Центрируем логотип
+    
+    // ЛИНИЯ ОСТАЕТСЯ (убрали код, который её скрывал)
+    // &::after { display: none; } <- удалено
+  }
+}
+
+// Альтернативный вариант: автоматическое центрирование, если только один дочерний элемент
+.mobile-logo-container {
+  @media (max-width: 768px) {
+    // Если только один дочерний элемент (только .mobile-logo без .mobile-auth-back)
+    &:has(.mobile-logo):not(:has(.mobile-auth-back)) {
+      justify-content: center;
+      
+      // ЛИНИЯ ОСТАЕТСЯ (убрали код, который её скрывал)
+      // &::after { display: none; } <- удалено
+    }
+  }
+}
+
+.mobile-logo {
+  display: none;
+
+  @media (max-width: 768px) {
+    display: block;
+    flex-shrink: 0; // Предотвращаем сжатие
+    width: auto;
+    max-width: 120px; // Максимальная ширина логотипа
+    
+    img {
+      margin-top: 2.5px;
+      height: 20px; // Высота изображения
+      width: auto; // Ширина пропорциональная
+      max-width: 100%; // Не превышать ширину контейнера
+      display: block; // Убираем inline пространство
+    }
+  }
+}
+
+
+
+/* Добавь это в конец файла src/styles/auth.scss */
+
+/* ===== LOADING STYLES ===== */
+
+/* Базовая анимация спиннера */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Спиннер для кнопок */
+.button-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid #ffffff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Overlay загрузка */
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.auth-overlay-content {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  
+  @media (max-width: 768px) {
+    padding: 24px 32px;
+    border-radius: 16px;
+    margin: 0 20px;
+  }
+}
+
+.auth-overlay-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(0, 122, 255, 0.2);
+  border-top: 3px solid #007AFF;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.auth-overlay-message {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin: 0;
+  text-align: center;
+  
+  @media (max-width: 768px) {
+    font-size: 15px;
+  }
+}
+
+/* Стили для кнопок в состоянии загрузки */
+.auth-button {
+  &.loading {
+    color: transparent !important;
+    position: relative;
+    
+    .button-spinner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  }
+  
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+}
+
+/* Inline спиннер для текста */
+.inline-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-spinner-icon {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(102, 102, 102, 0.3);
+  border-top: 2px solid #666;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Timer спиннер */
+.timer-spinner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: #666;
+}
+
+.timer-spinner-icon {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(102, 102, 102, 0.3);
+  border-top: 2px solid #666;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}

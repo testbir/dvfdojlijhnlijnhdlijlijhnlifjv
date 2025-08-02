@@ -1,0 +1,64 @@
+// src/styles/RegisterPage.scss
+
+.sora-text {
+  font-family: 'Sora', sans-serif;
+}
+
+.register-form {
+  margin-top: 60px;  // отступ между полями ввода
+
+  @media (max-width: 768px) {
+    margin-top: 50px;
+  }
+}
+
+.register-links {
+  width: 75%;
+  align-self: center;
+  
+  .register-login-link {
+    font-family: "Sora", sans-serif;  // шрифт для ссылок, если нужно
+    font-size: 15px;                  // размер шрифта
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.7);        // цвет текста, можно настроить
+    text-decoration: none;            // убираем подчеркивание
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  @media (max-width: 768px) {
+    width: 90%;
+  }
+}
+
+.register-terms {
+  width: 75%;
+  align-self: center;
+  text-align: center;
+  font-family: "Sora", sans-serif;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+  margin-top: 12px;
+  
+  .terms-link {
+    color: #479EFD;
+    text-decoration: none;
+    font-weight: 500;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  @media (max-width: 768px) {
+    width: 90%;
+    font-size: 13px;
+    margin-top: 12px;
+
+    @media (max-width: 360px) {
+      font-size: 12px;
+    }
+  }
+}

@@ -1,0 +1,287 @@
+// src/styles/Header.scss
+
+
+body {
+  font-family: 'Montserrat', sans-serif;
+}
+
+.header {
+  margin-top: 5px;
+  padding: 2px;
+  border: none;
+  border-radius: 15px;
+  background-color: none;
+
+  @media (max-width: 1330px) and (min-width: 1025px) {
+    padding: 8px 20px;
+  }
+
+  @media (min-width: 1024px) {
+    height: 80px;
+  }
+
+  // Планшетная адаптация
+  @media (max-width: 1023px) and (min-width: 769px) {
+    margin-top: 2px;
+    padding: 12px 24px;
+    border-radius: 12px;
+  }
+
+  // Мобильная адаптация для header
+  @media (max-width: 768px) {
+    margin-top: 0;
+    padding: 8px 16px;
+    border-radius: 0;
+  }
+
+  .header-inner {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+
+    // Планшетная версия
+    @media (max-width: 1023px) and (min-width: 769px) {
+      gap: 16px;
+      padding: 0;
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      flex-direction: column;
+      gap: 12px;
+      padding: 0;
+    }
+
+    @media (max-width: 1330px) and (min-width: 1025px) {
+      gap: 14px;
+      padding: 0 12px;
+    }
+  }
+
+  .header-logo-link {
+    display: block;
+    height: 45px;
+
+    .logo {
+      height: 45px;
+      width: auto;
+    }
+
+    // Планшетная версия
+    @media (max-width: 1023px) and (min-width: 769px) {
+      height: 40px;
+      
+      .logo {
+        height: 40px;
+      }
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      height: 35px;
+      
+      .logo {
+        height: 35px;
+      }
+    }
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex: 1;
+    justify-content: flex-end;
+
+    // Планшетная версия
+    @media (max-width: 1023px) and (min-width: 769px) {
+      gap: 16px;
+      justify-content: flex-end;
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      flex-direction: column;
+      width: 100%;
+      gap: 12px;
+      justify-content: center;
+    }
+  }
+
+  .search-block {
+    flex: 1;
+    max-width: 320px;
+    padding-right: 50px;
+
+
+    @media (max-width: 1330px) and (min-width: 1025px) {
+      max-width: 260px;
+      padding-right: 30px;
+    }
+
+    // Планшетная версия
+    @media (max-width: 1023px) and (min-width: 769px) {
+      max-width: 280px;
+      padding-right: 20px;
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      max-width: 100%;
+      padding-right: 0;
+      width: 100%;
+    }
+
+    .search-input {
+      width: 100%;
+      background-color: transparent;
+      padding: 6px 16px;
+      border: 1px solid rgba(0, 0, 0, 0.3);
+      border-radius: 15px;
+      font-size: 14px;
+      font-family: 'Montserrat', sans-serif;
+      color: #616161;
+
+      &::placeholder {
+        color: #aaa;
+        font-weight: 400;
+      }
+
+      &:focus {
+        outline: none;
+        border-color: 1px solid rgba(0, 0, 0, 0.3);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+      }
+
+      // Планшетная версия
+      @media (max-width: 1023px) and (min-width: 769px) {
+        padding: 10px 16px;
+        font-size: 15px;
+        border-radius: 12px;
+      }
+
+      // Мобильная версия
+      @media (max-width: 768px) {
+        padding: 12px 16px;
+        font-size: 16px; // Избегаем зума на iOS
+        border-radius: 12px;
+      }
+    }
+  }
+
+  .auth-buttons {
+    display: flex;
+    gap: 12px;
+
+    // Планшетная версия - оставляем горизонтально
+    @media (max-width: 1023px) and (min-width: 769px) {
+      gap: 14px;
+      flex-direction: row; // Явно указываем горизонтальное расположение
+    }
+
+    // Мобильная версия - вертикально
+    @media (max-width: 768px) {
+      flex-direction: row; // Явно указываем горизонтальное расположение
+      width: 100%;
+      gap: 8px;
+    }
+  }
+
+  .header-auth-button {
+    font-size: 16px;
+    font-weight: 500;
+    font-family: 'Montserrat', sans-serif;
+    padding: 6px 16px;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    background-color: transparent;
+    color: #000;
+    text-decoration: none;
+    transition: background-color 0.2s ease, color 0.2s ease;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+      color: #000;
+    }
+
+    // Планшетная версия
+    @media (max-width: 1023px) and (min-width: 769px) {
+      padding: 10px 16px;
+      font-size: 15px;
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      padding: 12px 16px;
+      text-align: center;
+      width: 100%;
+      font-size: 15px;
+    }
+  }
+
+  /* Мой Профиль */
+  .header-profile-link {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    font-size: 17px;
+    font-weight: 500;
+    font-family: 'Manrope', sans-serif;
+    color: #000;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    background-color: #ffffff1a;
+    padding: 2px 11px 2px 7px; 
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 15px; 
+    vertical-align: top; // Исправляет выравнивание
+
+    &:hover {
+      color: #000000a7;
+    }
+
+    // Планшетная версия
+    @media (max-width: 1023px) and (min-width: 769px) {
+      font-size: 16px;
+      padding: 10px 14px;
+      border-radius: 12px;
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      font-size: 15px;
+      padding: 8px 12px;
+      width: 100%;
+      justify-content: center;
+      border-radius: 12px;
+    }
+  }
+
+  /* Иконка */
+  .profile-icon {
+    font-family: 'Material Symbols Rounded';
+    font-size: 31px;
+    line-height: 1;
+    display: inline-block;
+
+    font-variation-settings:
+      'FILL' 0,
+      'wght' 270,
+      'GRAD' 0,
+      'opsz' 24;
+
+    // Планшетная версия
+    @media (max-width: 1023px) and (min-width: 769px) {
+      font-size: 26px;
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      font-size: 24px;
+    }
+  }
+}

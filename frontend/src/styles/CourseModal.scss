@@ -1,0 +1,559 @@
+/* ====================================
+   COURSE MODAL STYLES
+   Структура компонента:
+   
+   .course-modal-backdrop (фиксированный оверлей)
+   └── .course-modal-container (контейнер для анимации)
+       └── .course-modal (основное модальное окно)
+           ├── .modal-header
+           │   ├── .modal-title-wrapper
+           │   │   └── .modal-title
+           │   └── .modal-close
+           ├── .modal-divider
+           └── .modal-content (прокручиваемый контент)
+               ├── .modal-empty (если нет контента)
+               └── .modal-block (блоки контента)
+                   ├── .text-block (текстовый контент)
+                   └── .image-block (изображения)
+==================================== */
+
+/* ====================================
+   ГЛОБАЛЬНЫЕ СТИЛИ
+==================================== */
+
+// Блокируем скролл body когда модалка открыта
+body.modal-open {
+  overflow: hidden;
+}
+
+/* ====================================
+   ОСНОВНАЯ СТРУКТУРА МОДАЛЬНОГО ОКНА
+==================================== */
+
+// Полноэкранная подложка с blur эффектом и центрированием модалки
+.course-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  
+  // Apple-style backdrop blur
+  background: rgba(0, 0, 0, 0.1);
+  
+  // Плавное появление
+  animation: backdropFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  // Мобильная версия - модалка снизу экрана
+  @media (max-width: 768px) {
+    padding: 0;
+    align-items: flex-end;
+  }
+}
+
+// Контейнер для анимации модалки - контролирует размеры
+.course-modal-container {
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  
+  // Анимация появления с пружинным эффектом
+  animation: modalSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    max-height: 90vh;
+    animation: modalSlideUpMobile 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+// Основной контейнер модального окна - glassmorphism дизайн
+.course-modal {
+  width: 100%;
+  height: 760px;
+  display: flex;
+  flex-direction: column;
+  
+  // Apple-style glassmorphism
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  
+  // Современные тени и границы
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  border-radius: 28px;
+  box-shadow: 
+    0 32px 64px -12px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+  outline: none;
+  
+  @media (max-width: 768px) {
+    border-radius: 28px 28px 0 0; // Скругление только сверху
+    border-bottom: none;
+    max-height: 90vh;
+  }
+}
+
+/* ====================================
+   HEADER СЕКЦИЯ
+==================================== */
+
+// Header с заголовком и кнопкой закрытия
+.modal-header {
+  display: flex;
+  align-items: center;
+  padding: 15px 32px 10px;
+  flex-shrink: 0;
+  position: relative; // Для абсолютного позиционирования кнопки
+
+  @media (max-width: 768px) {
+    padding: 15px 24px 12px;
+  }
+}
+
+// Обертка заголовка для центрирования
+.modal-title-wrapper {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+// Основной заголовок модалки
+.modal-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 23px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  text-align: center;
+  
+  // Красивый text-rendering
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @media (max-width: 768px) {
+    font-size: 22px;
+  }
+}
+
+// Кнопка закрытия - абсолютно позиционирована справа
+.modal-close {
+  position: absolute;
+  top: 56%;
+  right: 32px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 22px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .material-symbols-rounded {
+    font-size: 30px;
+    color: #666;
+    font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+  }
+
+  @media (max-width: 768px) {
+    right: 24px;
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+
+    .material-symbols-rounded {
+      font-size: 22px;
+    }
+  }
+}
+
+// Тонкий декоративный разделитель
+.modal-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.2) 50%,
+    transparent 100%
+  );
+  margin: 0 32px;
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    margin: 0 24px;
+  }
+}
+
+/* ====================================
+   КОНТЕНТ СЕКЦИЯ
+==================================== */
+
+// Основной контент с прокруткой
+.modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px 32px;
+
+  // Кастомный скроллбар
+  scrollbar-width: thin;
+  scrollbar-color: #C0C0C0 transparent;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+    margin: 8px 0;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #C0C0C0;
+    border-radius: 4px;
+    transition: background 0.2s;
+
+    &:hover {
+      background: #A0A0A0;
+    }
+
+    &:active {
+      background: #808080;
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 24px;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      margin: 4px 0;
+    }
+  }
+}
+
+// Универсальный блок контента
+.modal-block {
+  margin-bottom: 24px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  @media (max-width: 768px) {
+    margin-bottom: 20px;
+  }
+}
+
+/* ====================================
+   ПУСТОЕ СОСТОЯНИЕ
+==================================== */
+
+// Состояние когда нет контента для отображения
+.modal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #666;
+
+  .material-symbols-rounded {
+    font-size: 48px;
+    color: #ccc;
+    margin-bottom: 16px;
+    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 48;
+  }
+
+  p {
+    font-family: 'Sora', sans-serif;
+    font-size: 16px;
+    margin: 0;
+    max-width: 280px;
+
+    @media (max-width: 768px) {
+      font-size: 15px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 40px 20px;
+
+    .material-symbols-rounded {
+      font-size: 40px;
+      margin-bottom: 12px;
+    }
+  }
+}
+
+/* ====================================
+   ТЕКСТОВЫЕ БЛОКИ
+==================================== */
+
+// Стили для текстового контента
+.text-block {
+  font-family: 'Sora', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+  
+  // Красивая типографика
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  // Параграфы
+  p {
+    margin: 0 0 14px 0;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    // Красная строка
+    &.red-line {
+      text-indent: 16px;
+
+      @media (max-width: 768px) {
+        text-indent: 14px;
+      }
+    }
+  }
+
+  // Списки с кастомными синими полосками
+  ul, ol {
+    margin: 0 0 24px 0;
+    padding-left: 0;
+    list-style: none;
+
+    li {
+      margin-bottom: 8px;
+      padding-left: 50px;
+      position: relative;
+
+      // Синяя полоска вместо точки/цифры - привязана к первой строке
+      &::before {
+        content: '';
+        position: absolute;
+        left: 30px;
+        top: 0.7em; // Привязка к высоте строки, а не к центру блока
+        width: 10px;
+        height: 1.5px;
+        background: #6e6e6e;
+        border-radius: 1px;
+        flex-shrink: 0;
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    @media (max-width: 768px) {
+      li {
+        padding-left: 20px;
+
+        &::before {
+          width: 10px;
+          top: 0.55em;
+        }
+      }
+    }
+  }
+
+  // Заголовки внутри текста
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+    color: #1a1a1a;
+    margin: 20px 0 8px 0;
+    font-weight: 600;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  h1 { font-size: 28px; }
+  h2 { font-size: 24px; }
+  h3 { font-size: 18px; }
+  h4 { font-size: 18px; }
+  h5 { font-size: 16px; }
+  h6 { font-size: 14px; }
+
+  // Акценты
+  strong, b {
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+
+  em, i {
+    font-style: italic;
+  }
+
+  // Подзаголовок перед перечислением
+
+  .final-block {
+    margin-top: 80px;
+  }
+
+  .course-subheading {
+  font-family: 'Space Glotesk', sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 23px;
+  margin: 20px 0 10px;
+  line-height: 1.4;
+  display: block;
+
+  // Доп. визуальные улучшения
+  letter-spacing: -0.2px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+    margin: 18px 0 6px;
+  }
+}
+
+
+  // Ссылки
+  a {
+    color: #479EFD;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+
+    &:hover {
+      border-bottom-color: #479EFD;
+    }
+  }
+
+  // Цитаты
+  blockquote {
+    margin: 20px 0;
+    padding: 8px 20px;
+    background: linear-gradient(45deg, rgba(49, 148, 219, 0.297) 0%, rgba(49, 137, 231, 0.137) 100%);
+    border: 1px solid #479ffd87;
+    border-radius: 10px 15px 15px 10px;
+    font-style: italic;
+  }
+
+  // Код
+  code {
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+
+  pre {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 16px 0;
+
+    code {
+      background: none;
+      padding: 0;
+    }
+  }
+
+  // Мобильная версия
+  @media (max-width: 768px) {
+    font-size: 15px;
+    line-height: 1.5;
+
+    h1 { font-size: 24px; }
+    h2 { font-size: 20px; }
+    h3 { font-size: 18px; }
+    h4 { font-size: 16px; }
+    h5 { font-size: 15px; }
+    h6 { font-size: 14px; }
+  }
+}
+
+/* ====================================
+   ИЗОБРАЖЕНИЯ
+==================================== */
+
+// Блок с изображением
+.image-block {
+  text-align: center;
+
+  img {
+    max-width: 95%;
+    height: auto;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      transform: scale(1.02);
+    }
+
+    @media (max-width: 768px) {
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+      &:hover {
+        transform: none; // Убираем hover на мобильных
+      }
+    }
+  }
+}
+
+
+
+/* ====================================
+   АНИМАЦИИ
+==================================== */
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(60px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modalSlideUpMobile {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

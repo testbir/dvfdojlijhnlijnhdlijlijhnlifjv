@@ -1,0 +1,49 @@
+/* src/styles/LoginPage.scss */
+
+.sora-text {
+  font-family: 'Sora', sans-serif;
+}
+
+.login-form {
+  margin-top: 55px;  // отступ между полями ввода
+  
+  @media (max-width: 768px) {
+    margin-top: 55px;
+  }
+}
+
+.login-links {
+  width: 75%;
+  align-self: center;
+  display: flex;               // размещаем ссылки на одной линии
+  justify-content: space-between; // растягиваем по краям
+  align-items: center;         // выравниваем по центру по вертикали
+
+  @media (max-width: 768px) {
+    width: 90%;
+  }
+}
+
+.login-register-link {
+  font-family: "Sora", sans-serif;  // шрифт для ссылок, если нужно
+  font-size: 16px;                  // размер шрифта
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.7);        // цвет текста, можно настроить
+  text-decoration: none;            // убираем подчеркивание
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.login-forgot-link {
+  font-family: "Sora", sans-serif;  // шрифт для ссылок, если нужно
+  font-size: 16px;                  // размер шрифта
+  font-weight: 500;                 // добавил для единообразия
+  color: #262b31;                   // цвет текста, можно настроить
+  text-decoration: none;            // убираем подчеркивание
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

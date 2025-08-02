@@ -1,0 +1,234 @@
+// src/components/loading/AuthLoading.scss
+
+// Базовая анимация спиннера
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// Анимация пульсации
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+// Базовый спиннер
+.spinner {
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid #007AFF;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  
+  &.small {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+  }
+  
+  &.medium {
+    width: 20px;
+    height: 20px;
+    border-width: 2px;
+  }
+  
+  &.large {
+    width: 32px;
+    height: 32px;
+    border-width: 3px;
+  }
+}
+
+// ===== Спиннер для кнопок =====
+.button-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  
+  &.small .spinner {
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
+  }
+  
+  &.medium .spinner {
+    width: 18px;
+    height: 18px;
+    border-width: 2px;
+  }
+}
+
+// ===== Overlay спиннер =====
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.auth-overlay-content {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.2);
+  
+  // Мобильная версия
+  @media (max-width: 768px) {
+    padding: 24px 32px;
+    border-radius: 16px;
+    margin: 0 20px;
+  }
+}
+
+.auth-overlay-spinner {
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border-width: 3px;
+    border-color: rgba(0, 122, 255, 0.2);
+    border-top-color: #007AFF;
+  }
+}
+
+.auth-overlay-message {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin: 0;
+  text-align: center;
+  
+  @media (max-width: 768px) {
+    font-size: 15px;
+  }
+}
+
+// ===== Inline спиннер =====
+.inline-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Montserrat', sans-serif;
+  
+  .spinner {
+    flex-shrink: 0;
+  }
+}
+
+.inline-spinner-text {
+  font-size: 14px;
+  font-weight: 400;
+  color: #666;
+  
+  @media (max-width: 768px) {
+    font-size: 13px;
+  }
+}
+
+// ===== Timer спиннер =====
+.timer-spinner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Montserrat', sans-serif;
+  justify-content: center;
+}
+
+.timer-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  .spinner {
+    border-color: rgba(102, 102, 102, 0.3);
+    border-top-color: #666;
+  }
+}
+
+.timer-text {
+  font-size: 14px;
+  font-weight: 400;
+  color: #666;
+  
+  @media (max-width: 768px) {
+    font-size: 13px;
+  }
+}
+
+// ===== Анимация появления =====
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// ===== Дополнительные утилиты =====
+
+// Спиннер для состояний кнопок в формах auth
+.auth-button {
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+    
+    .button-spinner {
+      opacity: 1;
+    }
+  }
+  
+  // Плавный переход между состояниями
+  transition: all 0.2s ease;
+  
+  // Когда показываем спиннер
+  &.loading {
+    color: transparent !important;
+    position: relative;
+    
+    .button-spinner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
+// Для resend кнопок с спиннером
+.resend-text {
+  &:disabled {
+    color: #999 !important;
+    cursor: not-allowed;
+    
+    .inline-spinner {
+      opacity: 0.7;
+    }
+  }
+}

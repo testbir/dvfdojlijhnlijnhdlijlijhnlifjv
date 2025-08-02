@@ -1,0 +1,44 @@
+/* src/styles/global.css */
+
+/* Сброс стилей */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Фикс для AppShell чтобы контент не перекрывался */
+.mantine-AppShell-main {
+  padding-left: calc(260px + var(--mantine-spacing-md));
+  padding-top: calc(60px + var(--mantine-spacing-md));
+  min-height: 100vh;
+}
+
+/* На мобильных устройствах */
+@media (max-width: 768px) {
+  .mantine-AppShell-main {
+    padding-left: var(--mantine-spacing-md);
+  }
+}
+
+/* Адаптивные контейнеры */
+.mantine-Container-root {
+  max-width: 100%;
+  padding: 0 1rem;
+}
+
+/* Скролл для таблиц */
+.mantine-Table-root {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Минимальная ширина для таблиц */
+.mantine-Table-table {
+  min-width: 600px;
+}

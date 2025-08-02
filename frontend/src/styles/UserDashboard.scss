@@ -1,0 +1,743 @@
+/* src/styles/UserDashboard.scss */
+
+.user-dashboard {
+  position: relative;
+  display: inline-block;
+
+  // Планшетная версия
+  @media (max-width: 1023px) and (min-width: 769px) {
+    width: auto;
+  }
+
+  // Мобильная версия
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+  /* Кнопка toggle */
+  .dashboard-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    background: transparent;
+    border: 1px solid transparent; // Добавляем прозрачную границу для десктопа
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      background: rgba(71, 158, 253, 0.08);
+      color: #479EFD;
+    }
+
+    // Планшетная версия
+    @media (max-width: 1023px) and (min-width: 769px) {
+      padding: 11px 16px;
+      font-size: 15px;
+      border: 1px solid rgba(0, 0, 0, 0.15); // Теперь просто меняем цвет границы
+      border-radius: 12px;
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      width: 100%;
+      justify-content: center;
+      padding: 12px 16px;
+      font-size: 15px;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+    }
+
+  .dropdown-arrow {
+    font-size: 12px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    &.open {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+/* Dropdown container */
+.dashboard-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  max-height: 80vh;
+  overflow-y: auto;
+  
+  /* iPhone-style backdrop blur */
+  background: rgba(255, 255, 255, 0.80);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  
+  /* Появление с анимацией */
+  animation: dropdownAppear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: top right;
+  z-index: 1000;
+
+  // Планшетная версия
+  @media (max-width: 1023px) and (min-width: 769px) {
+    width: 340px;
+    border-radius: 18px;
+    box-shadow: 
+      0 20px 40px -10px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  // Мобильная версия
+  @media (max-width: 768px) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+    transform-origin: center;
+    animation: mobileDropdownAppear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Скролл бар */
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 2px;
+  }
+}
+
+@keyframes dropdownAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes mobileDropdownAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Loading состояние */
+.dashboard-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  font-family: "Sora", sans-serif;
+  font-size: 14px;
+  color: #666;
+
+  // Мобильная версия
+  @media (max-width: 768px) {
+    padding: 60px 20px;
+    font-size: 16px;
+  }
+
+  .loading-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e3e3e3;
+    border-top: 2px solid #479EFD;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      width: 24px;
+      height: 24px;
+      border-width: 3px;
+    }
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Error состояние */
+.dashboard-error {
+  padding: 20px;
+  text-align: center;
+  color: #dc3545;
+  font-family: "Sora", sans-serif;
+
+  // Мобильная версия
+  @media (max-width: 768px) {
+    padding: 40px 20px;
+  }
+
+  .error-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+    display: block;
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+  }
+
+  .retry-btn {
+    margin-top: 12px;
+    padding: 8px 16px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &:hover {
+      background: #c82333;
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      padding: 12px 24px;
+      font-size: 14px;
+      border-radius: 10px;
+    }
+  }
+}
+
+
+/* Header с пользователем */
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  position: relative; // Добавляем для позиционирования кнопки
+
+  // Мобильная версия
+  @media (max-width: 768px) {
+    padding: 24px 20px;
+    gap: 16px;
+  }
+
+  .user-avatar {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #479EFD, #357ABD);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(71, 158, 253, 0.25);
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+    }
+
+    .material-symbols-rounded {
+      color: white;
+      font-size: 24px;
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+
+      // Мобильная версия
+      @media (max-width: 768px) {
+        font-size: 28px;
+      }
+    }
+  }
+
+
+    .user-info {
+      flex: 1;
+      min-width: 0;
+
+      .username {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        // Мобильная версия
+        @media (max-width: 768px) {
+          font-size: 18px;
+          margin-bottom: 4px;
+        }
+    }
+
+    .user-email {
+      font-family: "Sora", sans-serif;
+      font-size: 13px;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      // Мобильная версия
+      @media (max-width: 768px) {
+        font-size: 14px;
+      }
+    }
+  }
+
+  // Кнопка закрытия для мобильной версии
+  .mobile-close-btn {
+    display: none; // Скрываем на десктопе
+
+    @media (max-width: 768px) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.1);
+      }
+
+      &:active {
+        background: rgba(0, 0, 0, 0.15);
+        transform: scale(0.95);
+      }
+
+      .material-symbols-rounded {
+        font-size: 24px;
+        color: #666;
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+    }
+  }
+}
+
+/* Статистика */
+.dashboard-stats {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+  // Мобильная версия
+  @media (max-width: 768px) {
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    color: #333;
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      font-size: 16px;
+      gap: 12px;
+    }
+
+    .material-symbols-rounded {
+      font-size: 18px;
+      color: #479EFD;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 18;
+
+      // Мобильная версия
+      @media (max-width: 768px) {
+        font-size: 20px;
+      }
+    }
+  }
+}
+
+/* Курсы */
+.dashboard-courses {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+  // Мобильная версия
+  @media (max-width: 768px) {
+    padding: 20px;
+  }
+
+  .courses-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a1a;
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      font-size: 16px;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .material-symbols-rounded {
+      font-size: 16px;
+      color: #479EFD;
+      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 16;
+
+      // Мобильная версия
+      @media (max-width: 768px) {
+        font-size: 18px;
+      }
+    }
+  }
+
+  .courses-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      gap: 16px;
+    }
+  }
+
+  .course-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(71, 158, 253, 0.03);
+    border: 1px solid rgba(71, 158, 253, 0.2);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(71, 158, 253, 0.06);
+      border-color: rgba(71, 158, 253, 0.2);
+      transform: translateY(-1px);
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      padding: 16px;
+      gap: 16px;
+      border-radius: 16px;
+    }
+
+    .course-info {
+      flex: 1;
+      min-width: 0;
+
+      .course-title {
+        font-family: "Sora", sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        // Мобильная версия
+        @media (max-width: 768px) {
+          font-size: 15px;
+          margin-bottom: 8px;
+          white-space: normal;
+          overflow: visible;
+          text-overflow: unset;
+          line-height: 1.3;
+        }
+      }
+
+      .course-progress {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        // Мобильная версия
+        @media (max-width: 768px) {
+          gap: 12px;
+        }
+
+        .progress-bar {
+          flex: 1;
+          height: 4px;
+          background: rgba(71, 158, 253, 0.15);
+          border-radius: 2px;
+          overflow: hidden;
+
+          // Мобильная версия
+          @media (max-width: 768px) {
+            height: 6px;
+            border-radius: 3px;
+          }
+
+          .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #479EFD, #357ABD);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            min-width: 2px;
+
+            // Мобильная версия
+            @media (max-width: 768px) {
+              border-radius: 3px;
+            }
+          }
+        }
+
+        .progress-text {
+          font-family: "Sora", sans-serif;
+          font-size: 11px;
+          font-weight: 600;
+          color: #479EFD;
+          min-width: 32px;
+          text-align: right;
+
+          // Мобильная версия
+          @media (max-width: 768px) {
+            font-size: 13px;
+            min-width: 36px;
+          }
+        }
+      }
+    }
+
+    .completion-badge {
+      color: #22c55e;
+      font-size: 20px;
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+
+      // Мобильная версия
+      @media (max-width: 768px) {
+        font-size: 24px;
+      }
+    }
+  }
+}
+
+/* Действия */
+.dashboard-actions {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  // Мобильная версия
+  @media (max-width: 768px) {
+    padding: 20px;
+    gap: 8px;
+    padding-bottom: 40px; // Дополнительный отступ снизу для мобильной версии
+  }
+
+  .action-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 16px;
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.04);
+      color: #1a1a1a;
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      padding: 16px 20px;
+      font-size: 16px;
+      border-radius: 12px;
+      gap: 12px;
+    }
+
+    .material-symbols-rounded {
+      font-size: 18px;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 18;
+
+      // Мобильная версия
+      @media (max-width: 768px) {
+        font-size: 20px;
+      }
+    }
+
+    &.logout-btn {
+      color: #dc3545;
+
+      &:hover {
+        background: rgba(220, 53, 69, 0.08);
+        color: #dc3545;
+      }
+
+      .material-symbols-rounded {
+        color: #dc3545;
+      }
+    }
+  }
+}
+
+
+/* Секция неактивной кнопки "Мои Курсы" */
+.dashboard-my-courses-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+  // Планшетная версия
+  @media (max-width: 1023px) and (min-width: 769px) {
+    padding: 18px 20px;
+  }
+
+  // Мобильная версия
+  @media (max-width: 768px) {
+    padding: 20px;
+  }
+
+  .my-courses-btn-inactive {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 14px 16px;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    background: rgba(0, 0, 0, 0.03);
+    color: #999;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    cursor: not-allowed;
+    text-align: left;
+    opacity: 0.6;
+    transition: none; // Убираем все анимации
+
+    // Планшетная версия
+    @media (max-width: 1023px) and (min-width: 769px) {
+      padding: 15px 18px;
+      font-size: 15px;
+      border-radius: 13px;
+      gap: 11px;
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      padding: 16px 20px;
+      font-size: 16px;
+      border-radius: 14px;
+      gap: 12px;
+    }
+
+    .material-symbols-rounded {
+      font-size: 18px;
+      color: #999;
+      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 18;
+
+      // Планшетная версия
+      @media (max-width: 1023px) and (min-width: 769px) {
+        font-size: 19px;
+      }
+
+      // Мобильная версия
+      @media (max-width: 768px) {
+        font-size: 20px;
+      }
+    }
+
+    // Полностью отключаем любые hover эффекты
+    &:hover {
+      background: rgba(0, 0, 0, 0.03);
+      color: #999;
+      transform: none;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    &:active {
+      transform: none;
+    }
+
+    &:focus {
+      outline: none;
+      box-shadow: none;
+    }
+
+    // Убираем outline для accessibility, но оставляем понятным что кнопка неактивна
+    &:focus-visible {
+      outline: 2px solid rgba(0, 0, 0, 0.1);
+      outline-offset: 2px;
+    }
+  }
+
+  .inactive-button-hint {
+    font-family: "Sora", sans-serif;
+    font-size: 12px;
+    color: #888;
+    text-align: center;
+    padding: 8px 0 4px 0;
+    line-height: 1.3;
+
+    // Планшетная версия
+    @media (max-width: 1023px) and (min-width: 769px) {
+      font-size: 12.5px;
+      padding: 10px 0 6px 0;
+    }
+
+    // Мобильная версия
+    @media (max-width: 768px) {
+      font-size: 13px;
+      padding: 12px 0 8px 0;
+    }
+  }
+}

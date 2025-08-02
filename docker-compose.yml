@@ -1,0 +1,134 @@
+# docker-compose.yml
+
+version: '3.9'
+
+services:
+
+  db:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: siperup44rQVr8
+      POSTGRES_DB: team_platform
+    command: ["postgres", "-c", "password_encryption=md5"]
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis_cache:
+    image: redis:7-alpine
+    container_name: redis_cache
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  authservice:
+    build:
+      context: ./auth_service  # Оставляем реальный путь к папке
+    container_name: authservice
+    command: sh -c "./init_db.sh && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./auth_service:/app  # Оставляем реальный путь к папке
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./auth_service/.env  # Оставляем реальный путь к папке
+    depends_on:
+      db:
+        condition: service_healthy
+
+  celeryworker:  # Изменено имя сервиса
+    build:
+      context: ./auth_service  # Оставляем реальный путь к папке
+    container_name: celeryworker  # Изменено имя контейнера
+    command: celery -A app worker -l info
+    volumes:
+      - ./auth_service:/app  # Оставляем реальный путь к папке
+    env_file:
+      - ./auth_service/.env  # Оставляем реальный путь к папке
+    depends_on:
+      - authservice
+      - redis
+
+  catalogservice:
+    build:
+      context: ./catalog_service  # Оставляем реальный путь к папке
+    container_name: catalogservice
+    working_dir: /app
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+    volumes:
+      - ./catalog_service:/app  # Оставляем реальный путь к папке
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./catalog_service/.env  # Оставляем реальный путь к папке
+    depends_on:
+      db:
+        condition: service_healthy
+
+  adminservice:
+    build:
+      context: ./admin_service  # Оставляем реальный путь к папке
+    container_name: adminservice
+    command: sh -c "./init_db.sh && uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
+    volumes:
+      - ./admin_service:/app  # Оставляем реальный путь к папке
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./admin_service/.env  # Оставляем реальный путь к папке
+    depends_on:
+      db:
+        condition: service_healthy
+      catalogservice:
+        condition: service_started
+
+  adminfrontend:  # Изменено имя сервиса
+    build:
+      context: ./admin-frontend
+    container_name: adminfrontend  # Изменено имя контейнера
+    ports:
+      - "3000:80"
+    depends_on:
+      - adminservice
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - DOCKER_ENV=true  # Добавить эту строку
+    depends_on:
+      - catalogservice
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+  pgadmin_data:

@@ -1,0 +1,268 @@
+/* AuthModal.scss */
+
+.auth-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+    align-items: flex-end;
+  }
+}
+
+.auth-modal {
+  background: white;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: modalSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    border-radius: 20px 20px 0 0;
+    max-height: 90vh;
+    animation: modalSlideUpMobile 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+.auth-modal-header {
+  position: relative;
+  padding: 16px 20px 0;
+  
+  .auth-modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    background: rgba(0, 0, 0, 0.05);
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.1);
+      transform: scale(1.05);
+    }
+
+    .material-symbols-rounded {
+      font-size: 18px;
+      color: #666;
+    }
+  }
+}
+
+.auth-modal-content {
+  padding: 0 24px 32px;
+  text-align: center;
+
+  @media (max-width: 768px) {
+    padding: 0 20px 24px;
+  }
+}
+
+.auth-modal-icon {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #479EFD, #357ABD);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 8px 24px rgba(71, 158, 253, 0.25);
+
+  .material-symbols-rounded {
+    font-size: 32px;
+    color: white;
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 32;
+  }
+}
+
+.auth-modal-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 16px;
+  line-height: 1.2;
+
+  @media (max-width: 768px) {
+    font-size: 22px;
+  }
+}
+
+.auth-modal-course-info {
+  margin-bottom: 16px;
+
+  .course-highlight {
+    background: rgba(71, 158, 253, 0.08);
+    border: 1px solid rgba(71, 158, 253, 0.2);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    .course-name {
+      font-family: "Sora", sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+      flex: 1;
+      text-align: left;
+    }
+
+    .course-price {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #479EFD;
+    }
+  }
+}
+
+.auth-modal-description {
+  font-family: "Sora", sans-serif;
+  font-size: 15px;
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+
+.auth-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.auth-modal-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-family: "Sora", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+
+  &--primary {
+    background: linear-gradient(135deg, #479EFD, #357ABD);
+    color: white;
+    box-shadow: 0 4px 12px rgba(71, 158, 253, 0.3);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(71, 158, 253, 0.4);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  &--secondary {
+    background: rgba(71, 158, 253, 0.08);
+    color: #479EFD;
+    border: 1px solid rgba(71, 158, 253, 0.2);
+
+    &:hover {
+      background: rgba(71, 158, 253, 0.12);
+      border-color: rgba(71, 158, 253, 0.3);
+    }
+  }
+
+  .material-symbols-rounded {
+    font-size: 18px;
+    font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 18;
+  }
+}
+
+.auth-modal-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+
+  .benefit-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Sora", sans-serif;
+    font-size: 13px;
+    color: #555;
+    text-align: left;
+
+    .material-symbols-rounded {
+      font-size: 16px;
+      color: #22c55e;
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 16;
+      flex-shrink: 0;
+    }
+  }
+}
+
+.auth-modal-footer {
+  .footer-text {
+    font-family: "Sora", sans-serif;
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(60px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modalSlideUpMobile {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
