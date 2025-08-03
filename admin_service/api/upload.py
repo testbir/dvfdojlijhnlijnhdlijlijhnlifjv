@@ -262,7 +262,7 @@ async def process_video_background(video_id: str, temp_path: str, filename: str)
         })
         
         # Запускаем обработку
-        result = await process_uploaded_video(temp_path, filename)
+        result = await process_uploaded_video(temp_path, video_id)
         
         # Успешное завершение
         await update_video_status(video_id, {
@@ -359,3 +359,64 @@ async def delete_video_status_endpoint(
         )
     
     return {"success": True, "message": "Статус удален"}
+
+
+@router.post("/upload/video-direct", summary="Прямая загрузка видео (синхронная)")
+async def upload_video_direct(
+    file: UploadFile = File(...),
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """
+    Загружает и сразу обрабатывает видео (для совместимости с фронтендом)
+    ВНИМАНИЕ: Это синхронная операция, может занять много времени!
+    """
+    logger.info(f"Админ {current_admin.username} загружает видео напрямую: {file.filename}")
+    
+    # Валидация
+    if not file.content_type or not file.content_type.startswith('video/'):
+        raise HTTPException(status_code=400, detail="Файл должен быть видео")
+    
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ALLOWED_VIDEO_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Неподдерживаемый формат видео. Разрешены: {', '.join(ALLOWED_VIDEO_EXTENSIONS)}"
+        )
+    
+    try:
+        # Сохраняем временно
+        temp_path, filename = await save_temp_file(file, MAX_VIDEO_SIZE)
+        
+        # Генерируем ID для обработки
+        video_id = str(uuid.uuid4())
+        
+        logger.info(f"🎬 Начинаем обработку видео {filename}...")
+        
+        # Обрабатываем видео синхронно (ВНИМАНИЕ: может быть медленно!)
+        result = await process_uploaded_video(temp_path, video_id)
+        
+        logger.info(f"✅ Видео {filename} успешно обработано")
+        
+        # Удаляем временный файл
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        
+        return {
+            "success": True,
+            "video_id": video_id,
+            "master_playlist_url": result.get("master_playlist_url"),
+            "filename": filename,
+            "message": "Видео успешно загружено и обработано"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка при прямой загрузке видео {file.filename}: {str(e)}")
+        
+        # Удаляем временный файл в случае ошибки
+        try:
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                os.remove(temp_path)
+        except:
+            pass
+            
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки видео: {str(e)}")

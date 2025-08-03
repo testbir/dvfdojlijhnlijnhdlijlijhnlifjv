@@ -4,7 +4,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 🎬 Устанавливаем FFmpeg для обработки видео
+# 🎬 Устанавливаем FFmpeg для обработки видео + PostgreSQL клиент
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     postgresql-client \
