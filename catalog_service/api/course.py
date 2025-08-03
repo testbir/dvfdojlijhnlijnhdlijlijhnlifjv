@@ -81,7 +81,7 @@ async def course_content(course_id: int, request: Request, db: AsyncSession = De
     }
 
 @router.get("/", response_model=List[CourseListSchema], summary="Список всех курсов")
-@cache_result(expire_time=600)
+@cache_result(ttl=600)
 async def list_courses(request: Request, db: AsyncSession = Depends(get_db_session)):
     user_id = None
     try:

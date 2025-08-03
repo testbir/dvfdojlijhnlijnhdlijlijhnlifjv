@@ -3,6 +3,7 @@
 from django.db import migrations
 
 class Migration(migrations.Migration):
+    atomic = False
     dependencies = [
         ('accounts', '0002_emailchangerequest'),
     ]
