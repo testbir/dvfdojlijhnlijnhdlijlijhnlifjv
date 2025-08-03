@@ -23,81 +23,80 @@ services:
       timeout: 5s
       retries: 5
 
-
-  redis:  # ← добавить алиас для Celery
+  redis:
     image: redis:7-alpine
     container_name: redis_cache
     networks:
       default:
         aliases:
-          - redis  # ← алиас для обратной совместимости
+          - redis
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
 
   authservice:
     build:
-      context: ./auth_service  # Оставляем реальный путь к папке
+      context: ./auth_service
     container_name: authservice_team
     command: sh -c "./init_db.sh && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
-      - ./auth_service:/app  # Оставляем реальный путь к папке
+      - ./auth_service:/app
     ports:
       - "8000:8000"
     env_file:
-      - ./auth_service/.env  # Оставляем реальный путь к папке
+      - ./auth_service/.env
     depends_on:
       db:
         condition: service_healthy
 
-  celeryworker:  # Изменено имя сервиса
+  celeryworker:
     build:
-      context: ./auth_service  # Оставляем реальный путь к папке
-    container_name: celeryworker_team  # Изменено имя контейнера
+      context: ./auth_service
+    container_name: celeryworker_team
     command: celery -A app worker -l info
     volumes:
-      - ./auth_service:/app  # Оставляем реальный путь к папке
+      - ./auth_service:/app
     env_file:
-      - ./auth_service/.env  # Оставляем реальный путь к папке
+      - ./auth_service/.env
     depends_on:
       - authservice
       - redis
 
   catalogservice:
     build:
-      context: ./catalog_service  # Оставляем реальный путь к папке
+      context: ./catalog_service
     container_name: catalogservice_team
     working_dir: /app
-    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+    command: sh -c "./init_db.sh && uvicorn main:app --host 0.0.0.0 --port 8001 --reload"
     volumes:
-      - ./catalog_service:/app  # Оставляем реальный путь к папке
+      - ./catalog_service:/app
     ports:
       - "8001:8001"
     env_file:
-      - ./catalog_service/.env  # Оставляем реальный путь к папке
+      - ./catalog_service/.env
     depends_on:
       db:
         condition: service_healthy
 
   adminservice:
     build:
-      context: ./admin_service  # Оставляем реальный путь к папке
+      context: ./admin_service
     container_name: adminservice_team
     command: sh -c "./init_db.sh && uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
     volumes:
-      - ./admin_service:/app  # Оставляем реальный путь к папке
+      - ./admin_service:/app
     ports:
       - "8002:8002"
     env_file:
-      - ./admin_service/.env  # Оставляем реальный путь к папке
+      - ./admin_service/.env
     depends_on:
       db:
         condition: service_healthy
       catalogservice:
         condition: service_started
 
-  adminfrontend:  # Изменено имя сервиса
+  adminfrontend:
     build:
       context: ./admin-frontend
-    container_name: adminfrontend_team  # Изменено имя контейнера
+    container_name: adminfrontend_team
     ports:
       - "3000:80"
     depends_on:
@@ -115,7 +114,7 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
-      - DOCKER_ENV=true  # Добавить эту строку
+      - DOCKER_ENV=true
     depends_on:
       - catalogservice
     command: npm run dev -- --host 0.0.0.0 --port 5173

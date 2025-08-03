@@ -1,34 +1,22 @@
-#!/bin/bash
-set -e
+# catalog_service/init_db.sh
 
-echo "⏳ Проверка и создание базы данных: $POSTGRES_DB"
-
-# Устанавливаем переменные
-HOST=${POSTGRES_HOST:-postgres}
-PORT=${POSTGRES_PORT:-5432}
-USER=${POSTGRES_USER:-postgres}
-DB=${POSTGRES_DB}
-
-export PGPASSWORD=$POSTGRES_PASSWORD
-
-# Ждем готовности PostgreSQL
-echo "🔄 Ожидание готовности PostgreSQL..."
-until pg_isready -h $HOST -p $PORT -U $USER; do
-  echo "PostgreSQL недоступен - ждем..."
-  sleep 2
+#!/bin/sh
+echo "Waiting for PostgreSQL..."
+while ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" > /dev/null 2>&1; do
+    echo "PostgreSQL is unavailable - sleeping"
+    sleep 1
 done
+echo "PostgreSQL is up!"
 
-echo "✅ PostgreSQL готов!"
+export PGPASSWORD="$POSTGRES_PASSWORD"
 
-# Проверка существования базы
-DB_EXISTS=$(psql -h $HOST -U $USER -tAc "SELECT 1 FROM pg_database WHERE datname='${DB}'")
-
-if [ "$DB_EXISTS" != "1" ]; then
-  echo "📦 База данных '$DB' не существует. Создаю..."
-  createdb -h $HOST -p $PORT -U $USER $DB
-  echo "✅ База '$DB' успешно создана."
+# Check if database exists
+if psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -lqt | cut -d \| -f 1 | grep -qw "$POSTGRES_DB"; then
+    echo "Database $POSTGRES_DB already exists"
 else
-  echo "✅ База '$DB' уже существует."
+    echo "Creating database $POSTGRES_DB..."
+    createdb -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" "$POSTGRES_DB"
+    echo "Database created!"
 fi
 
-echo "🚀 Запуск приложения..."
+echo "Starting application..."

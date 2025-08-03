@@ -1,16 +1,14 @@
 #!/bin/sh
-
-echo "⏳ Проверка и создание базы данных: $POSTGRES_DB"
+echo "Waiting for PostgreSQL..."
+while ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" > /dev/null 2>&1; do
+    sleep 1
+done
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
 
-# Проверяем существование базы данных
-DB_EXISTS=$(psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -lqt | cut -d \| -f 1 | grep -qw "$POSTGRES_DB"; echo $?)
-
-if [ $DB_EXISTS -eq 0 ]; then
-    echo "✅ База '$POSTGRES_DB' уже существует."
+if psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -lqt | cut -d \| -f 1 | grep -qw "$POSTGRES_DB"; then
+    echo "Database $POSTGRES_DB exists"
 else
-    echo "🆕 Создаём базу данных '$POSTGRES_DB'..."
-    psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -c "CREATE DATABASE $POSTGRES_DB;"
-    echo "✅ База данных '$POSTGRES_DB' создана."
+    echo "Creating database $POSTGRES_DB..."
+    createdb -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" "$POSTGRES_DB"
 fi
