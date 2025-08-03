@@ -12,9 +12,12 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-123456")
-DEBUG = os.getenv("DEBUG", "True") == "True"
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = os.getenv("SECRET_KEY")  # Обязательная переменная
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY must be set")
+
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost").split(",")
 
 # Отладочная информация
 print(f"🔧 DEBUG: {DEBUG}")
