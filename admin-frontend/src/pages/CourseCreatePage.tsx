@@ -111,7 +111,7 @@ export default function CourseCreatePage() {
       formData.append('file', file);
       
       // Используем новый эндпоинт для видео
-      const res = await axios.post('/admin/upload/video-direct', formData, {
+      const res = await axios.post('/admin/upload/video', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {

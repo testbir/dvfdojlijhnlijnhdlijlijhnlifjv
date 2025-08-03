@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     JWT_SECRET_KEY: str
     CATALOG_SERVICE_URL: str = "http://catalogservice:8001"
+    
+    REDIS_URL: str = "redis://redis_cache:6379/0"
 
     S3_ACCESS_KEY: str
     S3_SECRET_KEY: str
