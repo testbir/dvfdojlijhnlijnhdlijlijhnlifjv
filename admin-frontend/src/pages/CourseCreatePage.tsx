@@ -99,49 +99,49 @@ export default function CourseCreatePage() {
     }
   };
 
-  const handleVideoUpload = async (file: File | null): Promise<void> => {
-    if (!file) return;
+const handleVideoUpload = async (file: File | null): Promise<void> => {
+  if (!file) return;
+  
+  try {
+    setVideoProcessing(true);
+    setVideoProcessingProgress(0);
+    setError(null);
     
-    try {
-      setVideoProcessing(true);
-      setVideoProcessingProgress(0);
-      setError(null);
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      // Используем новый эндпоинт для видео
-      const res = await axios.post('/admin/upload/video', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const uploadProgress = Math.round((progressEvent.loaded * 50) / progressEvent.total);
-            setVideoProcessingProgress(uploadProgress);
-          }
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const res = await axios.post('/admin/upload/video', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const uploadProgress = Math.round((progressEvent.loaded * 50) / progressEvent.total);
+          setVideoProcessingProgress(uploadProgress);
         }
-      });
-
-      // Симулируем прогресс обработки (в реальном приложении это должно приходить от сервера)
-      for (let i = 50; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setVideoProcessingProgress(i);
       }
+    });
 
-      if (res.data.master_playlist_url) {
-        setValue('video', res.data.master_playlist_url);
-        console.log('✅ Видео успешно обработано:', res.data);
-      } else {
-        throw new Error('Сервер не вернул URL мастер-плейлиста');
-      }
-      
-    } catch (err) {
-      console.error('Ошибка при загрузке видео:', err);
-      setError('Ошибка при загрузке и обработке видео');
-    } finally {
-      setVideoProcessing(false);
-      setVideoProcessingProgress(0);
+    // Симулируем прогресс обработки
+    for (let i = 50; i <= 100; i += 10) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setVideoProcessingProgress(i);
     }
-  };
+
+    // ✅ ИСПРАВИТЬ ЭТО - используем video_id вместо master_playlist_url
+    if (res.data.video_id) {
+      setValue('video', res.data.video_id);  // ← ИЗМЕНИТЬ ЭТУ СТРОКУ
+      console.log('✅ Видео успешно загружено:', res.data);
+    } else {
+      throw new Error('Сервер не вернул video_id');  // ← И ЭТУ
+    }
+    
+  } catch (err) {
+    console.error('Ошибка при загрузке видео:', err);
+    setError('Ошибка при загрузке и обработке видео');
+  } finally {
+    setVideoProcessing(false);
+    setVideoProcessingProgress(0);
+  }
+};
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -159,7 +159,8 @@ export default function CourseCreatePage() {
       };
       await createCourse(cleanedData);
       navigate('/');
-    } catch {
+    } catch (err) {
+      console.error('❌ ПОЛНАЯ ОШИБКА:', err); // ← ИЗМЕНИТЬ ЭТО
       setError('Ошибка при создании курса');
     }
   };
