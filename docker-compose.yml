@@ -3,7 +3,6 @@
 version: '3.9'
 
 services:
-
   db:
     image: postgres:15
     container_name: postgres_team
@@ -22,15 +21,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
   redis:
     image: redis:7-alpine
     container_name: redis_cache
-    networks:
-      default:
-        aliases:
-          - redis
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - app-network
 
   authservice:
     build:
@@ -46,19 +45,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
-  celeryworker:
-    build:
-      context: ./auth_service
-    container_name: celeryworker_team
-    command: celery -A app worker -l info
-    volumes:
-      - ./auth_service:/app
-    env_file:
-      - ./auth_service/.env
-    depends_on:
-      - authservice
-      - redis
+    networks:
+      - app-network
 
   catalogservice:
     build:
@@ -75,6 +63,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - app-network
 
   adminservice:
     build:
@@ -90,8 +80,23 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      catalogservice:
-        condition: service_started
+    networks:
+      - app-network
+
+  celeryworker:
+    build:
+      context: ./auth_service
+    container_name: celeryworker_team
+    command: celery -A app worker -l info
+    volumes:
+      - ./auth_service:/app
+    env_file:
+      - ./auth_service/.env
+    depends_on:
+      - authservice
+      - redis
+    networks:
+      - app-network
 
   adminfrontend:
     build:
@@ -101,6 +106,8 @@ services:
       - "3000:80"
     depends_on:
       - adminservice
+    networks:
+      - app-network
 
   frontend:
     build:
@@ -118,6 +125,8 @@ services:
     depends_on:
       - catalogservice
     command: npm run dev -- --host 0.0.0.0 --port 5173
+    networks:
+      - app-network
 
   pgadmin:
     image: dpage/pgadmin4
@@ -132,6 +141,12 @@ services:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
       - db
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   postgres_data:

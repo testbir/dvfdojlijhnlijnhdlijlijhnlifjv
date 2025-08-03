@@ -18,6 +18,7 @@ class CourseCreate(BaseModel):
     banner_text: Optional[str] = None
     banner_color_left: Optional[str] = None
     banner_color_right: Optional[str] = None
+    group_title: Optional[str] = None
     order: int = 0
     discount_start: Optional[datetime] = None
     discount_until: Optional[datetime] = None
