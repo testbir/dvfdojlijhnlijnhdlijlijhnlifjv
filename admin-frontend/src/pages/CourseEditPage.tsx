@@ -93,49 +93,75 @@ export default function CourseEditPage() {
   };
 
   // 🎬 Новая функция для загрузки и обработки видео (как в CourseCreatePage)
-  const handleVideoUpload = async (file: File | null): Promise<void> => {
-    if (!file) return;
+  // admin-frontend/src/pages/CourseEditPage.tsx - ЗАМЕНИТЕ ФУНКЦИЮ handleVideoUpload:
+
+const handleVideoUpload = async (file: File | null): Promise<void> => {
+  if (!file) return;
+  
+  try {
+    setVideoProcessing(true);
+    setVideoProcessingProgress(0);
+    setError(null);
     
-    try {
-      setVideoProcessing(true);
-      setVideoProcessingProgress(0);
-      setError(null);
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      // Используем эндпоинт для обработки видео в HLS
-      const res = await axios.post('/admin/upload/video-direct', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const uploadProgress = Math.round((progressEvent.loaded * 50) / progressEvent.total);
-            setVideoProcessingProgress(uploadProgress);
-          }
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // ✅ ИЗМЕНИТЬ video-direct НА video (асинхронная обработка)
+    const res = await axios.post('/admin/upload/video', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000, // 1 минута только на загрузку
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const uploadProgress = Math.round((progressEvent.loaded * 30) / progressEvent.total);
+          setVideoProcessingProgress(uploadProgress);
         }
-      });
-
-      // Симулируем прогресс обработки
-      for (let i = 50; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setVideoProcessingProgress(i);
       }
+    });
 
-      if (res.data.master_playlist_url) {
-        setCourse(prev => prev ? { ...prev, video: res.data.master_playlist_url } : prev);
-        console.log('✅ Видео успешно обработано:', res.data);
-      } else {
-        throw new Error('Сервер не вернул URL мастер-плейлиста');
+    if (res.data.video_id) {
+      // ✅ ДОБАВИТЬ ОПРОС СТАТУСА
+      const finalResult = await pollVideoStatus(res.data.video_id);
+      if (finalResult) {
+        setCourse(prev => prev ? { ...prev, video: finalResult } : prev);
+        console.log('✅ Видео успешно обработано');
+      }
+    }
+    
+  } catch (err) {
+    console.error('Ошибка при загрузке видео:', err);
+    setError('Ошибка при загрузке видео');
+  } finally {
+    setVideoProcessing(false);
+    setVideoProcessingProgress(0);
+  }
+};
+
+// ✅ ДОБАВИТЬ ЭТУ ФУНКЦИЮ ТУДА ЖЕ
+const pollVideoStatus = async (videoId: string): Promise<string | null> => {
+  for (let i = 0; i < 120; i++) { // 20 минут максимум
+    try {
+      const statusRes = await axios.get(`/admin/video-status/${videoId}`);
+      const status = statusRes.data;
+      
+      const progress = 30 + Math.round((i / 120) * 70);
+      setVideoProcessingProgress(Math.min(progress, 95));
+      
+      if (status.status === 'completed' && status.result?.master_playlist_url) {
+        return status.result.master_playlist_url;
       }
       
+      if (status.status === 'failed') {
+        throw new Error('Ошибка обработки видео');
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 10000)); // 10 секунд
     } catch (err) {
-      console.error('Ошибка при загрузке видео:', err);
-      setError('Ошибка при загрузке и обработке видео');
-    } finally {
-      setVideoProcessing(false);
-      setVideoProcessingProgress(0);
+      if (i > 5) throw err; // После 5 попыток выходим
+      await new Promise(resolve => setTimeout(resolve, 10000));
     }
-  };
+  }
+  throw new Error('Превышено время ожидания');
+};
 
   const handleSave = async () => {
     if (!course) return;

@@ -13,7 +13,6 @@ psycopg2-binary
 python-multipart
 aiobotocore
 sqlmodel
-
 # 🎬 Для обработки видео
 ffmpeg-python
 asyncio
