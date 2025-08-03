@@ -13,20 +13,8 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем все файлы
+# Копируем все файлы (включая init_db.sh)
 COPY . .
-
-# Создаем init_db.sh если его нет
-RUN echo '#!/bin/bash\n\
-set -e\n\
-echo "⏳ Ожидание PostgreSQL..."\n\
-export PGPASSWORD=$POSTGRES_PASSWORD\n\
-until pg_isready -h ${POSTGRES_HOST:-postgres} -U ${POSTGRES_USER:-postgres}; do\n\
-  echo "PostgreSQL недоступен - ждем..."\n\
-  sleep 2\n\
-done\n\
-echo "✅ PostgreSQL готов!"\n\
-echo "🚀 Запуск приложения..."' > /app/init_db.sh
 
 # Делаем скрипт исполняемым
 RUN chmod +x /app/init_db.sh
