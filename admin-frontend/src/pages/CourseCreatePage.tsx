@@ -89,7 +89,7 @@ export default function CourseCreatePage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const endpoint = isContent ? '/admin/upload/content' : '/admin/upload/public';
+      const endpoint = '/admin/upload/public';
       const res = await axios.post(endpoint, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });

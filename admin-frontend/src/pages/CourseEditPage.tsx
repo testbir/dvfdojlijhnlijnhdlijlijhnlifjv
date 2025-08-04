@@ -76,7 +76,7 @@ export default function CourseEditPage() {
       setUploading(true);
       const formData = new FormData();
       formData.append('file', file);
-      const url = isContent ? '/admin/upload/content' : '/admin/upload/public';
+      const endpoint = '/admin/upload/public';
       const res = await axios.post(url, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });

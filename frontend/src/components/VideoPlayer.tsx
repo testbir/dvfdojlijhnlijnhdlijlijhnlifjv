@@ -11,6 +11,7 @@ import {
   PlayCircle,
   Loader
 } from 'lucide-react';
+import Hls from 'hls.js';
 
 const isMobile = () =>
   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -32,7 +33,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-  const volumeSliderRef = useRef<HTMLInputElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   
   // States
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +42,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [error, _setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [buffered, setBuffered] = useState(0);
   const [volume, setVolume] = useState(1);
   const [previousVolume, setPreviousVolume] = useState(1);
@@ -230,10 +231,81 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
 
 useEffect(() => {
-  if (videoRef.current && videoUrl) {
-    videoRef.current.src = videoUrl;
-  }
-}, [videoUrl]);
+  const video = videoRef.current;
+  if (!video || !videoUrl) return;
+
+  const setupVideo = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Проверяем, является ли URL HLS плейлистом
+      const isHLS = videoUrl.includes('.m3u8');
+
+      if (isHLS) {
+        // Используем HLS.js для m3u8 файлов
+        if (Hls.isSupported()) {
+          // Уничтожаем предыдущий экземпляр
+          if (hlsRef.current) {
+            hlsRef.current.destroy();
+          }
+
+          const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: false,
+            backBufferLength: 90,
+          });
+
+          hlsRef.current = hls;
+
+          hls.on(Hls.Events.ERROR, (_event, data) => {
+            console.error('HLS Error:', data);
+            if (data.fatal) {
+              const errorMsg = 'Ошибка загрузки видео. Проверьте подключение к интернету.';
+              setError(errorMsg);
+              if (onError) onError(errorMsg);
+            }
+          });
+
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            setIsLoading(false);
+            video.play().catch(e => console.log('Autoplay prevented:', e));
+          });
+
+          hls.loadSource(videoUrl);
+          hls.attachMedia(video);
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          // Для Safari, который поддерживает HLS нативно
+          video.src = videoUrl;
+          video.addEventListener('loadedmetadata', () => setIsLoading(false));
+        } else {
+          const errorMsg = 'Ваш браузер не поддерживает воспроизведение HLS видео';
+          setError(errorMsg);
+          if (onError) onError(errorMsg);
+        }
+      } else {
+        // Для обычных видео файлов (mp4, webm)
+        video.src = videoUrl;
+        video.addEventListener('loadedmetadata', () => setIsLoading(false));
+      }
+    } catch (err) {
+      const errorMsg = 'Ошибка инициализации видео плеера';
+      setError(errorMsg);
+      if (onError) onError(errorMsg);
+      console.error('Video setup error:', err);
+    }
+  };
+
+  setupVideo();
+
+  // Cleanup
+  return () => {
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+  };
+}, [videoUrl, onError]);
 
   // Video event handlers
   useEffect(() => {
@@ -506,7 +578,7 @@ useEffect(() => {
           message = 'Не удалось загрузить видео.';
       }
     }
-    _setError(message);    // Показываем ошибку в твоём UI
+    setError(message);    // Показываем ошибку в твоём UI
     onError(message);      // Вызываем внешний обработчик (если передан через пропсы)
   }}
 />
@@ -662,7 +734,6 @@ useEffect(() => {
                   pointerEvents: showVolumeSlider ? 'auto' : 'none'
                 }}>
                   <input
-                    ref={volumeSliderRef}
                     type="range"
                     min={0}
                     max={1}
