@@ -1,5 +1,4 @@
 // admin-frontend/src/pages/CourseCreatePage.tsx
-
 import Layout from '../components/Layout';
 import {
   Container,
@@ -14,8 +13,7 @@ import {
   FileInput,
   Loader,
   Image,
-  Alert,
-  Progress,
+  Alert
 } from '@mantine/core';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
@@ -26,6 +24,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from '../api/axiosInstance';
 import { DateTimePicker } from '@mantine/dates';
 
+/* ------------------ схема формы ------------------ */
 const schema = z.object({
   title: z.string().min(1, 'Введите название курса'),
   short_description: z.string().optional(),
@@ -34,7 +33,7 @@ const schema = z.object({
   is_free: z.boolean(),
   price: z.number().optional(),
   discount: z.number().optional(),
-  video: z.string().optional(), // Теперь это будет HLS URL
+  video: z.string().optional(),       // теперь это прямой URL .mp4 /.webm
   video_preview: z.string().optional(),
   banner_text: z.string().optional(),
   banner_color_left: z.string().optional(),
@@ -42,18 +41,19 @@ const schema = z.object({
   group_title: z.string().optional(),
   order: z.number().min(0, 'Порядок должен быть ≥ 0').optional(),
   discount_start: z.date().optional(),
-  discount_until: z.date().optional(),
+  discount_until: z.date().optional()
 });
-
 type FormData = z.infer<typeof schema>;
 
+/* ================================================= */
 export default function CourseCreatePage() {
   const navigate = useNavigate();
+
+  /* ---------- local state ---------- */
   const [error, setError] = useState<string | null>(null);
   const [loadingUpload, setLoadingUpload] = useState(false);
-  const [videoProcessing, setVideoProcessing] = useState(false);
-  const [videoProcessingProgress, setVideoProcessingProgress] = useState(0);
 
+  /* ---------- react-hook-form ---------- */
   const { control, handleSubmit, watch, setValue } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -72,25 +72,28 @@ export default function CourseCreatePage() {
       group_title: '',
       order: 0,
       discount_start: undefined,
-      discount_until: undefined,
-    },
+      discount_until: undefined
+    }
   });
 
-  const isFree = watch('is_free');
+  /* ---------- watchers ---------- */
+  const isFree   = watch('is_free');
   const imageUrl = watch('image');
   const videoUrl = watch('video');
 
-  const handleUpload = async (file: File | null, isContent: boolean = false): Promise<string | null> => {
+  /* ---------- generic file upload ---------- */
+  const handleUpload = async (file: File | null, isContent = false): Promise<string | null> => {
     if (!file) return null;
     try {
       setLoadingUpload(true);
       const formData = new FormData();
       formData.append('file', file);
-      const url = isContent ? '/admin/upload/content' : '/admin/upload/public';
-      const res = await axios.post(url, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+
+      const endpoint = isContent ? '/admin/upload/content' : '/admin/upload/public';
+      const res = await axios.post(endpoint, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      return res.data.url;
+      return res.data.url as string;
     } catch {
       setError('Ошибка при загрузке файла');
       return null;
@@ -99,110 +102,62 @@ export default function CourseCreatePage() {
     }
   };
 
-const handleVideoUpload = async (file: File | null): Promise<void> => {
-  if (!file) return;
-  
-  try {
-    setVideoProcessing(true);
-    setVideoProcessingProgress(0);
-    setError(null);
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const res = await axios.post('/admin/upload/video-public', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: (progressEvent) => {
-        if (progressEvent.total) {
-          const uploadProgress = Math.round((progressEvent.loaded * 30) / progressEvent.total);
-          setVideoProcessingProgress(uploadProgress);
-        }
-      }
-    });
-
-    if (res.data.video_id) {
-      // Опрашиваем статус обработки видео
-      const finalResult = await pollVideoStatus(res.data.video_id);
-      if (finalResult) {
-        setValue('video', finalResult); // Устанавливаем URL, а не video_id!
-        console.log('✅ Видео успешно обработано:', finalResult);
-      }
-    } else {
-      throw new Error('Сервер не вернул video_id');
-    }
-    
-  } catch (err) {
-    console.error('Ошибка при загрузке видео:', err);
-    setError('Ошибка при загрузке и обработке видео');
-  } finally {
-    setVideoProcessing(false);
-    setVideoProcessingProgress(0);
-  }
-};
-
-// Добавьте эту функцию после handleVideoUpload:
-const pollVideoStatus = async (videoId: string): Promise<string | null> => {
-  const maxAttempts = 120; // 20 минут максимум
-  
-  for (let i = 0; i < maxAttempts; i++) {
+  /* ---------- видео: простой public-upload, БЕЗ HLS ---------- */
+  const handleVideoUpload = async (file: File | null): Promise<void> => {
+    if (!file) return;
     try {
-      const statusRes = await axios.get(`/admin/video-status/${videoId}`);
-      const status = statusRes.data;
-      
-      // Обновляем прогресс
-      const progress = 30 + Math.round((i / maxAttempts) * 70);
-      setVideoProcessingProgress(Math.min(progress, 95));
-      
-      if (status.status === 'completed' && status.result?.master_playlist_url) {
-        setVideoProcessingProgress(100);
-        return status.result.master_playlist_url;
-      }
-      
-      if (status.status === 'failed') {
-        throw new Error(status.error || 'Ошибка обработки видео');
-      }
-      
-      // Ждем 10 секунд перед следующей попыткой
-      await new Promise(resolve => setTimeout(resolve, 10000));
-      
-    } catch (err: any) {
-      // Если это не ошибка статуса, а проблема с сетью, пробуем еще раз
-      if (i > 5 && err.response?.status !== 404) {
-        throw err;
-      }
-      await new Promise(resolve => setTimeout(resolve, 10000));
-    }
-  }
-  
-  throw new Error('Превышено время ожидания обработки видео');
-};
+      setLoadingUpload(true);
+      const formData = new FormData();
+      formData.append('file', file);
 
+      const res = await axios.post('/admin/upload/video-simple-public', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (pe) => {
+          if (pe.total) {
+            const percent = Math.round((pe.loaded / pe.total) * 100);
+            console.log(`video upload: ${percent}%`);
+          }
+        }
+      });
+
+      /* прямой CDN-URL .mp4 /.webm */
+      setValue('video', res.data.url);
+    } catch {
+      setError('Ошибка при загрузке видео');
+    } finally {
+      setLoadingUpload(false);
+    }
+  };
+
+  /* ---------- submit ---------- */
   const onSubmit = async (data: FormData) => {
     try {
-      const cleanedData = {
+      await createCourse({
         ...data,
-        short_description: data.short_description?.trim() || undefined,
-        full_description: data.full_description?.trim() || undefined,
-        image: data.image?.trim() || undefined,
-        video: data.video?.trim() || undefined,
-        video_preview: data.video_preview?.trim() || undefined,
-        banner_text: data.banner_text?.trim() || undefined,
-        banner_color_left: data.banner_color_left?.trim() || undefined,
+        short_description : data.short_description?.trim()  || undefined,
+        full_description  : data.full_description?.trim()   || undefined,
+        image             : data.image?.trim()              || undefined,
+        video             : data.video?.trim()              || undefined,
+        video_preview     : data.video_preview?.trim()      || undefined,
+        banner_text       : data.banner_text?.trim()        || undefined,
+        banner_color_left : data.banner_color_left?.trim()  || undefined,
         banner_color_right: data.banner_color_right?.trim() || undefined,
-        group_title: data.group_title?.trim() || undefined,
-      };
-      await createCourse(cleanedData);
+        group_title       : data.group_title?.trim()        || undefined
+      });
       navigate('/');
     } catch (err) {
-      console.error('❌ ПОЛНАЯ ОШИБКА:', err); // ← ИЗМЕНИТЬ ЭТО
+      console.error(err);
       setError('Ошибка при создании курса');
     }
   };
 
+  /* ========================================================== */
   return (
     <Layout>
       <Container size="sm">
-        <Title order={2} ta="center" mb="lg">Создание курса</Title>
+        <Title order={2} ta="center" mb="lg">
+          Создание курса
+        </Title>
 
         {error && (
           <Notification color="red" mb="lg" onClose={() => setError(null)}>
@@ -211,20 +166,30 @@ const pollVideoStatus = async (videoId: string): Promise<string | null> => {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)}>
+          {/* ---------- название ---------- */}
           <Controller
             name="title"
             control={control}
-            render={({ field }) => <TextInput label="Название" required {...field} mb="md" />}
+            render={({ field }) => (
+              <TextInput label="Название" required {...field} mb="md" />
+            )}
           />
 
+          {/* ---------- группа ---------- */}
           <Controller
             name="group_title"
             control={control}
             render={({ field }) => (
-              <TextInput label="Группа курса" placeholder="Например: Python-разработчик" {...field} mb="md" />
+              <TextInput
+                label="Группа курса"
+                placeholder="Например: Python-разработчик"
+                {...field}
+                mb="md"
+              />
             )}
           />
 
+          {/* ---------- порядок ---------- */}
           <Controller
             name="order"
             control={control}
@@ -239,32 +204,38 @@ const pollVideoStatus = async (videoId: string): Promise<string | null> => {
             )}
           />
 
+          {/* ---------- описания ---------- */}
           <Controller
             name="short_description"
             control={control}
-            render={({ field }) => <Textarea label="Краткое описание" {...field} mb="md" />}
+            render={({ field }) => (
+              <Textarea label="Краткое описание" {...field} mb="md" />
+            )}
           />
-
           <Controller
             name="full_description"
             control={control}
-            render={({ field }) => <Textarea label="Полное описание" {...field} mb="md" />}
+            render={({ field }) => (
+              <Textarea label="Полное описание" {...field} mb="md" />
+            )}
           />
 
+          {/* ---------- картинка ---------- */}
           <FileInput
             label="Изображение курса"
             placeholder="Загрузите файл"
             accept="image/png,image/jpeg,image/webp"
             onChange={async (file) => {
-              if (file) {
-                const url = await handleUpload(file, false);
-                if (url) setValue('image', url);
-              }
+              const url = await handleUpload(file, false);
+              if (url) setValue('image', url);
             }}
             mb="md"
           />
-          {imageUrl && <Image src={imageUrl} alt="Preview" height={200} radius="md" mb="md" />}
+          {imageUrl && (
+            <Image src={imageUrl} alt="preview" height={200} radius="md" mb="md" />
+          )}
 
+          {/* ---------- бесплатный / платный ---------- */}
           <Controller
             name="is_free"
             control={control}
@@ -310,6 +281,7 @@ const pollVideoStatus = async (videoId: string): Promise<string | null> => {
             </>
           )}
 
+          {/* ---------- даты скидки ---------- */}
           <Controller
             name="discount_start"
             control={control}
@@ -323,7 +295,6 @@ const pollVideoStatus = async (videoId: string): Promise<string | null> => {
               />
             )}
           />
-
           <Controller
             name="discount_until"
             control={control}
@@ -338,59 +309,43 @@ const pollVideoStatus = async (videoId: string): Promise<string | null> => {
             )}
           />
 
-
-          {/* Новый блок для загрузки видео */}
+          {/* ---------- видео ---------- */}
           <Alert color="blue" mb="md">
             <strong>🎥 Загрузка видео курса</strong>
             <br />
-            Видео будет автоматически обработано в разных качествах для оптимального воспроизведения.
-            Поддерживаемые форматы: MP4, WebM, MOV (рекомендуется MP4).
+            Файл будет сохранён «как есть» (без HLS). Поддерживаются MP4, WebM, MOV.
           </Alert>
 
           <FileInput
             label="Видео курса (опционально)"
-            description="Видео будет обработано и разбито на несколько качеств"
             accept="video/mp4,video/webm,video/mov"
             onChange={handleVideoUpload}
-            disabled={videoProcessing || loadingUpload}
+            disabled={loadingUpload}
             mb="md"
           />
 
-          {videoProcessing && (
-            <div style={{ marginBottom: '1rem' }}>
-              <Progress value={videoProcessingProgress} mb="xs" />
-              <p style={{ fontSize: '14px', color: '#666' }}>
-                {videoProcessingProgress < 50 
-                  ? `Загрузка видео... ${videoProcessingProgress}%`
-                  : `Обработка видео... ${videoProcessingProgress}%`
-                }
-              </p>
-            </div>
-          )}
-
           {videoUrl && (
             <Alert color="green" mb="md">
-              ✅ Видео успешно загружено и обработано!
+              ✅ Видео загружено
               <br />
-              <small>Мастер-плейлист: {videoUrl}</small>
+              <small>{videoUrl}</small>
             </Alert>
           )}
 
           {videoUrl && (
             <FileInput
               label="Превью к видео (опционально)"
-              description="Изображение, которое показывается до начала воспроизведения"
+              description="Изображение, отображаемое до начала воспроизведения"
               accept="image/png,image/jpeg,image/webp"
               onChange={async (file) => {
-                if (file) {
-                  const url = await handleUpload(file, true);
-                  if (url) setValue('video_preview', url);
-                }
+                const url = await handleUpload(file, true);
+                if (url) setValue('video_preview', url);
               }}
               mb="md"
             />
           )}
 
+          {/* ---------- баннер ---------- */}
           <Controller
             name="banner_text"
             control={control}
@@ -403,7 +358,6 @@ const pollVideoStatus = async (videoId: string): Promise<string | null> => {
               />
             )}
           />
-
           <Controller
             name="banner_color_left"
             control={control}
@@ -411,7 +365,6 @@ const pollVideoStatus = async (videoId: string): Promise<string | null> => {
               <TextInput label="Цвет слева (hex)" placeholder="#FF0000" {...field} mb="md" />
             )}
           />
-
           <Controller
             name="banner_color_right"
             control={control}
@@ -420,10 +373,11 @@ const pollVideoStatus = async (videoId: string): Promise<string | null> => {
             )}
           />
 
-          {(loadingUpload || videoProcessing) && <Loader size="sm" mb="md" />}
+          {loadingUpload && <Loader size="sm" mb="md" />}
 
+          {/* ---------- submit ---------- */}
           <Group justify="center" mt="xl">
-            <Button type="submit" disabled={loadingUpload || videoProcessing}>
+            <Button type="submit" disabled={loadingUpload}>
               Создать курс
             </Button>
           </Group>

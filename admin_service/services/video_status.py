@@ -51,10 +51,11 @@ async def update_video_status(video_id: str, update_dict: dict) -> None:
         await set_video_status(video_id, current_status)
 
 
-async def delete_video_status(video_id: str) -> None:
+async def delete_video_status(video_id: str) -> bool:  # Добавить возвращаемый тип
     redis = await get_redis()
     key = f"{REDIS_STATUS_PREFIX}{video_id}"
-    await redis.delete(key)
+    result = await redis.delete(key)
+    return result > 0  # Возвращаем True если ключ был удален
 
 
 async def get_all_statuses() -> Dict[str, Dict]:

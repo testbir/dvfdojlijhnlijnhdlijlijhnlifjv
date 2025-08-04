@@ -262,15 +262,14 @@ export default function CoursePage() {
                 <div className={`video-section-wrapper ${showVideo ? "open" : ""}`}>
                   {course.video && (
                     <div className="video-container">
+
 <VideoPlayer
-  masterPlaylistUrl={catalogService.formatPublicVideoUrl(course.video)}
-  onError={(error) => {
-    console.error('🔴 ОШИБКА ВИДЕО:', error);
-    handleVideoError(error);
-  }}
+  videoUrl={catalogService.formatPublicVideoUrl(course.video)}
+  onError={handleVideoError}
   className="course-video-player"
 />
-                      {videoError && (
+
+                  {videoError && (
                         <div className="video-error">
                           <p>⚠️ {videoError}</p>
                           <button onClick={() => window.location.reload()}>

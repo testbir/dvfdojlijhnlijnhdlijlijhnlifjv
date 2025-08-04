@@ -4,7 +4,6 @@ import {
   Pause, 
   Volume2, 
   VolumeX,
-  Settings,
   Maximize,
   Minimize,
   SkipForward,
@@ -16,27 +15,20 @@ import {
 const isMobile = () =>
   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-// Расширяем интерфейс Window для HLS.js
-declare global {
-  interface Window {
-    Hls: any;
-  }
-}
-
-
 interface VideoPlayerProps {
-  masterPlaylistUrl: string;
+  videoUrl: string;
   poster?: string;
   className?: string;
-  onError?: (error: string) => void;
+  onError?: (_error: string) => void;
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
-  masterPlaylistUrl,
+  videoUrl,
   poster,
   className = '',
-  onError
+  onError = () => {} // Значение по умолчанию
 }) => {
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -45,18 +37,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // States
   const [isLoading, setIsLoading] = useState(true);
   const [isBuffering, setIsBuffering] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [qualities, setQualities] = useState<string[]>([]);
-  const [currentQuality, setCurrentQuality] = useState<string>('auto');
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [error, _setError] = useState<string | null>(null);
   const [buffered, setBuffered] = useState(0);
   const [volume, setVolume] = useState(1);
   const [previousVolume, setPreviousVolume] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isRateMenuOpen, setIsRateMenuOpen] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
@@ -68,7 +57,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   
   const controlsTimeoutRef = useRef<number | null>(null);
   const volumeHideTimeoutRef = useRef<number | null>(null);
-  const hlsRef = useRef<any>(null);
 
   // Inject CSS styles
   useEffect(() => {
@@ -240,81 +228,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [hasInteracted, volume, playbackRate]);
 
-  // HLS initialization
-  useEffect(() => {
-    const initPlayer = async () => {
-      if (!videoRef.current) return;
 
-      try {
-        setIsLoading(true);
-        setError(null);
-        const video = videoRef.current;
-
-        // Check native HLS support
-        if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = masterPlaylistUrl;
-        } else {
-          // Load HLS.js
-          if (!window.Hls) {
-            await new Promise((resolve, reject) => {
-              const script = document.createElement('script');
-              script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js';
-              script.onload = resolve;
-              script.onerror = reject;
-              document.head.appendChild(script);
-            });
-          }
-          if (window.Hls.isSupported()) {
-            const hls = new window.Hls({
-              enableWorker: true,
-              lowLatencyMode: false,
-              backBufferLength: 90,
-              maxBufferLength: 30,
-              maxMaxBufferLength: 600,
-              maxBufferSize: 60 * 1000 * 1000,
-              maxBufferHole: 0.5
-            });
-
-            hlsRef.current = hls;
-            hls.loadSource(masterPlaylistUrl);
-            hls.attachMedia(video);
-
-            hls.on(window.Hls.Events.ERROR, (_: any, data: any) => {
-              if (data.fatal) {
-                const errorMsg = `Ошибка воспроизведения: ${data.details}`;
-                setError(errorMsg);
-                onError?.(errorMsg);
-              }
-            });
-
-            hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-              const levels = hls.levels;
-              const sorted = [...levels].sort((a: any, b: any) => b.height - a.height);
-              const qualityLabels = sorted.map((level: any) => `${level.height}p`);
-              setQualities(['auto', ...qualityLabels]);
-              
-              const preferred = sorted.find((l: any) => l.height >= 720) || sorted[0];
-              hls.startLevel = levels.indexOf(preferred);
-              setCurrentQuality('auto');
-            });
-          }
-        }
-        setIsLoading(false);
-      } catch (err) {
-        console.error('Player initialization error:', err);
-        setError('Ошибка загрузки видео');
-        setIsLoading(false);
-      }
-    };
-
-    initPlayer();
-
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-      }
-    };
-  }, [masterPlaylistUrl, onError]);
+useEffect(() => {
+  if (videoRef.current && videoUrl) {
+    videoRef.current.src = videoUrl;
+  }
+}, [videoUrl]);
 
   // Video event handlers
   useEffect(() => {
@@ -394,7 +313,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (!isMobile() && isPlaying && hasInteracted) {
       controlsTimeoutRef.current = window.setTimeout(() => {
         setIsControlsVisible(false);
-        setIsQualityMenuOpen(false);
         setIsRateMenuOpen(false);
         setShowVolumeSlider(false);
       }, 3000);
@@ -434,24 +352,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     } else {
       handleVolumeChange(previousVolume);
     }
-  };
-
-  // Quality change
-  const handleQualityChange = (qualityLabel: string) => {
-    if (!hlsRef.current) return;
-
-    if (qualityLabel === 'auto') {
-      hlsRef.current.currentLevel = -1;
-    } else {
-      const level = hlsRef.current.levels.find(
-        (lvl: any) => `${lvl.height}p` === qualityLabel
-      );
-      if (level) {
-        hlsRef.current.currentLevel = hlsRef.current.levels.indexOf(level);
-      }
-    }
-    setCurrentQuality(qualityLabel);
-    setIsQualityMenuOpen(false);
   };
 
   // Playback rate
@@ -574,13 +474,43 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         setSeekTime(null);
       }}
     >
-      <video
-        ref={videoRef}
-        poster={poster}
-        style={styles.video}
-        playsInline
-        disablePictureInPicture
-      />
+<video
+  ref={videoRef}
+  poster={poster}
+  style={styles.video}
+  playsInline
+  disablePictureInPicture
+  controlsList="nodownload"
+  onContextMenu={e => e.preventDefault()}
+  onError={() => {
+    setIsLoading(false);
+    setIsBuffering(false);
+
+    const video = videoRef.current;
+    let message = 'Не удалось загрузить видео';
+    if (video?.error) {
+      switch (video.error.code) {
+        case video.error.MEDIA_ERR_ABORTED:
+          message = 'Загрузка видео была отменена пользователем.';
+          break;
+        case video.error.MEDIA_ERR_NETWORK:
+          message = 'Ошибка сети при загрузке видео.';
+          break;
+        case video.error.MEDIA_ERR_DECODE:
+          message = 'Ошибка декодирования: видео повреждено или формат не поддерживается.';
+          break;
+        case video.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          message = 'Видео не найдено или не поддерживается.';
+          break;
+        default:
+          message = 'Не удалось загрузить видео.';
+      }
+    }
+    _setError(message);    // Показываем ошибку в твоём UI
+    onError(message);      // Вызываем внешний обработчик (если передан через пропсы)
+  }}
+/>
+
       
       {/* Click overlay */}
       <div
@@ -785,43 +715,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </div>
             )}
 
-            {/* Quality selector */}
-            {qualities.length > 1 && (
-              <div style={styles.menuContainer}>
-                <button 
-                  onClick={() => setIsQualityMenuOpen(!isQualityMenuOpen)}
-                  style={{
-                    ...styles.controlButton,
-                    ...(mobile ? styles.controlButtonMobile : {})
-                  }}
-                >
-                  <Settings size={mobile ? 18 : 20} strokeWidth={mobile ? 1.5 : 2} />
-                </button>
-                {/* Для desktop и tablet */}
-                {!mobile && isQualityMenuOpen && (
-                  <div style={{
-                    ...styles.menu,
-                    ...(mobile ? styles.menuMobile : {})
-                  }}>
-                    {qualities.map(quality => (
-                      <div
-                        key={quality}
-                        className="menu-item"
-                        style={{
-                          ...styles.menuItem,
-                          ...(mobile ? styles.menuItemMobile : {}),
-                          ...(currentQuality === quality ? styles.menuItemActive : {})
-                        }}
-                        onClick={() => handleQualityChange(quality)}
-                      >
-                        {quality}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Fullscreen - БЕЗ вложенного модального окна */}
             <button 
               onClick={toggleFullscreen} 
@@ -835,36 +728,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 <Maximize size={mobile ? 18 : 20} strokeWidth={mobile ? 1.5 : 2} />
               }
             </button>
-
-            {/* Quality modal для мобильных - ВЫНЕСЕНО ЗА пределы кнопки */}
-            {mobile && isQualityMenuOpen && (
-              <div style={styles.qualityModalOverlay} onClick={() => setIsQualityMenuOpen(false)}>
-                <div style={styles.qualityModal} onClick={e => e.stopPropagation()}>
-                  <div style={styles.qualityModalTitle}>Выбери качество</div>
-                  {qualities.map(quality => (
-                    <div
-                      key={quality}
-                      style={{
-                        ...styles.qualityModalItem,
-                        ...(currentQuality === quality ? styles.qualityModalItemActive : {})
-                      }}
-                      onClick={() => handleQualityChange(quality)}
-                    >
-                      {quality}
-                    </div>
-                  ))}
-                  <button style={styles.qualityModalClose} onClick={() => setIsQualityMenuOpen(false)}>
-                    Закрыть
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          </div>  {/* Закрывает controlsRight */}
         </div>
       </div>
     </div>
-
-    
   );
 
   
@@ -1088,15 +955,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     overflowY: 'auto',
     zIndex: 100
   },
-  menuMobile: {
-    bottom: 'auto',
-    top: '100%',
-    marginBottom: 0,
-    marginTop: '8px',
-    right: '-20px',
-    minWidth: '100px',
-    maxHeight: '200px'
-  },
   menuItem: {
     padding: '8px 16px',
     color: '#fff',
@@ -1104,10 +962,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     transition: 'background-color 0.2s',
     whiteSpace: 'nowrap'
-  },
-  menuItemMobile: {
-    padding: '6px 12px',
-    fontSize: '13px'
   },
   menuItemActive: {
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -1141,74 +995,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '14px',
     transition: 'background-color 0.2s'
   },
-
-qualityModalOverlay: {
-  position: 'absolute', // <--- Важно!
-  zIndex: 1000,
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  background: 'rgba(24,24,24,0.82)', // слегка затемняет именно видео, а не весь экран
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  pointerEvents: 'all', // обязательно!
-},
-qualityModal: {
-  background: '#18181a',
-  borderRadius: 16,
-  padding: '28px 20px 20px 20px',
-  width: '90vw',
-  maxWidth: 340,
-  boxShadow: '0 8px 32px rgba(0,0,0,0.32)',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'stretch',
-  gap: 10,
-  position: 'relative',
-},
-// остальное без изменений
-
-
-qualityModalTitle: {
-  color: '#fff',
-  fontSize: 20,
-  textAlign: 'center' as const,
-  fontWeight: 600,
-  marginBottom: 18,
-},
-
-qualityModalItem: {
-  padding: '14px 0',
-  textAlign: 'center' as const,
-  color: '#fff',
-  fontSize: 18,
-  borderRadius: 8,
-  background: 'rgba(255,255,255,0.07)',
-  marginBottom: 8,
-  cursor: 'pointer',
-  transition: 'background 0.2s',
-},
-
-qualityModalItemActive: {
-  background: '#007bff',
-  color: '#fff',
-  fontWeight: 700,
-},
-
-qualityModalClose: {
-  marginTop: 14,
-  padding: '10px 0',
-  background: '#333',
-  borderRadius: 8,
-  color: '#fff',
-  fontSize: 16,
-  border: 'none',
-  cursor: 'pointer',
-  fontWeight: 600,
-},
-
 
 };
 

@@ -19,6 +19,10 @@ class VideoProcessingError(Exception):
 
 
 class VideoProcessor:
+    """
+    Основной процессор видео для ПРИВАТНОГО контента (курсы)
+    Загружает в S3_CONTENT_BUCKET
+    """
     def __init__(self):
         self.s3_client = S3Client(bucket_name=settings.S3_CONTENT_BUCKET)
         
@@ -78,91 +82,72 @@ class VideoProcessor:
             input_width = video_info.get('width', 1920)
             input_height = video_info.get('height', 1080)
             
-            # Фильтруем качества, которые не больше исходного
+            # Фильтруем качества, которые не превышают исходное разрешение
             available_qualities = [
                 q for q in qualities 
                 if q['width'] <= input_width and q['height'] <= input_height
             ]
             
             if not available_qualities:
-                available_qualities = [qualities[0]]  # Минимум 360p
+                # Если исходное видео очень маленькое, берем минимальное качество
+                available_qualities = [qualities[0]]
             
-            # Создаем playlist файлы для каждого качества
-            variant_playlists = []
-            processing_errors = []
+            # Создаем плейлисты для каждого качества
+            playlist_info = []
+            tasks = []
             
             for quality in available_qualities:
-                try:
-                    playlist_info = await self._process_quality(
-                        input_video_path, 
-                        quality, 
-                        output_dir
-                    )
-                    if playlist_info:
-                        variant_playlists.append(playlist_info)
-                except Exception as e:
-                    error_msg = f"Ошибка при обработке качества {quality['name']}: {str(e)}"
-                    processing_errors.append(error_msg)
-                    print(error_msg)
-            
-            # Проверяем, что хотя бы одно качество создано
-            if not variant_playlists:
-                raise VideoProcessingError(
-                    f"Не удалось создать ни одного качества видео. "
-                    f"Ошибки: {'; '.join(processing_errors)}"
+                task = self._create_quality_playlist(
+                    input_video_path, 
+                    output_dir, 
+                    quality, 
+                    video_id
                 )
+                tasks.append(task)
+            
+            # Запускаем все задачи параллельно
+            results = await asyncio.gather(*tasks)
+            playlist_info.extend(results)
             
             # Создаем мастер-плейлист
-            master_playlist = self._create_master_playlist(variant_playlists)
-            master_playlist_path = os.path.join(output_dir, 'master.m3u8')
-            
-            with open(master_playlist_path, 'w') as f:
-                f.write(master_playlist)
+            master_playlist_path = await self._create_master_playlist(
+                output_dir, 
+                playlist_info, 
+                video_id
+            )
             
             # Загружаем все файлы в S3
-            base_url = await self._upload_hls_files(output_dir, video_id)
+            master_url = await self._upload_hls_files(output_dir, video_id)
             
             return {
-                'master_playlist_url': f"{base_url}/master.m3u8",
-                'video_id': video_id,
-                'qualities': [v['quality'] for v in variant_playlists],
-                'duration': video_info.get('duration', 0),
-                'resolution': f"{input_width}x{input_height}"
+                "master_playlist_url": f"{master_url}/master.m3u8",
+                "base_url": master_url,
+                "qualities": [info['quality'] for info in playlist_info],
+                "duration": video_info.get('duration', 0),
+                "width": input_width,
+                "height": input_height
             }
             
         except Exception as e:
-            # Логируем ошибку и пробрасываем дальше
-            print(f"Критическая ошибка при обработке видео {video_id}: {str(e)}")
-            raise
-            
+            raise VideoProcessingError(f"Ошибка обработки видео: {str(e)}")
         finally:
-            # Гарантированная очистка временных файлов
+            # Очистка временных файлов
             if temp_dir and os.path.exists(temp_dir):
-                try:
-                    shutil.rmtree(temp_dir, ignore_errors=True)
-                except Exception as e:
-                    print(f"Ошибка при удалении временной директории: {e}")
-            
-            # Удаляем входной файл
-            if os.path.exists(input_video_path):
-                try:
-                    os.remove(input_video_path)
-                except Exception as e:
-                    print(f"Ошибка при удалении входного файла: {e}")
+                shutil.rmtree(temp_dir, ignore_errors=True)
     
-    async def _process_quality(
+    async def _create_quality_playlist(
         self, 
-        input_video_path: str, 
+        input_path: str, 
+        output_dir: str, 
         quality: Dict, 
-        output_dir: str
-    ) -> Optional[Dict]:
-        """Обрабатывает видео для конкретного качества"""
+        video_id: str
+    ) -> Dict:
+        """Создает плейлист для конкретного качества"""
         playlist_name = f"{quality['name']}.m3u8"
-        segment_pattern = f"{quality['name']}_segment_%03d.ts"
+        segment_pattern = f"{quality['name']}_%03d.ts"
         
-        # Команда ffmpeg для создания HLS-сегментов
         cmd = [
-            'ffmpeg', '-i', input_video_path,
+            'ffmpeg', '-y', '-i', input_path,
             '-c:v', 'libx264',
             '-c:a', 'aac',
             '-b:v', quality['bitrate'],
@@ -230,37 +215,36 @@ class VideoProcessor:
                 duration = float(video_stream['duration'])
             
             return {
-                'width': int(video_stream.get('width', 1920)),
-                'height': int(video_stream.get('height', 1080)),
-                'duration': duration,
-                'codec': video_stream.get('codec_name', 'unknown'),
-                'bitrate': int(video_stream.get('bit_rate', 0))
+                'width': video_stream.get('width', 1920),
+                'height': video_stream.get('height', 1080),
+                'duration': duration
             }
-        
-        return {'width': 1920, 'height': 1080, 'duration': 0}
+        else:
+            # Если не удалось получить информацию, возвращаем значения по умолчанию
+            return {'width': 1920, 'height': 1080, 'duration': 0}
     
-    def _create_master_playlist(self, variant_playlists: List[Dict]) -> str:
+    async def _create_master_playlist(
+        self, 
+        output_dir: str, 
+        playlist_info: List[Dict], 
+        video_id: str
+    ) -> str:
         """Создает мастер-плейлист для HLS"""
-        playlist_content = "#EXTM3U\n"
-        playlist_content += "#EXT-X-VERSION:3\n\n"
+        master_path = os.path.join(output_dir, "master.m3u8")
         
-        # Сортируем по битрейту
-        sorted_variants = sorted(
-            variant_playlists, 
-            key=lambda x: x['bandwidth']
-        )
+        with open(master_path, 'w') as f:
+            f.write('#EXTM3U\n')
+            f.write('#EXT-X-VERSION:3\n\n')
+            
+            for info in sorted(playlist_info, key=lambda x: x['bandwidth']):
+                f.write(f'#EXT-X-STREAM-INF:BANDWIDTH={info["bandwidth"]},')
+                f.write(f'RESOLUTION={info["width"]}x{info["height"]}\n')
+                f.write(f'{info["playlist"]}\n\n')
         
-        for variant in sorted_variants:
-            playlist_content += (
-                f"#EXT-X-STREAM-INF:BANDWIDTH={variant['bandwidth']},"
-                f"RESOLUTION={variant['width']}x{variant['height']}\n"
-                f"{variant['playlist']}\n"
-            )
-        
-        return playlist_content
+        return master_path
     
     async def _upload_hls_files(self, local_dir: str, video_id: str) -> str:
-        """Загружает все HLS файлы в S3"""
+        """Загружает все HLS файлы в S3 и возвращает базовый URL"""
         base_path = f"hls/{video_id}"
         upload_tasks = []
         
@@ -268,9 +252,10 @@ class VideoProcessor:
         for root, dirs, files in os.walk(local_dir):
             for file in files:
                 local_file_path = os.path.join(root, file)
-                s3_key = f"{base_path}/{file}"
+                relative_path = os.path.relpath(local_file_path, local_dir)
+                s3_key = f"{base_path}/{relative_path}"
                 
-                # Определяем content-type
+                # Определяем Content-Type
                 if file.endswith('.m3u8'):
                     content_type = 'application/vnd.apple.mpegurl'
                 elif file.endswith('.ts'):
@@ -309,31 +294,6 @@ class VideoProcessor:
                 )
 
 
-# Глобальный экземпляр для переиспользования
-video_processor = VideoProcessor()
-
-
-async def process_uploaded_video(
-    file_path: str, 
-    video_id: str,
-    timeout: int = 3600
-) -> Dict[str, str]:
-    """
-    Основная функция для обработки загруженного видео
-    
-    Args:
-        file_path: Путь к загруженному видео
-        video_id: Уникальный ID для видео
-        timeout: Максимальное время обработки
-        
-    Returns:
-        Dict с результатами обработки
-    """
-    return await video_processor.process_video_to_hls(file_path, video_id, timeout)
-
-
-# admin_service/services/video_processor.py - ИСПРАВЛЕННАЯ версия PublicVideoProcessor
-
 class PublicVideoProcessor(VideoProcessor):
     """
     Видео процессор для ПУБЛИЧНЫХ видео (страница "О курсе")
@@ -346,6 +306,7 @@ class PublicVideoProcessor(VideoProcessor):
     async def _upload_hls_files(self, local_dir: str, video_id: str) -> str:
         """
         Загружает все HLS файлы в ПУБЛИЧНЫЙ S3 контейнер
+        Переопределяем метод для использования публичного CDN
         """
         base_path = f"hls/{video_id}"
         upload_tasks = []
@@ -357,12 +318,20 @@ class PublicVideoProcessor(VideoProcessor):
                 relative_path = os.path.relpath(local_file_path, local_dir)
                 s3_key = f"{base_path}/{relative_path}"
                 
-                # ИСПРАВЛЕНИЕ: Используем метод _upload_file_to_s3 как в оригинальном VideoProcessor
+                # Определяем Content-Type
+                if file.endswith('.m3u8'):
+                    content_type = 'application/vnd.apple.mpegurl'
+                elif file.endswith('.ts'):
+                    content_type = 'video/mp2t'
+                else:
+                    content_type = 'application/octet-stream'
+                
+                # Используем метод _upload_file_to_s3 как в родительском классе
                 upload_tasks.append(
                     self._upload_file_to_s3(
                         local_file_path, 
                         s3_key, 
-                        'application/vnd.apple.mpegurl' if file.endswith('.m3u8') else 'video/mp2t'
+                        content_type
                     )
                 )
         
@@ -390,17 +359,48 @@ class PublicVideoProcessor(VideoProcessor):
                 )
 
 
-# Функция-обертка для использования в upload.py
-async def process_public_uploaded_video(input_video_path: str, video_id: str) -> Dict[str, str]:
+# ============= ГЛОБАЛЬНЫЕ ЭКЗЕМПЛЯРЫ =============
+
+# Глобальный экземпляр для переиспользования
+video_processor = VideoProcessor()
+public_video_processor = PublicVideoProcessor()
+
+
+# ============= ПУБЛИЧНЫЕ ФУНКЦИИ =============
+
+async def process_uploaded_video(
+    file_path: str, 
+    video_id: str,
+    timeout: int = 3600
+) -> Dict[str, str]:
     """
-    Обрабатывает видео для публичного доступа (страница О курсе)
+    Основная функция для обработки ПРИВАТНОГО видео (курсы)
+    
+    Args:
+        file_path: Путь к загруженному видео
+        video_id: Уникальный ID для видео
+        timeout: Максимальное время обработки
+        
+    Returns:
+        Dict с результатами обработки
+    """
+    return await video_processor.process_video_to_hls(file_path, video_id, timeout)
+
+
+async def process_public_uploaded_video(
+    input_video_path: str, 
+    video_id: str,
+    timeout: int = 3600
+) -> Dict[str, str]:
+    """
+    Обрабатывает видео для ПУБЛИЧНОГО доступа (страница О курсе)
     
     Args:
         input_video_path: Путь к входному видео файлу
         video_id: Уникальный ID для видео
+        timeout: Максимальное время обработки
         
     Returns:
         Dict с информацией о результате обработки
     """
-    processor = PublicVideoProcessor()
-    return await processor.process_video_to_hls(input_video_path, video_id)
+    return await public_video_processor.process_video_to_hls(input_video_path, video_id, timeout)

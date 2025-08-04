@@ -2,7 +2,11 @@
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from services.s3_client import S3Client
-from services.video_processor import process_uploaded_video, process_public_uploaded_video, VideoProcessingError
+from services.video_processor import (
+    VideoProcessingError, 
+    process_uploaded_video, 
+    process_public_uploaded_video  # Добавлен импорт
+)
 from core.config import settings
 import uuid
 import os
@@ -139,6 +143,8 @@ async def upload_to_s3(
             os.remove(temp_path)
 
 
+# ============= ПУБЛИЧНЫЕ ФАЙЛЫ =============
+
 @router.post("/upload/public", summary="Загрузить публичное изображение")
 async def upload_public_file(
     file: UploadFile = File(...),
@@ -158,30 +164,6 @@ async def upload_public_file(
         raise
     except Exception as e:
         logger.error(f"UPLOAD ERROR (public): {repr(e)}")
-        raise HTTPException(status_code=500, detail=f"Ошибка загрузки: {str(e)}")
-
-
-@router.post("/upload/content", summary="Загрузить курс-контент (изображения, документы)")
-async def upload_content_file(
-    file: UploadFile = File(...),
-    current_admin: AdminUser = Depends(get_current_admin_user)
-):
-    """Загружает контент для курсов"""
-    logger.info(f"Админ {current_admin.username} загружает контент: {file.filename}")
-    
-    try:
-        # Для контента разрешаем и изображения, и документы
-        allowed_extensions = ALLOWED_IMAGE_EXTENSIONS | {'.pdf', '.doc', '.docx'}
-        return await upload_to_s3(
-            file, 
-            settings.S3_CONTENT_BUCKET,
-            allowed_extensions,
-            MAX_IMAGE_SIZE * 5  # 50MB для документов
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"UPLOAD ERROR (content): {repr(e)}")
         raise HTTPException(status_code=500, detail=f"Ошибка загрузки: {str(e)}")
 
 
@@ -315,6 +297,32 @@ async def process_public_video_background(video_id: str, temp_path: str, filenam
             await set_video_status(video_id, current_status)
 
 
+# ============= КОНТЕНТ ФАЙЛЫ =============
+
+@router.post("/upload/content", summary="Загрузить курс-контент (изображения, документы)")
+async def upload_content_file(
+    file: UploadFile = File(...),
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """Загружает контент для курсов"""
+    logger.info(f"Админ {current_admin.username} загружает контент: {file.filename}")
+    
+    try:
+        # Для контента разрешаем и изображения, и документы
+        allowed_extensions = ALLOWED_IMAGE_EXTENSIONS | {'.pdf', '.doc', '.docx'}
+        return await upload_to_s3(
+            file, 
+            settings.S3_CONTENT_BUCKET,
+            allowed_extensions,
+            MAX_IMAGE_SIZE * 5  # 50MB для документов
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"UPLOAD ERROR (content): {repr(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка загрузки: {str(e)}")
+
+
 @router.post("/upload/video", summary="Загрузить и обработать приватное видео (внутри курса)")
 async def upload_video_file(
     background_tasks: BackgroundTasks,
@@ -440,6 +448,8 @@ async def process_video_background(video_id: str, temp_path: str, filename: str)
             await set_video_status(video_id, current_status)
 
 
+# ============= СТАТУСЫ ВИДЕО =============
+
 @router.get("/video-status/{video_id}", summary="Проверить статус обработки видео")
 async def check_video_status(
     video_id: str,
@@ -493,6 +503,8 @@ async def delete_video_status_endpoint(
     
     return {"success": True, "message": "Статус удален"}
 
+
+# ============= ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ =============
 
 @router.post("/upload/video-direct", summary="Прямая загрузка видео (синхронная)")
 async def upload_video_direct(
@@ -553,3 +565,52 @@ async def upload_video_direct(
             pass
             
         raise HTTPException(status_code=500, detail=f"Ошибка обработки видео: {str(e)}")
+
+
+@router.post("/upload/video-simple", summary="Простая загрузка видео без обработки")
+async def upload_simple_video(
+    file: UploadFile = File(...),
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """
+    Загружает видео напрямую в S3 без HLS обработки
+    Возвращает прямой URL к видео файлу
+    """
+    logger.info(f"Админ {current_admin.username} загружает простое видео: {file.filename}")
+    
+    try:
+        return await upload_to_s3(
+            file, 
+            settings.S3_CONTENT_BUCKET,  # Или PUBLIC для открытых видео
+            ALLOWED_VIDEO_EXTENSIONS,
+            MAX_VIDEO_SIZE
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"UPLOAD ERROR (simple video): {repr(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка загрузки видео: {str(e)}")
+
+
+@router.post("/upload/video-simple-public", summary="Простая загрузка публичного видео")
+async def upload_simple_video_public(
+    file: UploadFile = File(...),
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """
+    Загружает видео в публичный контейнер без обработки
+    """
+    logger.info(f"Админ {current_admin.username} загружает простое публичное видео: {file.filename}")
+    
+    try:
+        return await upload_to_s3(
+            file, 
+            settings.S3_PUBLIC_BUCKET,
+            ALLOWED_VIDEO_EXTENSIONS,
+            MAX_VIDEO_SIZE
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"UPLOAD ERROR (simple public video): {repr(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка загрузки публичного видео: {str(e)}")

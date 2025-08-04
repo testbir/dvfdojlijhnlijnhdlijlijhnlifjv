@@ -23,7 +23,6 @@ import {
   FileInput,
   Image,
   Alert,
-  Progress,
 } from '@mantine/core';
 import Layout from '../components/Layout';
 
@@ -53,8 +52,6 @@ export default function CourseEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [videoProcessing, setVideoProcessing] = useState(false);
-  const [videoProcessingProgress, setVideoProcessingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -97,86 +94,28 @@ export default function CourseEditPage() {
 
 const handleVideoUpload = async (file: File | null): Promise<void> => {
   if (!file) return;
-  
+
   try {
-    setVideoProcessing(true);
-    setVideoProcessingProgress(0);
-    setError(null);
-    
+    setUploading(true);                          // используем общий индикатор загрузки
     const formData = new FormData();
     formData.append('file', file);
-    
-    // ВАЖНО: Используем эндпоинт для ПУБЛИЧНОГО видео
-    const res = await axios.post('/admin/upload/video-public', formData, {
+
+    const res = await axios.post('/admin/upload/video-simple-public', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 60000, // 1 минута только на загрузку
-      onUploadProgress: (progressEvent) => {
-        if (progressEvent.total) {
-          const uploadProgress = Math.round((progressEvent.loaded * 30) / progressEvent.total);
-          setVideoProcessingProgress(uploadProgress);
-        }
+      onUploadProgress: (pe) => {
+        if (pe.total) console.log(`video upload: ${Math.round(pe.loaded / pe.total * 100)}%`);
       }
     });
 
-    if (res.data.video_id) {
-      console.log('📹 Видео загружено, начинаем опрос статуса:', res.data.video_id);
-      console.log('🎯 Тип видео:', res.data.video_type); // Должно быть "public"
-      
-      // Опрашиваем статус обработки видео
-      const finalResult = await pollVideoStatus(res.data.video_id);
-      if (finalResult) {
-        setCourse(prev => prev ? { ...prev, video: finalResult } : prev);
-        console.log('✅ Публичное видео успешно обработано:', finalResult);
-        console.log('🌐 CDN URL должен содержать:', 'https://4c9f6593-23ca-42b2-ad07-2d74de6f771e.selcdn.net');
-      }
-    } else {
-      throw new Error('Сервер не вернул video_id');
-    }
-    
-  } catch (err) {
-    console.error('❌ Ошибка при загрузке публичного видео:', err);
+    setCourse(prev => prev ? { ...prev, video: res.data.url } : prev); // прямой URL
+  } catch {
     setError('Ошибка при загрузке видео');
   } finally {
-    setVideoProcessing(false);
-    setVideoProcessingProgress(0);
+    setUploading(false);
   }
 };
 
-const pollVideoStatus = async (videoId: string): Promise<string | null> => {
-  const maxAttempts = 120; // 20 минут максимум (120 * 10 секунд)
-  
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      const statusRes = await axios.get(`/admin/video-status/${videoId}`);
-      const status = statusRes.data;
-      
-      // Обновляем прогресс
-      const progress = 30 + Math.round((i / maxAttempts) * 70);
-      setVideoProcessingProgress(Math.min(progress, 95));
-      
-      if (status.status === 'completed' && status.result?.master_playlist_url) {
-        setVideoProcessingProgress(100);
-        return status.result.master_playlist_url;
-      }
-      
-      if (status.status === 'failed') {
-        throw new Error(status.error || 'Ошибка обработки видео');
-      }
-      
-      // Ждем 10 секунд перед следующей попыткой
-      await new Promise(resolve => setTimeout(resolve, 10000));
-      
-    } catch (err: any) {
-      // Если это не ошибка статуса, а проблема с сетью, пробуем еще раз
-      if (i > 5 && err.response?.status !== 404) {
-        throw err;
-      }
-      await new Promise(resolve => setTimeout(resolve, 10000));
-    }
-  }
-  
-  throw new Error('Превышено время ожидания обработки видео');
-};
+
 
   const handleSave = async () => {
     if (!course) return;
@@ -389,21 +328,10 @@ const pollVideoStatus = async (videoId: string): Promise<string | null> => {
           description="Видео будет обработано и разбито на несколько качеств"
           accept="video/mp4,video/webm,video/mov"
           onChange={handleVideoUpload}
-          disabled={videoProcessing || uploading}
+          disabled={uploading}
           mb="md"
         />
 
-        {videoProcessing && (
-          <div style={{ marginBottom: '1rem' }}>
-            <Progress value={videoProcessingProgress} mb="xs" />
-            <p style={{ fontSize: '14px', color: '#666' }}>
-              {videoProcessingProgress < 50 
-                ? `Загрузка видео... ${videoProcessingProgress}%`
-                : `Обработка видео... ${videoProcessingProgress}%`
-              }
-            </p>
-          </div>
-        )}
 
         {course?.video && (
           <>
@@ -473,7 +401,7 @@ const pollVideoStatus = async (videoId: string): Promise<string | null> => {
           fullWidth 
           onClick={handleSave} 
           loading={saving} 
-          disabled={videoProcessing || uploading}
+          disabled={uploading}
         >
           Сохранить
         </Button>
