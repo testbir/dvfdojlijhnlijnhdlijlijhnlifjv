@@ -1,8 +1,9 @@
-// src/services/catalogService.ts
+// frontend/src/services/catalogService.ts
 
 import catalogApi from "../api/catalogApi";
 
 // === ТИПЫ ===
+// (типы остаются без изменений)
 
 export interface Course {
   id: number;
@@ -82,11 +83,31 @@ export interface CourseAccessResponse {
 // === СЕРВИС ===
 
 class CatalogService {
-  // Утилита для форматирования URL изображений
+  // ПУБЛИЧНЫЙ CDN (course-public) - для изображений, баннеров, видео "О курсе"
+  private readonly PUBLIC_CDN = "https://4c9f6593-23ca-42b2-ad07-2d74de6f771e.selcdn.net";
+  
+  // ПРИВАТНЫЙ CDN (course-content) - для видео внутри курсов
+  private readonly PRIVATE_CDN = "https://3e95e171-5a4f-482f-828a-d9394d4fb18e.selcdn.net";
+
+  // Форматирование URL для публичного контента (изображения, баннеры)
   formatImageUrl(url: string): string {
     if (!url) return "";
     if (url.startsWith("http")) return url;
-    return `https://course-content.s3.ru-7.storage.selcloud.ru/${url}`;
+    return `${this.PUBLIC_CDN}/${url}`;
+  }
+
+  // Форматирование URL для публичных видео (страница "О курсе")
+  formatPublicVideoUrl(url: string): string {
+    if (!url) return "";
+    if (url.startsWith("http")) return url;
+    return `${this.PUBLIC_CDN}/${url}`;
+  }
+
+  // Форматирование URL для приватных видео (внутри курса)
+  formatPrivateVideoUrl(url: string): string {
+    if (!url) return "";
+    if (url.startsWith("http")) return url;
+    return `${this.PRIVATE_CDN}/${url}`;
   }
 
   // === КУРСЫ ===
