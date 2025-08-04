@@ -1,5 +1,6 @@
 # admin_service/requirements.txt
 
+boto3
 fastapi
 uvicorn
 httpx

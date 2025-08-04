@@ -114,24 +114,21 @@ const handleVideoUpload = async (file: File | null): Promise<void> => {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total) {
-          const uploadProgress = Math.round((progressEvent.loaded * 50) / progressEvent.total);
+          const uploadProgress = Math.round((progressEvent.loaded * 30) / progressEvent.total);
           setVideoProcessingProgress(uploadProgress);
         }
       }
     });
 
-    // Симулируем прогресс обработки
-    for (let i = 50; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setVideoProcessingProgress(i);
-    }
-
-    // ✅ ИСПРАВИТЬ ЭТО - используем video_id вместо master_playlist_url
     if (res.data.video_id) {
-      setValue('video', res.data.video_id);  // ← ИЗМЕНИТЬ ЭТУ СТРОКУ
-      console.log('✅ Видео успешно загружено:', res.data);
+      // Опрашиваем статус обработки видео
+      const finalResult = await pollVideoStatus(res.data.video_id);
+      if (finalResult) {
+        setValue('video', finalResult); // Устанавливаем URL, а не video_id!
+        console.log('✅ Видео успешно обработано:', finalResult);
+      }
     } else {
-      throw new Error('Сервер не вернул video_id');  // ← И ЭТУ
+      throw new Error('Сервер не вернул video_id');
     }
     
   } catch (err) {
@@ -141,6 +138,43 @@ const handleVideoUpload = async (file: File | null): Promise<void> => {
     setVideoProcessing(false);
     setVideoProcessingProgress(0);
   }
+};
+
+// Добавьте эту функцию после handleVideoUpload:
+const pollVideoStatus = async (videoId: string): Promise<string | null> => {
+  const maxAttempts = 120; // 20 минут максимум
+  
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const statusRes = await axios.get(`/admin/video-status/${videoId}`);
+      const status = statusRes.data;
+      
+      // Обновляем прогресс
+      const progress = 30 + Math.round((i / maxAttempts) * 70);
+      setVideoProcessingProgress(Math.min(progress, 95));
+      
+      if (status.status === 'completed' && status.result?.master_playlist_url) {
+        setVideoProcessingProgress(100);
+        return status.result.master_playlist_url;
+      }
+      
+      if (status.status === 'failed') {
+        throw new Error(status.error || 'Ошибка обработки видео');
+      }
+      
+      // Ждем 10 секунд перед следующей попыткой
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      
+    } catch (err: any) {
+      // Если это не ошибка статуса, а проблема с сетью, пробуем еще раз
+      if (i > 5 && err.response?.status !== 404) {
+        throw err;
+      }
+      await new Promise(resolve => setTimeout(resolve, 10000));
+    }
+  }
+  
+  throw new Error('Превышено время ожидания обработки видео');
 };
 
   const onSubmit = async (data: FormData) => {

@@ -50,7 +50,7 @@ export default function UserDashboard() {
     if (isOpen && !dashboardData) {
       loadDashboardData();
     }
-  }, [isOpen]);
+  }, [isOpen, dashboardData]);
 
   // Закрытие dropdown при клике вне его
   useEffect(() => {

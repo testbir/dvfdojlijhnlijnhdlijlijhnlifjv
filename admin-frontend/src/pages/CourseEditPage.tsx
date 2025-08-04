@@ -106,7 +106,6 @@ const handleVideoUpload = async (file: File | null): Promise<void> => {
     const formData = new FormData();
     formData.append('file', file);
     
-    // ✅ ИЗМЕНИТЬ video-direct НА video (асинхронная обработка)
     const res = await axios.post('/admin/upload/video', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 60000, // 1 минута только на загрузку
@@ -119,11 +118,11 @@ const handleVideoUpload = async (file: File | null): Promise<void> => {
     });
 
     if (res.data.video_id) {
-      // ✅ ДОБАВИТЬ ОПРОС СТАТУСА
+      // Опрашиваем статус обработки видео
       const finalResult = await pollVideoStatus(res.data.video_id);
       if (finalResult) {
         setCourse(prev => prev ? { ...prev, video: finalResult } : prev);
-        console.log('✅ Видео успешно обработано');
+        console.log('✅ Видео успешно обработано:', finalResult);
       }
     }
     
@@ -136,31 +135,40 @@ const handleVideoUpload = async (file: File | null): Promise<void> => {
   }
 };
 
-// ✅ ДОБАВИТЬ ЭТУ ФУНКЦИЮ ТУДА ЖЕ
 const pollVideoStatus = async (videoId: string): Promise<string | null> => {
-  for (let i = 0; i < 120; i++) { // 20 минут максимум
+  const maxAttempts = 120; // 20 минут максимум (120 * 10 секунд)
+  
+  for (let i = 0; i < maxAttempts; i++) {
     try {
       const statusRes = await axios.get(`/admin/video-status/${videoId}`);
       const status = statusRes.data;
       
-      const progress = 30 + Math.round((i / 120) * 70);
+      // Обновляем прогресс
+      const progress = 30 + Math.round((i / maxAttempts) * 70);
       setVideoProcessingProgress(Math.min(progress, 95));
       
       if (status.status === 'completed' && status.result?.master_playlist_url) {
+        setVideoProcessingProgress(100);
         return status.result.master_playlist_url;
       }
       
       if (status.status === 'failed') {
-        throw new Error('Ошибка обработки видео');
+        throw new Error(status.error || 'Ошибка обработки видео');
       }
       
-      await new Promise(resolve => setTimeout(resolve, 10000)); // 10 секунд
-    } catch (err) {
-      if (i > 5) throw err; // После 5 попыток выходим
+      // Ждем 10 секунд перед следующей попыткой
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      
+    } catch (err: any) {
+      // Если это не ошибка статуса, а проблема с сетью, пробуем еще раз
+      if (i > 5 && err.response?.status !== 404) {
+        throw err;
+      }
       await new Promise(resolve => setTimeout(resolve, 10000));
     }
   }
-  throw new Error('Превышено время ожидания');
+  
+  throw new Error('Превышено время ожидания обработки видео');
 };
 
   const handleSave = async () => {
