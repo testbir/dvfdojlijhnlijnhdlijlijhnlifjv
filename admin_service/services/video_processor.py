@@ -330,3 +330,77 @@ async def process_uploaded_video(
         Dict с результатами обработки
     """
     return await video_processor.process_video_to_hls(file_path, video_id, timeout)
+
+
+# admin_service/services/video_processor.py - ИСПРАВЛЕННАЯ версия PublicVideoProcessor
+
+class PublicVideoProcessor(VideoProcessor):
+    """
+    Видео процессор для ПУБЛИЧНЫХ видео (страница "О курсе")
+    Загружает в публичный S3 контейнер
+    """
+    def __init__(self):
+        # ВАЖНО: Используем PUBLIC bucket вместо CONTENT
+        self.s3_client = S3Client(bucket_name=settings.S3_PUBLIC_BUCKET)
+        
+    async def _upload_hls_files(self, local_dir: str, video_id: str) -> str:
+        """
+        Загружает все HLS файлы в ПУБЛИЧНЫЙ S3 контейнер
+        """
+        base_path = f"hls/{video_id}"
+        upload_tasks = []
+        
+        # Собираем все файлы для загрузки
+        for root, dirs, files in os.walk(local_dir):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(local_file_path, local_dir)
+                s3_key = f"{base_path}/{relative_path}"
+                
+                # ИСПРАВЛЕНИЕ: Используем метод _upload_file_to_s3 как в оригинальном VideoProcessor
+                upload_tasks.append(
+                    self._upload_file_to_s3(
+                        local_file_path, 
+                        s3_key, 
+                        'application/vnd.apple.mpegurl' if file.endswith('.m3u8') else 'video/mp2t'
+                    )
+                )
+        
+        # Загружаем все файлы параллельно
+        await asyncio.gather(*upload_tasks)
+        
+        # Возвращаем базовый URL для ПУБЛИЧНОГО CDN
+        return f"{settings.S3_PUBLIC_CDN_URL}/{base_path}"
+    
+    async def _upload_file_to_s3(
+        self, 
+        local_path: str, 
+        s3_key: str, 
+        content_type: str
+    ):
+        """Загружает один файл в ПУБЛИЧНЫЙ S3"""
+        async with self.s3_client.get_client() as client:
+            with open(local_path, 'rb') as file:
+                await client.put_object(
+                    Bucket=self.s3_client.bucket_name,
+                    Key=s3_key,
+                    Body=file,
+                    ContentType=content_type,
+                    CacheControl='max-age=31536000, public'  # Кеш на год для сегментов
+                )
+
+
+# Функция-обертка для использования в upload.py
+async def process_public_uploaded_video(input_video_path: str, video_id: str) -> Dict[str, str]:
+    """
+    Обрабатывает видео для публичного доступа (страница О курсе)
+    
+    Args:
+        input_video_path: Путь к входному видео файлу
+        video_id: Уникальный ID для видео
+        
+    Returns:
+        Dict с информацией о результате обработки
+    """
+    processor = PublicVideoProcessor()
+    return await processor.process_video_to_hls(input_video_path, video_id)

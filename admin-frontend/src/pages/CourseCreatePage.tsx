@@ -110,7 +110,7 @@ const handleVideoUpload = async (file: File | null): Promise<void> => {
     const formData = new FormData();
     formData.append('file', file);
     
-    const res = await axios.post('/admin/upload/video', formData, {
+    const res = await axios.post('/admin/upload/video-public', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total) {

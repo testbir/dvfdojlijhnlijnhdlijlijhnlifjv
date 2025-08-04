@@ -106,7 +106,8 @@ const handleVideoUpload = async (file: File | null): Promise<void> => {
     const formData = new FormData();
     formData.append('file', file);
     
-    const res = await axios.post('/admin/upload/video', formData, {
+    // ВАЖНО: Используем эндпоинт для ПУБЛИЧНОГО видео
+    const res = await axios.post('/admin/upload/video-public', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 60000, // 1 минута только на загрузку
       onUploadProgress: (progressEvent) => {
@@ -118,16 +119,22 @@ const handleVideoUpload = async (file: File | null): Promise<void> => {
     });
 
     if (res.data.video_id) {
+      console.log('📹 Видео загружено, начинаем опрос статуса:', res.data.video_id);
+      console.log('🎯 Тип видео:', res.data.video_type); // Должно быть "public"
+      
       // Опрашиваем статус обработки видео
       const finalResult = await pollVideoStatus(res.data.video_id);
       if (finalResult) {
         setCourse(prev => prev ? { ...prev, video: finalResult } : prev);
-        console.log('✅ Видео успешно обработано:', finalResult);
+        console.log('✅ Публичное видео успешно обработано:', finalResult);
+        console.log('🌐 CDN URL должен содержать:', 'https://4c9f6593-23ca-42b2-ad07-2d74de6f771e.selcdn.net');
       }
+    } else {
+      throw new Error('Сервер не вернул video_id');
     }
     
   } catch (err) {
-    console.error('Ошибка при загрузке видео:', err);
+    console.error('❌ Ошибка при загрузке публичного видео:', err);
     setError('Ошибка при загрузке видео');
   } finally {
     setVideoProcessing(false);

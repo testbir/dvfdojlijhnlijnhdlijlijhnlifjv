@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from services.s3_client import S3Client
-from services.video_processor import process_uploaded_video, VideoProcessingError
+from services.video_processor import process_uploaded_video, process_public_uploaded_video, VideoProcessingError
 from core.config import settings
 import uuid
 import os
@@ -185,17 +185,17 @@ async def upload_content_file(
         raise HTTPException(status_code=500, detail=f"Ошибка загрузки: {str(e)}")
 
 
-@router.post("/upload/video", summary="Загрузить и обработать видео для курса")
-async def upload_video_file(
+@router.post("/upload/video-public", summary="Загрузить публичное видео (для страницы О курсе)")
+async def upload_public_video_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_admin: AdminUser = Depends(get_current_admin_user)
 ):
     """
-    Загружает видео и запускает его обработку в фоне
+    Загружает видео для страницы "О курсе" в ПУБЛИЧНЫЙ контейнер
     Возвращает video_id для отслеживания статуса
     """
-    logger.info(f"Админ {current_admin.username} загружает видео: {file.filename}")
+    logger.info(f"Админ {current_admin.username} загружает ПУБЛИЧНОЕ видео: {file.filename}")
     
     # Валидация
     if not file.content_type or not file.content_type.startswith('video/'):
@@ -223,7 +223,138 @@ async def upload_video_file(
             "temp_path": temp_path,
             "uploaded_by": current_admin.username,
             "started_at": datetime.utcnow().isoformat(),
-            "progress": 0
+            "progress": 0,
+            "video_type": "public"  # ВАЖНО: маркируем как публичное
+        })
+        
+        # Запускаем обработку в фоне с флагом публичного видео
+        background_tasks.add_task(
+            process_public_video_background, 
+            video_id, 
+            temp_path, 
+            filename
+        )
+        
+        return {
+            "success": True,
+            "video_id": video_id,
+            "message": "Публичное видео загружено и поставлено в очередь на обработку",
+            "filename": filename,
+            "video_type": "public"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при загрузке публичного видео {file.filename}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка загрузки публичного видео: {str(e)}")
+
+
+async def process_public_video_background(video_id: str, temp_path: str, filename: str):
+    """
+    Фоновая обработка ПУБЛИЧНОГО видео
+    """
+    try:
+        # Обновляем статус на "в очереди"
+        await update_video_status(video_id, {
+            "status": "queued",
+            "message": "Публичное видео в очереди на обработку"
+        })
+        
+        # Обновляем статус на "обрабатывается"
+        await update_video_status(video_id, {
+            "status": "processing",
+            "message": "Обработка публичного видео началась",
+            "processing_started_at": datetime.utcnow().isoformat()
+        })
+        
+        # ВАЖНО: Используем PUBLIC видео процессор
+        result = await process_public_uploaded_video(temp_path, video_id)
+        
+        # Успешное завершение
+        await update_video_status(video_id, {
+            "status": "completed",
+            "message": "Публичное видео успешно обработано",
+            "result": result,
+            "completed_at": datetime.utcnow().isoformat(),
+            "progress": 100
+        })
+        
+        logger.info(f"✅ Публичное видео {filename} успешно обработано. video_id: {video_id}")
+        logger.info(f"🌐 URL: {result.get('master_playlist_url', 'N/A')}")
+        
+    except VideoProcessingError as e:
+        # Специфичная ошибка обработки
+        await update_video_status(video_id, {
+            "status": "failed",
+            "message": f"Ошибка обработки публичного видео: {str(e)}",
+            "error": str(e),
+            "failed_at": datetime.utcnow().isoformat()
+        })
+        logger.error(f"❌ Ошибка обработки публичного видео {filename}: {str(e)}")
+        
+    except Exception as e:
+        # Общая ошибка
+        await update_video_status(video_id, {
+            "status": "failed",
+            "message": "Неизвестная ошибка при обработке публичного видео",
+            "error": str(e),
+            "failed_at": datetime.utcnow().isoformat()
+        })
+        logger.error(f"❌ Критическая ошибка при обработке публичного видео {filename}: {str(e)}")
+    
+    finally:
+        # Удаляем временный файл
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+            
+        # Удаляем временный путь из статуса
+        current_status = await get_video_status(video_id)
+        if current_status and "temp_path" in current_status:
+            del current_status["temp_path"]
+            await set_video_status(video_id, current_status)
+
+
+@router.post("/upload/video", summary="Загрузить и обработать приватное видео (внутри курса)")
+async def upload_video_file(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """
+    Загружает видео для использования ВНУТРИ курса в ПРИВАТНЫЙ контейнер
+    Возвращает video_id для отслеживания статуса
+    """
+    logger.info(f"Админ {current_admin.username} загружает ПРИВАТНОЕ видео: {file.filename}")
+    
+    # Валидация
+    if not file.content_type or not file.content_type.startswith('video/'):
+        raise HTTPException(status_code=400, detail="Файл должен быть видео")
+    
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ALLOWED_VIDEO_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Неподдерживаемый формат видео. Разрешены: {', '.join(ALLOWED_VIDEO_EXTENSIONS)}"
+        )
+    
+    # Генерируем уникальный ID для отслеживания
+    video_id = str(uuid.uuid4())
+    
+    try:
+        # Сохраняем временно
+        temp_path, filename = await save_temp_file(file, MAX_VIDEO_SIZE)
+        
+        # Устанавливаем начальный статус
+        await set_video_status(video_id, {
+            "status": "uploading",
+            "filename": filename,
+            "original_name": file.filename,
+            "temp_path": temp_path,
+            "uploaded_by": current_admin.username,
+            "started_at": datetime.utcnow().isoformat(),
+            "progress": 0,
+            "video_type": "private"  # ВАЖНО: маркируем как приватное
         })
         
         # Запускаем обработку в фоне
@@ -232,68 +363,70 @@ async def upload_video_file(
         return {
             "success": True,
             "video_id": video_id,
-            "message": "Видео загружено и поставлено в очередь на обработку",
-            "filename": filename
+            "message": "Приватное видео загружено и поставлено в очередь на обработку",
+            "filename": filename,
+            "video_type": "private"
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Ошибка при загрузке видео {file.filename}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Ошибка загрузки видео: {str(e)}")
+        logger.error(f"Ошибка при загрузке приватного видео {file.filename}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка загрузки приватного видео: {str(e)}")
 
 
 async def process_video_background(video_id: str, temp_path: str, filename: str):
     """
-    Фоновая обработка видео
+    Фоновая обработка ПРИВАТНОГО видео
     """
     try:
         # Обновляем статус на "в очереди"
         await update_video_status(video_id, {
             "status": "queued",
-            "message": "Видео в очереди на обработку"
+            "message": "Приватное видео в очереди на обработку"
         })
         
         # Обновляем статус на "обрабатывается"
         await update_video_status(video_id, {
             "status": "processing",
-            "message": "Обработка видео началась",
+            "message": "Обработка приватного видео началась",
             "processing_started_at": datetime.utcnow().isoformat()
         })
         
-        # Запускаем обработку
+        # Запускаем обработку (стандартный процессор для приватного контейнера)
         result = await process_uploaded_video(temp_path, video_id)
         
         # Успешное завершение
         await update_video_status(video_id, {
             "status": "completed",
-            "message": "Видео успешно обработано",
+            "message": "Приватное видео успешно обработано",
             "result": result,
             "completed_at": datetime.utcnow().isoformat(),
             "progress": 100
         })
         
-        logger.info(f"✅ Видео {filename} успешно обработано. video_id: {video_id}")
+        logger.info(f"✅ Приватное видео {filename} успешно обработано. video_id: {video_id}")
+        logger.info(f"🔒 URL: {result.get('master_playlist_url', 'N/A')}")
         
     except VideoProcessingError as e:
         # Специфичная ошибка обработки
         await update_video_status(video_id, {
             "status": "failed",
-            "message": f"Ошибка обработки: {str(e)}",
+            "message": f"Ошибка обработки приватного видео: {str(e)}",
             "error": str(e),
             "failed_at": datetime.utcnow().isoformat()
         })
-        logger.error(f"❌ Ошибка обработки видео {filename}: {str(e)}")
+        logger.error(f"❌ Ошибка обработки приватного видео {filename}: {str(e)}")
         
     except Exception as e:
         # Общая ошибка
         await update_video_status(video_id, {
             "status": "failed",
-            "message": "Неизвестная ошибка при обработке видео",
+            "message": "Неизвестная ошибка при обработке приватного видео",
             "error": str(e),
             "failed_at": datetime.utcnow().isoformat()
         })
-        logger.error(f"❌ Критическая ошибка при обработке видео {filename}: {str(e)}")
+        logger.error(f"❌ Критическая ошибка при обработке приватного видео {filename}: {str(e)}")
     
     finally:
         # Удаляем временный файл
