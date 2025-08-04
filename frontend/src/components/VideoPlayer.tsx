@@ -258,13 +258,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           if (!window.Hls) {
             await new Promise((resolve, reject) => {
               const script = document.createElement('script');
-              script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
+              script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js';
               script.onload = resolve;
               script.onerror = reject;
               document.head.appendChild(script);
             });
           }
-
           if (window.Hls.isSupported()) {
             const hls = new window.Hls({
               enableWorker: true,
@@ -823,8 +822,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </div>
             )}
 
-
-            {/* Fullscreen */}
+            {/* Fullscreen - БЕЗ вложенного модального окна */}
             <button 
               onClick={toggleFullscreen} 
               style={{
@@ -836,30 +834,31 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 <Minimize size={mobile ? 18 : 20} strokeWidth={mobile ? 1.5 : 2} /> : 
                 <Maximize size={mobile ? 18 : 20} strokeWidth={mobile ? 1.5 : 2} />
               }
-
-              {/* Quality modal for mobile — поверх видео, но внутри контейнера */}
-              {mobile && isQualityMenuOpen && (
-                <div style={styles.qualityModalOverlay} onClick={() => setIsQualityMenuOpen(false)}>
-                  <div style={styles.qualityModal} onClick={e => e.stopPropagation()}>
-                    <div style={styles.qualityModalTitle}>Выбери качество</div>
-                    {qualities.map(quality => (
-                      <div
-                        key={quality}
-                        style={{
-                          ...styles.qualityModalItem,
-                          ...(currentQuality === quality ? styles.qualityModalItemActive : {})
-                        }}
-                        onClick={() => handleQualityChange(quality)}
-                      >
-                        {quality}
-                      </div>
-                    ))}
-                    <button style={styles.qualityModalClose} onClick={() => setIsQualityMenuOpen(false)}>Закрыть</button>
-                  </div>
-                </div>
-              )}
-
             </button>
+
+            {/* Quality modal для мобильных - ВЫНЕСЕНО ЗА пределы кнопки */}
+            {mobile && isQualityMenuOpen && (
+              <div style={styles.qualityModalOverlay} onClick={() => setIsQualityMenuOpen(false)}>
+                <div style={styles.qualityModal} onClick={e => e.stopPropagation()}>
+                  <div style={styles.qualityModalTitle}>Выбери качество</div>
+                  {qualities.map(quality => (
+                    <div
+                      key={quality}
+                      style={{
+                        ...styles.qualityModalItem,
+                        ...(currentQuality === quality ? styles.qualityModalItemActive : {})
+                      }}
+                      onClick={() => handleQualityChange(quality)}
+                    >
+                      {quality}
+                    </div>
+                  ))}
+                  <button style={styles.qualityModalClose} onClick={() => setIsQualityMenuOpen(false)}>
+                    Закрыть
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

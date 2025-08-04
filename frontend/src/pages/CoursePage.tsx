@@ -262,12 +262,14 @@ export default function CoursePage() {
                 <div className={`video-section-wrapper ${showVideo ? "open" : ""}`}>
                   {course.video && (
                     <div className="video-container">
-                      <VideoPlayer
-                        masterPlaylistUrl={catalogService.formatPublicVideoUrl(course.video)} // ИСПОЛЬЗУЕМ ПУБЛИЧНЫЙ CDN
-                        poster={course.video_preview ? catalogService.formatImageUrl(course.video_preview) : undefined}
-                        onError={handleVideoError}
-                        className="course-video-player"
-                      />
+<VideoPlayer
+  masterPlaylistUrl={catalogService.formatPublicVideoUrl(course.video)}
+  onError={(error) => {
+    console.error('🔴 ОШИБКА ВИДЕО:', error);
+    handleVideoError(error);
+  }}
+  className="course-video-player"
+/>
                       {videoError && (
                         <div className="video-error">
                           <p>⚠️ {videoError}</p>
