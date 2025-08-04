@@ -82,7 +82,7 @@ export default function CourseCreatePage() {
   const videoUrl = watch('video');
 
   /* ---------- generic file upload ---------- */
-  const handleUpload = async (file: File | null, isContent = false): Promise<string | null> => {
+  const handleUpload = async (file: File | null): Promise<string | null> => {
     if (!file) return null;
     try {
       setLoadingUpload(true);
@@ -226,7 +226,7 @@ export default function CourseCreatePage() {
             placeholder="Загрузите файл"
             accept="image/png,image/jpeg,image/webp"
             onChange={async (file) => {
-              const url = await handleUpload(file, false);
+              const url = await handleUpload(file);
               if (url) setValue('image', url);
             }}
             mb="md"
@@ -338,7 +338,7 @@ export default function CourseCreatePage() {
               description="Изображение, отображаемое до начала воспроизведения"
               accept="image/png,image/jpeg,image/webp"
               onChange={async (file) => {
-                const url = await handleUpload(file, true);
+                const url = await handleUpload(file);
                 if (url) setValue('video_preview', url);
               }}
               mb="md"

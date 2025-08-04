@@ -71,12 +71,12 @@ export default function CourseEditPage() {
   }, [courseId]);
 
 
-  const uploadFile = async (file: File, isContent: boolean) => {
+  const uploadFile = async (file: File) => {
     try {
       setUploading(true);
       const formData = new FormData();
       formData.append('file', file);
-      const endpoint = '/admin/upload/public';
+      const url = '/admin/upload/public'; // Всегда используем public для файлов курса
       const res = await axios.post(url, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -218,7 +218,7 @@ const handleVideoUpload = async (file: File | null): Promise<void> => {
           accept="image/png,image/jpeg,image/webp"
           onChange={async (file) => {
             if (file) {
-              const res = await uploadFile(file, false);
+              const res = await uploadFile(file);
               if (res?.url) setCourse((prev) => prev ? { ...prev, image: res.url } : prev);
             }
           }}
@@ -360,7 +360,7 @@ const handleVideoUpload = async (file: File | null): Promise<void> => {
           accept="image/png,image/jpeg,image/webp"
           onChange={async (file) => {
             if (file) {
-              const res = await uploadFile(file, true);
+              const res = await uploadFile(file);
               if (res?.url) setCourse((prev) => prev ? { ...prev, video_preview: res.url } : prev);
             }
           }}
