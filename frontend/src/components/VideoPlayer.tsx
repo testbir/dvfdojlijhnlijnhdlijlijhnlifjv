@@ -1,3 +1,5 @@
+// frontend/src/components/VideoPlayer.tsx
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { 
   Play, 
@@ -313,7 +315,7 @@ useEffect(() => {
       hlsRef.current = null;
     }
   };
-}, [videoUrl, onError]);
+}, [videoUrl]);
 
   // Video event handlers
   useEffect(() => {

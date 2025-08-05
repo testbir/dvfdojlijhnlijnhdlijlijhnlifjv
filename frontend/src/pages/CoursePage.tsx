@@ -1,6 +1,6 @@
 // frontend/src/pages/CoursePage.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo} from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import catalogService, { type CourseDetail } from "../services/catalogService";
 import { useAuth } from "../hooks/useAuth";
@@ -9,6 +9,7 @@ import VideoPlayer from "../components/VideoPlayer";
 import AuthModal from "../components/AuthModal";
 import CourseModal from "../components/CourseModal";
 import "../styles/CoursePage.scss";
+
 
 interface CourseModalData {
   title: string;
@@ -144,27 +145,22 @@ export default function CoursePage() {
     console.error("Ошибка видеоплеера:", error);
   };
 
-  const getVideoUrl = () => {
-    if (!course || !course.video) return '';
-    
-    let baseUrl = catalogService.formatPublicVideoUrl(course.video);
-    
-    // ВСЕГДА добавляем версию для HLS видео, чтобы избежать проблем с кэшем
-    if (baseUrl.includes('.m3u8')) {
-      const separator = baseUrl.includes('?') ? '&' : '?';
-      // Добавляем несколько параметров для гарантированного обхода кэша
-      const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(7);
-      baseUrl = `${baseUrl}${separator}_t=${timestamp}&_r=${random}`;
-      
-      // Если есть скидка, добавляем еще один параметр
-      if (course.is_discount_active) {
-        baseUrl += `&discount=1`;
-      }
-    }
-    
-    return baseUrl;
-  };
+
+const videoUrl = useMemo(() => {
+  if (!course?.video) return "";
+
+  let base = catalogService.formatPublicVideoUrl(course.video);
+  if (base.includes(".m3u8")) {
+    const sep = base.includes("?") ? "&" : "?";
+    const version = course.is_discount_active
+      ? `${course.id}_discount`
+      : `${course.id}_regular`;
+    // timestamp убираем - или фиксируем один раз
+    return `${base}${sep}v=${version}`;
+  }
+  return base;
+}, [course?.video, course?.is_discount_active, course?.id]);
+
 
   const handlePurchase = async () => {
     if (!course || course.is_free) return;
@@ -281,27 +277,26 @@ export default function CoursePage() {
 
 
 
-                <div className={`video-section-wrapper ${showVideo ? "open" : ""}`}>
-                  {course.video && (
-                    <div className="video-container">
-
-<VideoPlayer
-  videoUrl={getVideoUrl()}
-  onError={handleVideoError}
-  className="course-video-player"
-/>
-
-                  {videoError && (
-                        <div className="video-error">
-                          <p>⚠️ {videoError}</p>
-                          <button onClick={() => window.location.reload()}>
-                            Перезагрузить страницу
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+              <div className={`video-section-wrapper ${showVideo ? "open" : ""}`}>
+                {course.video && showVideo && (
+                  <div className="video-container">
+                    <VideoPlayer
+                      key={`video-${course.id}-${course.is_discount_active ? "dis" : "reg"}`}
+                      videoUrl={videoUrl}
+                      onError={handleVideoError}
+                      className="course-video-player"
+                    />
+                    {videoError && (
+                      <div className="video-error">
+                        <p>⚠️ {videoError}</p>
+                        <button onClick={() => window.location.reload()}>
+                          Перезагрузить страницу
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
                 <div
                   className="course-description"
