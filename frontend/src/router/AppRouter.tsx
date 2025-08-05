@@ -1,6 +1,5 @@
-// src/router/AppRouter.tsx
+// frontnd/src/router/AppRouter.tsx
 
-// src/router/AppRouter.tsx
 
 import { Routes, Route, Navigate } from "react-router-dom";
 
