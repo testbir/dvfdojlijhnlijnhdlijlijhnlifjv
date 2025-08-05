@@ -10,12 +10,14 @@ import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import EmailVerificationPage from "../pages/EmailVerificationPage";
 import SetNewPasswordPage from "../pages/SetNewPasswordPage";
 import CoursePage from "../pages/CoursePage";
+import LearningPage from "../pages/LearningPage";
 
 const AppRouter = () => {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/course/:id" element={<CoursePage />} />
+      <Route path="/course/:courseId" element={<LearningPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
