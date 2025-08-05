@@ -144,6 +144,28 @@ export default function CoursePage() {
     console.error("Ошибка видеоплеера:", error);
   };
 
+  const getVideoUrl = () => {
+    if (!course || !course.video) return '';
+    
+    let baseUrl = catalogService.formatPublicVideoUrl(course.video);
+    
+    // ВСЕГДА добавляем версию для HLS видео, чтобы избежать проблем с кэшем
+    if (baseUrl.includes('.m3u8')) {
+      const separator = baseUrl.includes('?') ? '&' : '?';
+      // Добавляем несколько параметров для гарантированного обхода кэша
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(7);
+      baseUrl = `${baseUrl}${separator}_t=${timestamp}&_r=${random}`;
+      
+      // Если есть скидка, добавляем еще один параметр
+      if (course.is_discount_active) {
+        baseUrl += `&discount=1`;
+      }
+    }
+    
+    return baseUrl;
+  };
+
   const handlePurchase = async () => {
     if (!course || course.is_free) return;
 
@@ -264,7 +286,7 @@ export default function CoursePage() {
                     <div className="video-container">
 
 <VideoPlayer
-  videoUrl={catalogService.formatPublicVideoUrl(course.video)}
+  videoUrl={getVideoUrl()}
   onError={handleVideoError}
   className="course-video-player"
 />

@@ -34,7 +34,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const hlsRef = useRef<Hls | null>(null);
   
   // States
-  
   const [isLoading, setIsLoading] = useState(true);
   const [isBuffering, setIsBuffering] = useState(false);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
@@ -253,6 +252,16 @@ useEffect(() => {
             enableWorker: true,
             lowLatencyMode: false,
             backBufferLength: 90,
+            // Отключаем кэширование
+            xhrSetup: function(xhr, url) {
+              xhr.setRequestHeader('Cache-Control', 'no-cache');
+              xhr.setRequestHeader('Pragma', 'no-cache');
+              // Добавляем случайный параметр к каждому запросу
+              if (url.includes('.ts') || url.includes('.m3u8')) {
+                const separator = url.includes('?') ? '&' : '?';
+                xhr.open('GET', url + separator + '_nc=' + Date.now(), true);
+              }
+            }
           });
 
           hlsRef.current = hls;
