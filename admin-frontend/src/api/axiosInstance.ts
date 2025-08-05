@@ -5,7 +5,7 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: '/admin-api', // Через proxy
-  timeout: 10000,
+  timeout: 100000,
 });
 
 // Request interceptor

@@ -84,7 +84,7 @@ export interface CourseAccessResponse {
 
 class CatalogService {
   // ПУБЛИЧНЫЙ CDN (course-public) - для изображений, баннеров, видео "О курсе"
-  private readonly PUBLIC_CDN = "https://4c9f6593-23ca-42b2-ad07-2d74de6f771e.selcdn.net";
+  private readonly PUBLIC_CDN = "https://79340a29-0019-4283-b338-388e7f5c1822.selstorage.ru";
   
   // ПРИВАТНЫЙ CDN (course-content) - для видео внутри курсов
   private readonly PRIVATE_CDN = "https://3e95e171-5a4f-482f-828a-d9394d4fb18e.selcdn.net";

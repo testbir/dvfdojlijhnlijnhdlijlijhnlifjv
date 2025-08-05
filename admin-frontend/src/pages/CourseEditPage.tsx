@@ -92,23 +92,47 @@ export default function CourseEditPage() {
   // 🎬 Новая функция для загрузки и обработки видео (как в CourseCreatePage)
   // admin-frontend/src/pages/CourseEditPage.tsx - ЗАМЕНИТЕ ФУНКЦИЮ handleVideoUpload:
 
-const handleVideoUpload = async (file: File | null): Promise<void> => {
+const handleVideoUpload = async (file: File | null) => {
   if (!file) return;
 
   try {
-    setUploading(true);                          // используем общий индикатор загрузки
+    setUploading(true);
+
     const formData = new FormData();
     formData.append('file', file);
 
-    const res = await axios.post('/admin/upload/video-simple-public', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: (pe) => {
-        if (pe.total) console.log(`video upload: ${Math.round(pe.loaded / pe.total * 100)}%`);
+    // ⬇️ важно: timeout: 0  (нет ограничения по времени)
+    const { data } = await axios.post(
+      '/admin/upload/video-public',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 0,
+        onUploadProgress: (pe) => {
+          if (pe.total) {
+            console.log(`upload: ${Math.round((pe.loaded / pe.total) * 100)}%`);
+          }
+        }
       }
-    });
+    );
 
-    setCourse(prev => prev ? { ...prev, video: res.data.url } : prev); // прямой URL
-  } catch {
+    const videoId = data.video_id;          // <-- берём id
+
+    // опрашиваем статус пока не обработается
+    let status;
+    do {
+      await new Promise(r => setTimeout(r, 5000));      // 5-сек опрос
+      status = (await axios.get(`/admin/video-status/${videoId}`)).data;
+      console.log(status.status, status.progress ?? '');
+    } while (status.status !== 'completed' && status.status !== 'failed');
+
+    if (status.status === 'completed') {
+      const url = status.result.master_playlist_url;    // HLS-pl
+      setCourse(prev => prev ? { ...prev, video: url } : prev);
+    } else {
+      setError('Ошибка обработки видео: ' + status.error);
+    }
+  } catch (e) {
     setError('Ошибка при загрузке видео');
   } finally {
     setUploading(false);

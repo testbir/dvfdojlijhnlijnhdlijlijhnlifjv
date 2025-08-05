@@ -6,8 +6,6 @@ import {
   VolumeX,
   Maximize,
   Minimize,
-  SkipForward,
-  SkipBack,
   PlayCircle,
   Loader
 } from 'lucide-react';
@@ -36,6 +34,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const hlsRef = useRef<Hls | null>(null);
   
   // States
+  
   const [isLoading, setIsLoading] = useState(true);
   const [isBuffering, setIsBuffering] = useState(false);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
@@ -682,125 +681,75 @@ useEffect(() => {
           }} />
         </div>
 
-        {/* Control buttons */}
-        <div style={styles.controlsRow}>
-          <div style={styles.controlsLeft}>
-            {/* Play/Pause */}
-            <button 
-              onClick={togglePlay} 
-              style={{
-                ...styles.controlButton,
-                ...(mobile ? styles.controlButtonMobile : {})
-              }}
-            >
-              {isPlaying ? 
-                <Pause size={mobile ? 20 : 24} strokeWidth={mobile ? 1.5 : 2} /> : 
-                <Play size={mobile ? 20 : 24} strokeWidth={mobile ? 1.5 : 2} />
-              }
-            </button>
+{/* Control buttons */}
+<div style={styles.controlsRow}>
+  {/* -------- ЛЕВО -------- */}
+  <div style={styles.controlsLeft}>
+    {/* ▶︎ / ❚❚ */}
+    <button onClick={togglePlay} style={styles.controlButton}>
+      {isPlaying ? <Pause size={20}/> : <Play size={20}/>}
+    </button>
 
-            {/* Skip buttons - only on desktop */}
-            {!mobile && (
-              <>
-                <button 
-                  onClick={() => skip(-10)} 
-                  style={styles.controlButton}
-                >
-                  <SkipBack size={20} />
-                </button>
-                <button 
-                  onClick={() => skip(10)} 
-                  style={styles.controlButton}
-                >
-                  <SkipForward size={20} />
-                </button>
-              </>
-            )}
+    {/* Volume + всплывающий слайдер */}
+    <div style={styles.volumeContainer}
+         onMouseEnter={handleVolumeHover}
+         onMouseLeave={handleVolumeLeave}>
+      <button onClick={toggleMute} style={styles.controlButton}>
+        {volume === 0 ? <VolumeX size={20}/> : <Volume2 size={20}/> }
+      </button>
 
-            {/* Volume - only on desktop */}
-            {!mobile && (
-              <div 
-                style={styles.volumeContainer}
-                onMouseEnter={handleVolumeHover}
-                onMouseLeave={handleVolumeLeave}
-              >
-                <button onClick={toggleMute} style={styles.controlButton}>
-                  {volume === 0 ? <VolumeX size={24} /> : <Volume2 size={24} />}
-                </button>
-                
-                <div style={{
-                  ...styles.volumeSliderContainer,
-                  opacity: showVolumeSlider ? 1 : 0,
-                  pointerEvents: showVolumeSlider ? 'auto' : 'none'
-                }}>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={volume}
-                    onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                    style={styles.volumeSlider}
-                  />
-                </div>
-              </div>
-            )}
+      {/* слайдер выезжает при hover */}
+      <div style={{
+        ...styles.volumeSliderContainer,
+        opacity: showVolumeSlider ? 1 : 0,
+        pointerEvents: showVolumeSlider ? 'auto' : 'none'
+      }}>
+        <input type="range" min={0} max={1} step={0.01}
+               value={volume}
+               onChange={e => handleVolumeChange(+e.target.value)}
+               style={styles.volumeSlider}/>
+      </div>
+    </div>
 
-            {/* Time display */}
-            <div style={{
-              ...styles.timeDisplay,
-              ...(mobile ? styles.timeDisplayMobile : {})
-            }}>
-              {formatTime(currentTime)} / {formatTime(duration)}
+    {/* Текущее время / длительность */}
+    <div style={styles.timeDisplay}>
+      {formatTime(currentTime)} / {formatTime(duration)}
+    </div>
+  </div>
+
+  {/* -------- ПРАВО -------- */}
+  <div style={styles.controlsRight}>
+    {/* ⚙︎ — меню со скоростью, качество можно добавить позже */}
+    <div style={styles.menuContainer}>
+      <button onClick={() => setIsRateMenuOpen(!isRateMenuOpen)}
+              style={styles.controlButton}>
+        ⚙︎
+      </button>
+
+      {isRateMenuOpen && (
+        <div style={styles.menu}>
+          {[0.25,0.5,0.75,1,1.25,1.5,1.75,2].map(r => (
+            <div key={r}
+                 className="menu-item"
+                 style={{
+                   ...styles.menuItem,
+                   ...(playbackRate===r ? styles.menuItemActive : {})
+                 }}
+                 onClick={()=>changePlaybackRate(r)}>
+              {r}×
             </div>
-          </div>
-
-          <div style={styles.controlsRight}>
-            {/* Playback speed - only on desktop */}
-            {!mobile && (
-              <div style={styles.menuContainer}>
-                <button 
-                  onClick={() => setIsRateMenuOpen(!isRateMenuOpen)}
-                  style={styles.controlButton}
-                >
-                  {playbackRate}x
-                </button>
-                
-                {isRateMenuOpen && (
-                  <div style={styles.menu}>
-                    {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(rate => (
-                      <div
-                        key={rate}
-                        className="menu-item"
-                        style={{
-                          ...styles.menuItem,
-                          ...(playbackRate === rate ? styles.menuItemActive : {})
-                        }}
-                        onClick={() => changePlaybackRate(rate)}
-                      >
-                        {rate}x
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Fullscreen - БЕЗ вложенного модального окна */}
-            <button 
-              onClick={toggleFullscreen} 
-              style={{
-                ...styles.controlButton,
-                ...(mobile && styles.controlButtonMobile)
-              }}
-            >
-              {isFullscreen ? 
-                <Minimize size={mobile ? 18 : 20} strokeWidth={mobile ? 1.5 : 2} /> : 
-                <Maximize size={mobile ? 18 : 20} strokeWidth={mobile ? 1.5 : 2} />
-              }
-            </button>
-          </div>  {/* Закрывает controlsRight */}
+          ))}
         </div>
+      )}
+    </div>
+
+    {/* ⛶ / ▭ — полноэкранный режим */}
+    <button onClick={toggleFullscreen} style={styles.controlButton}>
+      {isFullscreen ? <Minimize size={20}/> : <Maximize size={20}/> }
+    </button>
+  </div>
+</div>
+
       </div>
     </div>
   );

@@ -110,7 +110,7 @@ export default function CourseCreatePage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await axios.post('/admin/upload/video-simple-public', formData, {
+      const res = await axios.post('/admin/upload/video-public', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (pe) => {
           if (pe.total) {
