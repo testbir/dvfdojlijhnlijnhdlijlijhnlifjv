@@ -1,328 +1,969 @@
-/* Подключение шрифтов */
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Space+Grotesk:wght@700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,200,0,0');
 
-/* Основные стили */
+@use 'sass:color';
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
+
+// ========================================
+// ПЕРЕМЕННЫЕ
+// ========================================
+$menu-width: 320px;
+$menu-collapsed-width: 60px;
+$main-max-width: 1200px;
+$transition-duration: 0.3s;
+
+// Цветовая палитра
+$bg-white: rgba(255, 255, 255, 0.05);
+$stroke-white: rgb(255, 255, 255);
+$icon-color: #5C5C5C;
+$group-color: #484848;
+$module-color: #000000;
+$module-active: #0088FF;
+$text-color: #2E2E2E;
+$code-bg: #1E1E1E;
+$code-button-bg: rgba(45, 45, 45, 0.7);
+$progress-bg: #C4C4C4;
+$progress-fill: #0077FF;
+$scrollbar-color: rgba(217, 217, 217, 0.37);
+
+
+// ========================================
+// ОСНОВНОЙ КОНТЕЙНЕР СТРАНИЦЫ
+// ========================================
 .learning-page {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding: 20px;
-}
-
-/* Glass container */
-.glass-container {
-  position: relative;
-  max-width: calc(100% - 84px);
-  margin: 0 auto;
-  min-height: calc(100vh - 56px);
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0px 12px 24px rgba(0, 0, 0, 0.05);
-  backdrop-filter: blur(15px);
-  border-radius: 16px;
+  background: #F6F6F6; // Белый фон страницы
+  padding: 27px 42px 35px; // Отступы страницы: верх 27px, бока 42px, низ 35px
   display: flex;
-  overflow: hidden;
-}
+  justify-content: center;
+  align-items: flex-start;
 
-/* Адаптив для мобильных */
-@media (max-width: 768px) {
+  // Контейнеры загрузки и ошибок
+  .loading-container,
+  .error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 20px;
+    
+    // Спиннер загрузки
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid $progress-bg;
+      border-top-color: $progress-fill;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    // Кнопка возврата на главную
+    button {
+      padding: 12px 24px;
+      background: linear-gradient(180deg, #007AFF 0%, #006ADD 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Sora', sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+
+      &:hover {
+        opacity: 0.9;
+      }
+    }
+  }
+
+  // ========================================
+  // СТЕКЛЯННЫЙ КОНТЕЙНЕР (основной фон с blur эффектом)
+  // ========================================
   .glass-container {
-    max-width: 100%;
-    margin: 0;
-    border-radius: 0;
-  }
-  
-  .learning-page {
-    padding: 0;
+    width: 100%;
+    max-width: 1700px;
+    height: calc(100vh - 62px); // Высота с учетом отступов страницы
+    background: rgba(255, 255, 255, 0.2); // Полупрозрачный белый фон
+    border: 1.5px solid $stroke-white; // Белая полупрозрачная рамка
+    border-radius: 20px;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.05); // Тень
+    backdrop-filter: blur(30px); // Блюр эффект
+    -webkit-backdrop-filter: blur(30px);
+    display: flex;
+    position: relative;
+    overflow: hidden;
   }
 }
 
-/* Левое меню */
+// ========================================
+// ЛЕВАЯ ПАНЕЛЬ (МЕНЮ)
+// ========================================
 .left-menu {
-  width: 300px;
-  background: rgba(255, 255, 255, 0.5);
-  border-right: 1px solid rgba(255, 255, 255, 0.3);
-  transition: width 0.3s ease;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.left-menu.collapsed {
-  width: 60px;
-}
-
-.menu-controls {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 15px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.icon-button {
-  font-weight: 200;
-  font-size: 24px;
-  cursor: pointer;
-  color: #484848;
-  transition: color 0.2s;
-  user-select: none;
-}
-
-.icon-button:hover {
-  color: #0088FF;
-}
-
-/* Контент меню */
-.menu-content {
-  padding: 20px;
-}
-
-.group-section {
-  margin-bottom: 20px;
-}
-
-.group-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 5px 0;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: #484848;
-}
-
-.group-toggle {
-  font-size: 12px;
-  transition: transform 0.2s;
-  user-select: none;
-}
-
-.group-toggle.expanded {
-  transform: rotate(90deg);
-}
-
-.group-title {
-  flex: 1;
-}
-
-.modules-list {
-  margin-left: 20px;
-  margin-top: 10px;
-}
-
-.module-item {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 14px;
-  font-weight: 400;
-  color: #000000;
-  padding: 8px 10px;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s;
+  width: $menu-width;
+  min-width: $menu-width;
+  height: 100%; // Занимает 100% высоты родителя
+  background: $bg-white; // Полупрозрачный белый фон
+  border-right: 1.5px solid $stroke-white; // Правая граница
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.1); // Тень
   position: relative;
-}
-
-.module-item:hover {
-  background: rgba(0, 136, 255, 0.1);
-}
-
-.module-item.active {
-  color: #0088FF;
-  font-weight: 600;
-}
-
-.module-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: #0088FF;
-}
-
-/* Основной контент */
-.main-content {
-  flex: 1;
-  position: relative;
-  overflow-y: auto;
-  padding: 40px;
-}
-
-/* Прогресс бар */
-.progress-bar-container {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  right: 20px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 20px;
-  z-index: 10;
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.progress-bar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.home-button {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  font-weight: 400;
-  color: #484848;
-  background: none;
-  border: 1px solid #484848;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.home-button:hover {
-  color: #0088FF;
-  border-color: #0088FF;
-}
-
-.course-title {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 18px;
-  font-weight: 700;
-  text-align: center;
-  margin-bottom: 20px;
-  color: #000000;
-}
-
-.progress-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 8px;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #0088FF;
-  box-shadow: 0 0 10px rgba(0, 136, 255, 0.5);
-  transition: width 0.3s ease;
-}
-
-.progress-text {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: #0088FF;
-  min-width: 40px;
-}
-
-/* Контент модуля */
-.module-content {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.module-title {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 20px;
-  font-weight: 600;
-  color: #000000;
-  margin-bottom: 30px;
-}
-
-.content-blocks {
+  transition: all $transition-duration ease-in-out;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  border-radius: 20px;
+
+  // Состояние свернутого меню
+  &.collapsed {
+    width: $menu-collapsed-width;
+    min-width: $menu-collapsed-width;
+
+    // Скрываем контент меню при сворачивании
+    .menu-content {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    // Позиционирование иконок при свернутом меню
+    .menu-controls {
+      // Обе иконки становятся полупрозрачными
+      .toolbar-button,
+      .dock-button {
+        opacity: 0.2;
+      }
+
+      // Toolbar перемещается под dock_to_right
+      .toolbar-button {
+        position: absolute;
+        top: 56px; // 45px (позиция dock) + 11px (отступ между иконками)
+        right: 15px;
+        left: auto;
+      }
+
+      // Dock центрируется относительно свернутой панели
+      .dock-button {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+    }
+  }
+
+  // ========================================
+  // ВЕРХНЯЯ ЧАСТЬ МЕНЮ С ИКОНКАМИ
+  // ========================================
+  .menu-controls {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: $bg-white;
+    padding: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px; // Отступ 15px между иконками
+    height: 60px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+    // Стили для кнопок с иконками
+    .icon-button {
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: all 0.2s ease;
+
+      // Стили для Material Icons
+      span {
+        font-size: 35px;
+        color: $icon-color; // Цвет #5C5C5C
+        font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+      }
+
+      &:hover {
+        opacity: 0.7;
+      }
+    }
+
+    // Кнопка toolbar (левее от dock)
+    .toolbar-button {
+      position: relative;
+      transition: all $transition-duration ease-in-out;
+    }
+
+    // Кнопка dock_to_right (прижата к правому верхнему углу)
+    .dock-button {
+      position: relative;
+      transition: all $transition-duration ease-in-out;
+    }
+  }
+
+  // ========================================
+  // КОНТЕНТ МЕНЮ (ГРУППЫ И МОДУЛИ)
+  // ========================================
+  .menu-content {
+    flex: 1;
+    overflow: hidden;
+    transition: all $transition-duration ease-in-out;
+    display: flex;
+    flex-direction: column;
+
+    // Скроллируемая область с группами и модулями
+    .menu-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 15px; // Паддинг 15px справа и слева
+      
+      // Кастомный скроллбар
+      &::-webkit-scrollbar {
+        width: 2px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: $scrollbar-color; // D9D9D9 60%
+        border-radius: 1px;
+      }
+
+      scrollbar-width: thin;
+      scrollbar-color: $scrollbar-color transparent;
+    }
+  }
+
+  // ========================================
+  // СЕКЦИЯ ГРУППЫ
+  // ========================================
+  .group-section {
+    // Заголовок группы
+    .group-header {
+      
+      width: 100%;
+      display: flex;
+      align-items: center;
+      padding: 8px 0;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      transition: opacity 0.2s;
+      gap: 8px; // Отступ между названием и треугольником
+
+      &:hover {
+        opacity: 0.8;
+      }
+
+      // Название группы
+      .group-title {
+        font-family: 'Open Sans', sans-serif;
+        font-size: 15px;
+        font-weight: 600; // SemiBold
+        color: $group-color; // #484848
+      }
+
+      // Треугольник рядом с названием группы
+        .group-toggle {
+          font-variation-settings: 'FILL' 1, 'wght' 400;
+          color: #484848;
+          font-size: 14px;
+          
+          transition: transform 0.3s;
+          display: inline-flex;
+          align-items: center;
+          /* чтобы baseline не прыгал у текста */
+        }
+
+        .group-toggle {
+          transform: rotate(-90deg);
+        }
+        .group-toggle.expanded {
+          transform: rotate(-180deg); /* развернутый вниз */
+        }
+
+
+    }
+
+    // ========================================
+    // СПИСОК МОДУЛЕЙ В ГРУППЕ
+    // ========================================
+    .modules-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px; // Расстояние между модулями 15px
+
+      // Элемент модуля
+      .module-item {
+        width: 100%;
+        padding: 6px 0 6px 20px; // Отступ слева 24px
+        background: transparent;
+        border: none;
+        text-align: left;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s;
+
+        // Текст модуля
+        .module-text {
+          font-family: 'Open Sans', sans-serif;
+          font-size: 14px;
+          font-weight: 400; // Regular
+          color: $module-color; // #000000
+          display: block;
+          transition: color 0.2s;
+        }
+
+        // Состояние при наведении
+        &.active .module-text {
+          color: $module-active;
+          text-decoration: underline;
+          text-underline-offset: 5px;
+          text-decoration-thickness: 0.8px;
+          text-decoration-color: $module-active;
+        }
+
+
+        // Активный модуль
+        &.active {
+          .module-text {
+            color: $module-active; // #0088FF
+          }
+          }
+
+  &.active .module-text::after {
+    opacity: 1;
+    animation: slideIn 0.3s ease;
+  }
+}
+        
+    }
+  }
 }
 
-.content-block {
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 8px;
-  padding: 20px;
-}
-
-.block-title {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: #000000;
-  margin-bottom: 15px;
-}
-
-.block-content {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #333333;
-}
-
-/* Типы контента */
-.content-text {
-  white-space: pre-wrap;
-}
-
-.content-code {
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 15px;
-  overflow-x: auto;
-  font-family: 'Courier New', monospace;
-  font-size: 14px;
-}
-
-.content-video video,
-.content-image img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 4px;
-}
-
-/* Скроллбары */
-.left-menu::-webkit-scrollbar,
-.main-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.left-menu::-webkit-scrollbar-track,
-.main-content::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.left-menu::-webkit-scrollbar-thumb,
-.main-content::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-.left-menu::-webkit-scrollbar-thumb:hover,
-.main-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-/* Загрузка */
-.loading {
+// ========================================
+// ОСНОВНОЙ КОНТЕНТ (ПРАВАЯ ЧАСТЬ)
+// ========================================
+.main-content {
+  flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 18px;
-  color: #484848;
+  flex-direction: column;
+  position: relative;
+  padding: 0 20px; // Отступы по бокам 20px
+  overflow: hidden;
+  height: 100%;
+
+  // ========================================
+  // ВЫДВИЖНАЯ ПАНЕЛЬ ПРОГРЕССА
+  // ========================================
+// progress-bar (стекло + мощный blur)
+.progress-bar-container {
+  position: absolute;
+  top: -100px;
+  left: 20px;
+  right: 20px;
+  width: calc(100% - 40px);
+  max-width: calc(#{$main-max-width} - 40px);
+  margin: 0 auto;
+  height: 85px;
+  padding: 6px 35px;
+  border-radius: 0 0 20px 20px;
+  z-index: 100;
+  transition: top .4s cubic-bezier(.4,0,.2,1);
+  
+  // Убираем isolation и делаем простой стеклянный эффект
+backdrop-filter: blur(80px) saturate(250%) brightness(1.1);
+-webkit-backdrop-filter: blur(80px) saturate(250%) brightness(1.1);
+
+    background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+
+  /* показать панель */
+  &.visible { 
+    top: 0; 
+  }
+
+  
+
+    // Контент панели прогресса
+    .progress-bar-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      position: relative;
+      
+      
+
+      // Кнопка "На Главную" в левом верхнем углу
+      .progress-close {
+        position: absolute;
+        top: 6px;
+        left: 0;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 4px 8px;
+        transition: opacity 0.2s;
+
+        // Иконка door_open
+        span:first-child {
+          font-size: 24px;
+          font-weight: 200;
+          color: #575757;
+          font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+        }
+
+        // Текст "На Главную"
+        span:last-child {
+          font-family: 'Open Sans', sans-serif;
+          font-size: 16px;
+          font-weight: 400;
+          color: #575757;
+        }
+
+        &:hover {
+          opacity: 0.6;
+        }
+      }
+
+      // Название курса (центрировано по горизонтали)
+      .course-title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 18px;
+        font-weight: 700; // Bold
+        color: #505050;
+        margin: 0 0 12px 0;
+        text-align: center;
+      }
+
+      // Обертка для прогресс-бара и процента
+      .progress-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px; // Расстояние между линией и процентом
+        max-width: 600px;
+        width: 100%;
+
+        // Прогресс бар
+        .progress-bar {
+          width: 100%;
+          height: 4px;
+          background: $progress-bg; // #C4C4C4
+          border-radius: 2px;
+          overflow: hidden;
+          position: relative;
+
+          // Заполненная часть прогресса
+          .progress-fill {
+            height: 100%;
+            background: $progress-fill; // #0077FF
+            border-radius: 2px;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 8px rgba(41, 83, 166, 0.92); // Drop shadow
+          }
+        }
+
+        // Текст с процентом
+        .progress-text {
+          font-family: 'Open Sans', sans-serif;
+          font-size: 13px;
+          font-weight: 600;
+          color: #0091FF;
+        }
+      }
+    }
+  }
+
+  // ========================================
+  // КОНТЕНТ МОДУЛЯ
+  // ========================================
+  .module-content {
+    flex: 1;
+    width: 100%;
+    max-width: $main-max-width; // Максимальная ширина 1450px
+    margin: 0 auto; // Центрирование
+    padding: 35px 70px 50px; // Паддинги: верх 35px, бока 70px, низ 50px
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    height: 100%;
+
+    // Кастомный скроллбар
+    &::-webkit-scrollbar {
+      width: 2px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: $scrollbar-color;
+      border-radius: 1px;
+    }
+
+    scrollbar-width: thin;
+    scrollbar-color: $scrollbar-color transparent;
+
+    // Заголовок модуля
+    .module-title {
+      font-family: 'Open Sans', sans-serif;
+      font-size: 20px;
+      font-weight: 600; // SemiBold
+      color: #000000;
+      text-align: center; // Центрирован
+      margin: 0 0 45px 0; // Отступ снизу 45px
+    }
+
+    // ========================================
+    // БЛОКИ КОНТЕНТА
+    // ========================================
+    .content-blocks {
+      display: flex;
+      flex-direction: column;
+      gap: 25px; // Расстояние между блоками 25px
+      padding-bottom: 80px; // Отступ снизу для кнопки
+
+      // Отдельный блок контента
+      .content-block {
+        // Заголовок блока
+        .block-title {
+          font-family: 'Open Sans', sans-serif;
+          font-size: 18px;
+          font-weight: 600; // SemiBold
+          color: #000000;
+          margin: 0 0 10px 0; // Расстояние до содержимого 10px
+        }
+
+        // Содержимое блока
+        .block-content {
+          // Текстовый контент
+          .content-text {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 17px;
+            font-weight: 400; // Regular
+            color: $text-color; // #2E2E2E
+            line-height: 1.6;
+
+            p {
+              margin: 0 0 15px 0;
+              &:last-child {
+                margin-bottom: 0;
+              }
+            }
+          }
+
+          // Блок с кодом
+          .content-code-wrapper {
+            position: relative;
+            max-width: 800px;
+            background: $code-bg; // #1E1E1E
+            border-radius: 10px;
+            overflow: hidden;
+
+            // Область с кодом
+            .content-code {
+              max-width: 800px;
+              padding: 20px;
+              margin: 0;
+              overflow-x: auto;
+
+              code {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 15px;
+                color: #FFFFFF;
+                line-height: 1.5;
+              }
+
+              // Горизонтальный скроллбар для кода
+              &::-webkit-scrollbar {
+                height: 8px;
+              }
+
+              &::-webkit-scrollbar-track {
+                background: rgba(255, 255, 255, 0.1);
+              }
+
+              &::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 4px;
+              }
+            }
+
+            // Кнопка копирования кода
+            .copy-button {
+              position: absolute;
+              top: 10px;
+              right: 10px;
+              width: 118px;
+              height: 28px;
+              background: $code-button-bg; // 2D2D2D 70%
+              border: none;
+              border-radius: 10px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 2px; // Расстояние между иконкой и текстом
+              cursor: pointer;
+              transition: all 0.2s;
+
+              // Иконка content_copy
+              span:first-child {
+                font-size: 18px;
+                font-weight: 200;
+                color: #FFFFFF;
+              }
+
+              // Текст "Copy Code"
+              .copy-text {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 12px;
+                font-weight: 400;
+                color: #FFFFFF;
+                letter-spacing: -0.1em; // Letter spacing -10%
+              }
+
+              &:hover {
+                background: rgba(45, 45, 45, 0.9);
+              }
+
+              // Состояние после копирования
+              &.copied {
+                background: rgba(0, 136, 255, 0.3);
+              }
+            }
+          }
+
+          // Видео и изображения
+          .content-video,
+          .content-image {
+            max-height: 400px; // Максимальная высота 300px
+            max-width: 750px;
+            border-radius: 10px; // Скругление 10px
+            overflow: hidden;
+
+            video,
+            img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+              display: block;
+            }
+
+            video {
+              background: #000;
+            }
+          }
+        }
+      }
+    }
+
+    // ========================================
+    // КНОПКА "ЗАВЕРШИТЬ УРОК" (всегда в правом нижнем углу)
+    // ========================================
+// КНОПКА "ЗАВЕРШИТЬ УРОК" (в конце контента)
+.module-actions {
+  margin-top: 40px; // Отступ от последнего блока
+  display: flex;
+  justify-content: flex-end; // Прижать к левому краю
+  padding-bottom: 30px; // Отступ снизу
+  margin-right: 30px;
+
+  .complete-module-btn {
+    padding: 12px 32px;
+    background: linear-gradient(180deg, #007AFF 0%, #006ADD 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Sora', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 122, 255, 0.4);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+}
+  }
+}
+
+// ========================================
+// АНИМАЦИИ
+// ========================================
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: calc(100% - 39px);
+    opacity: 1;
+  }
+}
+
+// ========================================
+// МЕДИА-ЗАПРОСЫ ДЛЯ АДАПТИВНОСТИ
+// ========================================
+@media (max-width: 1600px) {
+  .main-content {
+    .module-content {
+      padding: 35px 50px 50px;
+    }
+
+    .module-actions {
+      right: 70px;
+    }
+  }
+}
+
+@media (max-width: 1200px) {
+  .learning-page {
+    padding: 20px 30px 30px;
+  }
+
+  .left-menu {
+    width: 280px;
+    min-width: 280px;
+  }
+
+  .main-content {
+    .module-content {
+      padding: 30px 40px 40px;
+    }
+
+    .module-actions {
+      right: 60px;
+      bottom: 40px;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .learning-page {
+    padding: 15px;
+    
+    .glass-container {
+      border-radius: 15px;
+    }
+  }
+
+  .left-menu {
+    width: 240px;
+    min-width: 240px;
+
+    &.collapsed {
+      width: 50px;
+      min-width: 50px;
+
+      .menu-controls {
+        .toolbar-button {
+          top: 50px;
+        }
+      }
+    }
+
+    .menu-controls {
+      padding: 10px;
+      height: 50px;
+
+      .icon-button span {
+        font-size: 22px;
+      }
+    }
+  }
+
+  .main-content {
+    padding: 0 15px;
+
+    .module-content {
+      padding: 25px 30px 35px;
+
+      .module-title {
+        font-size: 18px;
+        margin-bottom: 35px;
+      }
+
+      .content-blocks {
+        gap: 20px;
+        padding-bottom: 70px;
+
+        .content-block {
+          .block-title {
+            font-size: 16px;
+          }
+
+          .block-content {
+            .content-text {
+              font-size: 15px;
+            }
+
+            .content-code-wrapper {
+              .content-code {
+                padding: 15px;
+
+                code {
+                  font-size: 13px;
+                }
+              }
+
+              .copy-button {
+                width: 100px;
+                height: 26px;
+
+                span:first-child {
+                  font-size: 16px;
+                }
+
+                .copy-text {
+                  font-size: 11px;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .module-actions {
+      right: 40px;
+      bottom: 35px;
+
+      .complete-module-btn {
+        padding: 10px 24px;
+        font-size: 13px;
+      }
+    }
+
+    .progress-bar-container {
+      height: 75px;
+      padding: 5px 20px;
+
+      .progress-bar-content {
+        .course-title {
+          font-size: 16px;
+          margin-bottom: 8px;
+        }
+
+        .progress-close {
+          span:first-child {
+            font-size: 16px;
+          }
+
+          span:last-child {
+            font-size: 14px;
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .left-menu {
+    width: 200px;
+    min-width: 200px;
+
+    .group-section {
+      .group-header {
+        .group-title {
+          font-size: 13px;
+        }
+
+        .group-toggle {
+          font-size: 14px;
+        }
+      }
+
+      .modules-list {
+        .module-item {
+          padding-left: 20px;
+
+          .module-text {
+            font-size: 13px;
+          }
+        }
+      }
+    }
+  }
+
+  .main-content {
+    .module-content {
+      padding: 20px;
+
+      .module-title {
+        font-size: 16px;
+        margin-bottom: 30px;
+      }
+
+      .content-blocks {
+        padding-bottom: 60px;
+
+        .content-block {
+          .block-title {
+            font-size: 15px;
+          }
+
+          .block-content {
+            .content-text {
+              font-size: 14px;
+            }
+
+            .content-code-wrapper {
+              .content-code {
+                code {
+                  font-size: 12px;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .module-actions {
+      right: 30px;
+      bottom: 30px;
+
+      .complete-module-btn {
+        padding: 10px 20px;
+        font-size: 12px;
+      }
+    }
+
+    .progress-bar-container {
+      height: 70px;
+
+      .progress-bar-content {
+        .course-title {
+          font-size: 14px;
+        }
+
+        .progress-wrapper {
+          max-width: 100%;
+        }
+      }
+    }
+  }
 }

@@ -161,6 +161,13 @@ const videoUrl = useMemo(() => {
   return base;
 }, [course?.video, course?.is_discount_active, course?.id]);
 
+const handleOpenCourse = () => {
+  if (!course) return;
+  navigate(`/course/${course.id}/learn`);
+};
+
+
+
 
   const handlePurchase = async () => {
     if (!course || course.is_free) return;
@@ -331,10 +338,11 @@ const videoUrl = useMemo(() => {
                     )}
                   </div>
 
-                  <button 
-                    className={`course-button ${course.has_access ? 'accessed' : ''}`}
-                    onClick={course.has_access ? undefined : handlePurchase}
-                    disabled={course.has_access}
+                  <button
+                    className={`course-button ${course.has_access ? "accessed" : ""}`}
+                    onClick={course.has_access ? handleOpenCourse : handlePurchase}
+
+                    // кнопка всегда активна, поэтому disabled убираем
                   >
                     {course.button_text}
                   </button>
@@ -428,11 +436,10 @@ const videoUrl = useMemo(() => {
               <span className="course-final-price">{course.final_price} ₽</span>
             )}
           </div>
+   <button
+     className={`course-button ${course.has_access ? 'accessed' : ''}`}
+    onClick={course.has_access ? handleOpenCourse : handlePurchase}
 
-          <button 
-            className={`course-button ${course.has_access ? 'accessed' : ''}`}
-            onClick={course.has_access ? undefined : handlePurchase}
-            disabled={course.has_access}
           >
             {course.button_text}
           </button>

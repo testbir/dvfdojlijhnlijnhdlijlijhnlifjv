@@ -1,9 +1,8 @@
-// frontend/src/pages/LearningPage.tsx
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import { learningService } from '../services/learningService';
-import './LearningPage.css';
+import '../styles/LearningPage.scss';
 
 interface Module {
   id: string;
@@ -16,7 +15,6 @@ interface Group {
   id: string;
   title: string;
   order: number;
-  isExpanded?: boolean;
 }
 
 interface ContentBlock {
@@ -45,6 +43,9 @@ const LearningPage: React.FC = () => {
   const [isMenuCollapsed, setIsMenuCollapsed] = useState(false);
   const [isProgressBarVisible, setIsProgressBarVisible] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
   useEffect(() => {
     loadCourseData();
@@ -58,75 +59,185 @@ const LearningPage: React.FC = () => {
 
   const loadCourseData = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Проверяем доступ к курсу
+      const hasAccess = await learningService.checkCourseAccess(courseId!);
+      if (!hasAccess) {
+        setError('У вас нет доступа к этому курсу');
+        return;
+      }
+
       const data = await learningService.getCourseData(courseId!);
       setCourseData(data);
+      
       // Раскрываем все группы по умолчанию
       setExpandedGroups(new Set(data.groups.map(g => g.id)));
+      
       // Выбираем первый модуль
       if (data.modules.length > 0) {
-        setSelectedModule(data.modules[0].id);
+        const firstModule = data.modules.sort((a, b) => a.order - b.order)[0];
+        setSelectedModule(firstModule.id);
       }
     } catch (error) {
+      setError('Не удалось загрузить данные курса');
       console.error('Error loading course data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const loadModuleContent = async (moduleId: string) => {
     try {
       const content = await learningService.getModuleContent(courseId!, moduleId);
-      setModuleContent(content);
+      // Сортируем контент по order
+      const sortedContent = content.sort((a, b) => a.order - b.order);
+      setModuleContent(sortedContent);
     } catch (error) {
       console.error('Error loading module content:', error);
     }
   };
 
-  const toggleGroup = (groupId: string) => {
-    const newExpanded = new Set(expandedGroups);
-    if (newExpanded.has(groupId)) {
-      newExpanded.delete(groupId);
-    } else {
-      newExpanded.add(groupId);
-    }
-    setExpandedGroups(newExpanded);
-  };
+  const toggleGroup = useCallback((groupId: string) => {
+    setExpandedGroups(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(groupId)) {
+        newExpanded.delete(groupId);
+      } else {
+        newExpanded.add(groupId);
+      }
+      return newExpanded;
+    });
+  }, []);
 
-  const handleModuleClick = (moduleId: string) => {
+  const handleModuleClick = useCallback((moduleId: string) => {
     setSelectedModule(moduleId);
-  };
+  }, []);
 
-  const toggleMenu = () => {
-    setIsMenuCollapsed(!isMenuCollapsed);
-  };
+  const toggleMenu = useCallback(() => {
+    setIsMenuCollapsed(prev => !prev);
+  }, []);
 
-  const toggleProgressBar = () => {
-    setIsProgressBarVisible(!isProgressBarVisible);
-  };
+  const toggleProgressBar = useCallback(() => {
+    setIsProgressBarVisible(prev => !prev);
+  }, []);
 
-  const renderContentBlock = (block: ContentBlock) => {
+  const handleCopyCode = useCallback((blockId: string, code: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopiedCodeId(blockId);
+      setTimeout(() => setCopiedCodeId(null), 2000);
+    });
+  }, []);
+
+  const handleCompleteModule = useCallback(async () => {
+    if (!selectedModule || !courseId) return;
+    
+    try {
+      await learningService.markModuleCompleted(courseId, selectedModule);
+      
+      // Находим следующий модуль
+      const currentIndex = courseData?.modules.findIndex(m => m.id === selectedModule);
+      if (currentIndex !== undefined && currentIndex < (courseData?.modules.length || 0) - 1) {
+        const nextModule = courseData?.modules[currentIndex + 1];
+        if (nextModule) {
+          setSelectedModule(nextModule.id);
+        }
+      }
+      
+      // Обновляем прогресс
+      await loadCourseData();
+    } catch (error) {
+      console.error('Error completing module:', error);
+    }
+  }, [selectedModule, courseId, courseData]);
+
+  const renderContentBlock = useCallback((block: ContentBlock) => {
     switch (block.type) {
       case 'text':
-        return <div className="content-text" dangerouslySetInnerHTML={{ __html: block.content }} />;
+        return (
+          <div 
+            className="content-text" 
+            dangerouslySetInnerHTML={{ 
+              __html: DOMPurify.sanitize(block.content) 
+            }} 
+          />
+        );
+      
       case 'code':
-        return <pre className="content-code"><code>{block.content}</code></pre>;
+        return (
+          <div className="content-code-wrapper">
+            <pre className="content-code">
+              <code>{block.content}</code>
+            </pre>
+            <button 
+              className={`copy-button ${copiedCodeId === block.id ? 'copied' : ''}`}
+              onClick={() => handleCopyCode(block.id, block.content)}
+            >
+              <span className="material-symbols-outlined">
+                {copiedCodeId === block.id ? 'check' : 'content_copy'}
+              </span>
+              <span className="copy-text">
+                {copiedCodeId === block.id ? 'Copied!' : 'Copy Code'}
+              </span>
+            </button>
+          </div>
+        );
+      
       case 'video':
         return (
           <div className="content-video">
             <video controls src={block.content} />
           </div>
         );
+      
       case 'image':
         return (
           <div className="content-image">
             <img src={block.content} alt={block.title} />
           </div>
         );
+      
       default:
         return null;
     }
-  };
+  }, [copiedCodeId, handleCopyCode]);
+
+  const sortedGroups = useMemo(() => {
+    return courseData?.groups.sort((a, b) => a.order - b.order) || [];
+  }, [courseData?.groups]);
+
+  const getModulesForGroup = useCallback((groupId: string) => {
+    return courseData?.modules
+      .filter(module => module.groupId === groupId)
+      .sort((a, b) => a.order - b.order) || [];
+  }, [courseData?.modules]);
+
+  if (isLoading) {
+    return (
+      <div className="learning-page">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <span>Загрузка курса...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="learning-page">
+        <div className="error-container">
+          <h2>Ошибка</h2>
+          <p>{error}</p>
+          <button onClick={() => navigate('/')}>Вернуться на главную</button>
+        </div>
+      </div>
+    );
+  }
 
   if (!courseData) {
-    return <div className="loading">Загрузка...</div>;
+    return null;
   }
 
   const currentModule = courseData.modules.find(m => m.id === selectedModule);
@@ -135,108 +246,133 @@ const LearningPage: React.FC = () => {
     <div className="learning-page">
       <div className="glass-container">
         {/* Левое меню */}
-        <div className={`left-menu ${isMenuCollapsed ? 'collapsed' : ''}`}>
+        <aside className={`left-menu ${isMenuCollapsed ? 'collapsed' : ''}`}>
           <div className="menu-controls">
-            <span 
-              className="material-symbols-outlined icon-button"
+            <button 
+              className="icon-button toolbar-button"
               onClick={toggleProgressBar}
               title="Показать прогресс"
+              aria-label="Показать прогресс"
             >
-              toolbar
-            </span>
-            <span 
-              className="material-symbols-outlined icon-button"
+              <span className="material-symbols-outlined">toolbar</span>
+            </button>
+            <button 
+              className="icon-button dock-button"
               onClick={toggleMenu}
               title={isMenuCollapsed ? 'Развернуть меню' : 'Свернуть меню'}
+              aria-label={isMenuCollapsed ? 'Развернуть меню' : 'Свернуть меню'}
             >
-              {isMenuCollapsed ? 'dock_to_left' : 'dock_to_right'}
-            </span>
+              <span className="material-symbols-outlined">
+                {isMenuCollapsed ? 'dock_to_left' : 'dock_to_right'}
+              </span>
+            </button>
           </div>
 
-          {!isMenuCollapsed && (
-            <div className="menu-content">
-              {courseData.groups.map(group => (
-                <div key={group.id} className="group-section">
-                  <div className="group-header" onClick={() => toggleGroup(group.id)}>
-                    <span className={`group-toggle ${expandedGroups.has(group.id) ? 'expanded' : ''}`}>
-                      ▶
-                    </span>
+          <div className="menu-content">
+            <div className="menu-scroll">
+              {sortedGroups.map((group, groupIndex) => (
+                <div 
+                  key={group.id} 
+                  className="group-section"
+                  style={{ marginBottom: groupIndex < sortedGroups.length - 1 ? '17px' : '0' }}
+                >
+                  <button 
+                    className="group-header" 
+                    onClick={() => toggleGroup(group.id)}
+                    aria-expanded={expandedGroups.has(group.id)}
+                  >
                     <span className="group-title">{group.title}</span>
-                  </div>
+<span
+  className={`material-symbols-outlined group-toggle${expandedGroups.has(group.id) ? " expanded" : ""}`}
+>
+  change_history
+</span>
+
+
+                  </button>
+                  
                   {expandedGroups.has(group.id) && (
                     <div className="modules-list">
-                      {courseData.modules
-                        .filter(module => module.groupId === group.id)
-                        .sort((a, b) => a.order - b.order)
-                        .map(module => (
-                          <div
-                            key={module.id}
-                            className={`module-item ${selectedModule === module.id ? 'active' : ''}`}
-                            onClick={() => handleModuleClick(module.id)}
-                          >
-                            {module.title}
-                          </div>
-                        ))}
+                      {getModulesForGroup(group.id).map(module => (
+                        <button
+                          key={module.id}
+                          className={`module-item ${selectedModule === module.id ? 'active' : ''}`}
+                          onClick={() => handleModuleClick(module.id)}
+                        >
+                          <span className="module-text">{module.title}</span>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        </aside>
 
         {/* Основной контент */}
-        <div className="main-content">
+        <main className="main-content">
           {/* Прогресс бар */}
-          {isProgressBarVisible && (
-            <div className="progress-bar-container">
-              <div className="progress-bar-header">
-                <span 
-                  className="material-symbols-outlined icon-button"
-                  onClick={toggleProgressBar}
-                  title="Закрыть"
-                >
-                  door_open
-                </span>
-                <button 
-                  className="home-button"
-                  onClick={() => navigate('/')}
-                >
-                  На главную
-                </button>
-              </div>
+          <div className={`progress-bar-container ${isProgressBarVisible ? 'visible' : ''}`}>
+            <div className="progress-bar-content">
+              <button 
+                className="progress-close"
+                onClick={() => navigate('/')}
+                aria-label="На главную"
+              >
+                <span className="material-symbols-outlined">door_open</span>
+                <span>На Главную</span>
+              </button>
+              
               <h2 className="course-title">{courseData.title}</h2>
+              
               <div className="progress-wrapper">
                 <div className="progress-bar">
                   <div 
                     className="progress-fill" 
                     style={{ width: `${courseData.progress}%` }}
+                    role="progressbar"
+                    aria-valuenow={courseData.progress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
                   />
                 </div>
                 <span className="progress-text">{courseData.progress}%</span>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Контент модуля */}
           <div className="module-content">
             {currentModule && (
               <>
                 <h1 className="module-title">{currentModule.title}</h1>
+                
                 <div className="content-blocks">
                   {moduleContent.map(block => (
-                    <div key={block.id} className="content-block">
+                    <article key={block.id} className="content-block">
                       <h3 className="block-title">{block.title}</h3>
                       <div className="block-content">
                         {renderContentBlock(block)}
                       </div>
-                    </div>
+                    </article>
                   ))}
                 </div>
+
+                {moduleContent.length > 0 && (
+                  <div className="module-actions">
+                    <button 
+                      className="complete-module-btn"
+                      onClick={handleCompleteModule}
+                    >
+                      Завершить урок
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

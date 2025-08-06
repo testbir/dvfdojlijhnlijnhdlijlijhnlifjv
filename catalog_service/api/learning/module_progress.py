@@ -7,9 +7,10 @@ from typing import List
 from datetime import datetime
 
 from db.dependencies import get_db_session
-from models.progress import UserProgress
+from models.progress import UserModuleProgress
 from models.access import CourseAccess
 from models.course import Course
+from models.module import Module
 from utils.auth import get_current_user_id
 from utils.cache import invalidate_user_progress_cache
 from schemas.learning import ModuleProgressResponse, CourseAccessResponse
@@ -32,28 +33,37 @@ async def mark_module_completed(
     if not has_access:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     
+    # Проверяем существование модуля
+    module_result = await db.execute(
+        select(Module).where(
+            and_(
+                Module.id == module_id,
+                Module.course_id == course_id
+            )
+        )
+    )
+    if not module_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Модуль не найден")
+    
     # Обновляем или создаем запись прогресса
     progress_result = await db.execute(
-        select(UserProgress).where(
+        select(UserModuleProgress).where(
             and_(
-                UserProgress.user_id == user_id,
-                UserProgress.course_id == course_id,
-                UserProgress.module_id == module_id
+                UserModuleProgress.user_id == user_id,
+                UserModuleProgress.module_id == module_id
             )
         )
     )
     progress = progress_result.scalar_one_or_none()
     
     if progress:
-        progress.is_completed = True
+        if progress.completed_at:
+            return {"success": True, "message": "Модуль уже был завершен"}
         progress.completed_at = datetime.utcnow()
-        progress.updated_at = datetime.utcnow()
     else:
-        progress = UserProgress(
+        progress = UserModuleProgress(
             user_id=user_id,
-            course_id=course_id,
             module_id=module_id,
-            is_completed=True,
             completed_at=datetime.utcnow()
         )
         db.add(progress)
@@ -63,7 +73,7 @@ async def mark_module_completed(
     # Инвалидируем кэш прогресса
     invalidate_user_progress_cache(user_id, course_id)
     
-    return {"success": True}
+    return {"success": True, "message": "Модуль успешно завершен"}
 
 
 @router.get("/{course_id}/progress", response_model=List[ModuleProgressResponse])
@@ -80,12 +90,19 @@ async def get_user_progress(
     if not has_access:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     
-    # Получаем прогресс по всем модулям
+    # Получаем все модули курса
+    modules_result = await db.execute(
+        select(Module).where(Module.course_id == course_id)
+    )
+    modules = modules_result.scalars().all()
+    module_ids = [m.id for m in modules]
+    
+    # Получаем прогресс по модулям
     progress_result = await db.execute(
-        select(UserProgress).where(
+        select(UserModuleProgress).where(
             and_(
-                UserProgress.user_id == user_id,
-                UserProgress.course_id == course_id
+                UserModuleProgress.user_id == user_id,
+                UserModuleProgress.module_id.in_(module_ids)
             )
         )
     )
@@ -94,7 +111,7 @@ async def get_user_progress(
     return [
         ModuleProgressResponse(
             moduleId=str(p.module_id),
-            isCompleted=p.is_completed,
+            isCompleted=p.completed_at is not None,
             completedAt=p.completed_at
         ) for p in progress_records
     ]

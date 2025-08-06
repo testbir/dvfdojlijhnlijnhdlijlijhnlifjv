@@ -1,7 +1,5 @@
 # catalog_service/api/learning/course_learning_optimized.py
 
-# catalog_service/api/learning/course_learning.py
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
@@ -10,10 +8,10 @@ from datetime import datetime
 
 from db.dependencies import get_db_session
 from models.course import Course
-from models.module import Module, ModuleGroup
+from models.module import Module
 from models.content import ContentBlock
 from models.access import CourseAccess
-from models.progress import UserProgress
+from models.progress import UserModuleProgress
 from utils.auth import get_current_user_id
 from utils.cache import cache_result, get_cached_user_progress, cache_user_progress
 from schemas.learning import (
@@ -32,92 +30,90 @@ router = APIRouter()
 async def get_course_learning_data(
     course_id: int,
     request: Request,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ):
     """Получить данные курса для страницы обучения"""
     user_id = get_current_user_id(request)
-    
-    # Проверяем доступ
-    access = await db.execute(
+
+    # --- проверка доступа ----------------------------------------------------
+    access_res = await db.execute(
         select(CourseAccess).where(
-            and_(
-                CourseAccess.user_id == user_id,
-                CourseAccess.course_id == course_id
-            )
+            CourseAccess.user_id == user_id,
+            CourseAccess.course_id == course_id,
         )
     )
-    if not access.scalar_one_or_none():
-        # Проверяем, может это бесплатный курс
-        course_result = await db.execute(
-            select(Course).where(Course.id == course_id)
-        )
-        course = course_result.scalar_one_or_none()
+    access_row = access_res.scalar_one_or_none()
+
+    if access_row is None:
+        course_row = await db.execute(select(Course).where(Course.id == course_id))
+        course = course_row.scalar_one_or_none()
         if not course or not course.is_free:
             raise HTTPException(status_code=403, detail="Доступ запрещен")
     else:
-        course = access.scalar_one().course
-    
-    # Получаем группы модулей
-    groups_result = await db.execute(
-        select(ModuleGroup)
-        .where(ModuleGroup.course_id == course_id)
-        .order_by(ModuleGroup.order)
-    )
-    groups = groups_result.scalars().all()
-    
-    # Получаем модули
-    modules_result = await db.execute(
+        # связи в модели нет, поэтому берём курс обычным запросом
+        course_res = await db.execute(
+            select(Course).where(Course.id == course_id)
+        )
+        course = course_res.scalar_one()
+
+
+    # --- берём все модули курса ----------------------------------------------
+    modules_row = await db.execute(
         select(Module)
         .where(Module.course_id == course_id)
         .order_by(Module.order)
     )
-    modules = modules_result.scalars().all()
-    
-    # Получаем прогресс из кэша или БД
-    cached_progress = get_cached_user_progress(user_id, course_id)
-    if cached_progress is not None:
-        progress = cached_progress
+    modules = modules_row.scalars().all()
+
+    # --- формируем группы из group_title -------------------------------------
+    groups_dict: dict[str, dict] = {}
+    for m in modules:
+        if m.group_title and m.group_title not in groups_dict:
+            groups_dict[m.group_title] = {
+                "id": m.group_title,
+                "title": m.group_title,
+                "order": len(groups_dict),  # счётчик порядка групп
+            }
+    groups_resp = [GroupResponse(**g) for g in groups_dict.values()]
+
+    # --- формируем список модулей для ответа ---------------------------------
+    modules_resp = [
+        ModuleResponse(
+            id=str(m.id),
+            title=m.title,
+            groupId=m.group_title or "",
+            order=m.order,
+        )
+        for m in modules
+    ]
+
+    # --- считаем прогресс -----------------------------------------------------
+    cached = get_cached_user_progress(user_id, course_id)
+    if cached is not None:
+        progress = cached
     else:
-        # Вычисляем прогресс
-        total_modules = len(modules)
-        if total_modules > 0:
-            completed_result = await db.execute(
-                select(func.count(UserProgress.id))
-                .where(
-                    and_(
-                        UserProgress.user_id == user_id,
-                        UserProgress.course_id == course_id,
-                        UserProgress.is_completed == True
-                    )
+        total = len(modules_resp)
+        if total:
+            done_row = await db.execute(
+                select(func.count(UserModuleProgress.id)).where(
+                    UserModuleProgress.user_id == user_id,
+                    UserModuleProgress.module_id.in_([m.id for m in modules]),
+                    UserModuleProgress.completed_at.is_not(None) 
                 )
             )
-            completed_count = completed_result.scalar()
-            progress = round((completed_count / total_modules) * 100, 1)
+            completed = done_row.scalar()
+            progress = round(completed / total * 100, 1)
         else:
             progress = 0
-        
-        # Кэшируем прогресс
         cache_user_progress(user_id, course_id, progress)
-    
+
+    # --- ответ ---------------------------------------------------------------
     return CourseDataResponse(
         id=str(course_id),
         title=course.title,
-        groups=[
-            GroupResponse(
-                id=str(g.id),
-                title=g.title,
-                order=g.order
-            ) for g in groups
-        ],
-        modules=[
-            ModuleResponse(
-                id=str(m.id),
-                title=m.title,
-                groupId=str(m.group_id) if m.group_id else "",
-                order=m.order
-            ) for m in modules
-        ],
-        progress=progress
+        groups=groups_resp,
+        modules=modules_resp,
+        progress=progress,
     )
 
 
@@ -172,30 +168,23 @@ async def update_user_position(
     
     # Обновляем или создаем запись прогресса
     progress_result = await db.execute(
-        select(UserProgress).where(
-            and_(
-                UserProgress.user_id == user_id,
-                UserProgress.course_id == course_id,
-                UserProgress.module_id == int(position_data.moduleId)
-            )
+        select(UserModuleProgress).where(
+            UserModuleProgress.user_id == user_id,
+            UserModuleProgress.module_id == int(position_data.moduleId),
         )
     )
     progress = progress_result.scalar_one_or_none()
-    
-    if progress:
-        progress.last_position = position_data.position
-        progress.updated_at = datetime.utcnow()
-    else:
-        progress = UserProgress(
+
+    if progress is None:
+        progress = UserModuleProgress(
             user_id=user_id,
-            course_id=course_id,
             module_id=int(position_data.moduleId),
-            last_position=position_data.position,
-            is_completed=False
+            completed_at=None,   # поле действительно существует
         )
         db.add(progress)
-    
+
     await db.commit()
+
     
     return {"success": True}
 

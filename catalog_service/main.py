@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from db.init_db import init_db
 from api import (course, progress, module, block, banner, promo, internal, 
                  promocode, accounts, course_modal, student_works, public_course_extras)
-from api.learning import course_learning, module_progress  # 🆕 Новые роутеры
+from api.learning import course_learning_optimized, module_progress  # 🆕 Новые роутеры
 from core.config import settings
 
 from slowapi.middleware import SlowAPIMiddleware
@@ -48,5 +48,5 @@ app.include_router(student_works.router, tags=["Student Works"])
 app.include_router(public_course_extras.router, tags=["Public Course Extras"])
 
 # 🆕 Новые роутеры для обучения
-app.include_router(course_learning.router, prefix="/learning/courses", tags=["Learning"])
+app.include_router(course_learning_optimized.router, prefix="/learning/courses", tags=["Learning"])
 app.include_router(module_progress.router, prefix="/learning/courses", tags=["Learning - Progress"])
