@@ -1,4 +1,8 @@
 
+// frontend/src/styles/LearningPage.tsx
+
+
+
 @use 'sass:color';
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
@@ -10,6 +14,8 @@ $menu-width: 320px;
 $menu-collapsed-width: 60px;
 $main-max-width: 1200px;
 $transition-duration: 0.3s;
+
+
 
 // Цветовая палитра
 $bg-white: rgba(255, 255, 255, 0.05);
@@ -566,17 +572,21 @@ backdrop-filter: blur(80px) saturate(250%) brightness(1.1);
           // Блок с кодом
           .content-code-wrapper {
             position: relative;
-            max-width: 800px;
+            max-width: 840px;
             background: $code-bg; // #1E1E1E
             border-radius: 10px;
             overflow: hidden;
+            box-shadow: 0 4px 22px rgba(0, 0, 0, 0.1);
+            
 
             // Область с кодом
             .content-code {
-              max-width: 800px;
+              max-width: 840px;
               padding: 20px;
               margin: 0;
               overflow-x: auto;
+
+
 
               code {
                 font-family: 'JetBrains Mono', monospace;
@@ -647,10 +657,13 @@ backdrop-filter: blur(80px) saturate(250%) brightness(1.1);
           // Видео и изображения
           .content-video,
           .content-image {
-            max-height: 400px; // Максимальная высота 300px
-            max-width: 750px;
+            max-height: 500px; // Максимальная высота 300px
+            max-width: 800px;
             border-radius: 10px; // Скругление 10px
             overflow: hidden;
+            border: 0.5px solid rgb(255, 255, 255);
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.1);
+            
 
             video,
             img {
@@ -965,5 +978,18 @@ backdrop-filter: blur(80px) saturate(250%) brightness(1.1);
         }
       }
     }
+  }
+}
+
+.content-code-wrapper {
+  background: #1e1e1e;
+  border-radius: 8px;
+  overflow-x: auto;
+
+  pre, code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    margin: 0;
+    padding: 1rem 1.25rem;
   }
 }

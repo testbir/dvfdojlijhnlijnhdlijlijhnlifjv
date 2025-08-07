@@ -1,8 +1,20 @@
+// frontend/src/pages/LearningPage.tsx
+
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { learningService } from '../services/learningService';
 import '../styles/LearningPage.scss';
+
+import 'prismjs/plugins/line-numbers/prism-line-numbers.css';
+import 'prismjs/plugins/line-numbers/prism-line-numbers';
+import Prism from 'prismjs';
+import 'prism-themes/themes/prism-vsc-dark-plus.css';
+import 'prismjs/components/prism-python';   //  ⬅️ добавили
+
+// нужные языки
+import 'prismjs/components/prism-markup';   // html / xml
 
 interface Module {
   id: string;
@@ -33,6 +45,8 @@ interface CourseData {
   progress: number;
 }
 
+
+
 const LearningPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
@@ -47,6 +61,7 @@ const LearningPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
+
   useEffect(() => {
     loadCourseData();
   }, [courseId]);
@@ -56,6 +71,12 @@ const LearningPage: React.FC = () => {
       loadModuleContent(selectedModule);
     }
   }, [selectedModule]);
+
+  // ⬇️ сразу после import-ов и остальных useEffect-ов
+useEffect(() => {
+  Prism.highlightAll();          // раскрашивает + вешает line-numbers
+}, [moduleContent]);              // вызываем каждый раз, когда загрузился новый блок
+
 
   const loadCourseData = async () => {
     try {
@@ -164,25 +185,33 @@ const LearningPage: React.FC = () => {
           />
         );
       
-      case 'code':
-        return (
-          <div className="content-code-wrapper">
-            <pre className="content-code">
-              <code>{block.content}</code>
-            </pre>
-            <button 
-              className={`copy-button ${copiedCodeId === block.id ? 'copied' : ''}`}
-              onClick={() => handleCopyCode(block.id, block.content)}
-            >
-              <span className="material-symbols-outlined">
-                {copiedCodeId === block.id ? 'check' : 'content_copy'}
-              </span>
-              <span className="copy-text">
-                {copiedCodeId === block.id ? 'Copied!' : 'Copy Code'}
-              </span>
-            </button>
-          </div>
-        );
+case 'code': {
+  const lang = 'python';            // или вычисляй динамически
+
+  return (
+    <div className="content-code-wrapper">
+      <pre className="content-code line-numbers">
+        <code className={`language-${lang}`}>
+          {block.content}         {/* сырой текст кода, БЕЗ Prism.highlight */}
+        </code>
+      </pre>
+
+      <button
+        className={`copy-button ${copiedCodeId === block.id ? 'copied' : ''}`}
+        onClick={() => handleCopyCode(block.id, block.content)}
+      >
+        <span className="material-symbols-outlined">
+          {copiedCodeId === block.id ? 'check' : 'content_copy'}
+        </span>
+        <span className="copy-text">
+          {copiedCodeId === block.id ? 'Copied!' : 'Copy Code'}
+        </span>
+      </button>
+    </div>
+  );
+}
+
+
       
       case 'video':
         return (
