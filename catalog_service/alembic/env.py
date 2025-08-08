@@ -4,21 +4,28 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 
+from dotenv import load_dotenv
+load_dotenv()
+
+
 import sys
 import os
 
 # Добавляем каталог сервиса в PYTHONPATH
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Импортируем свои модели
-from models import Base
-
-
 # Alembic Config object
 config = context.config
 
+# Явно подставляем DATABASE_URL из окружения, если задана
+if os.getenv("DATABASE_URL"):
+    config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
+
 # Подключаем конфиг логгирования
 fileConfig(config.config_file_name)
+
+# Импортируем свои модели
+from models import Base
 
 # Указываем где брать MetaData
 target_metadata = Base.metadata

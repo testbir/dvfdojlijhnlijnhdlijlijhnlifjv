@@ -569,7 +569,6 @@ backdrop-filter: blur(80px) saturate(250%) brightness(1.1);
             }
           }
 
-          // Блок с кодом
           .content-code-wrapper {
             position: relative;
             max-width: 840px;
@@ -578,21 +577,139 @@ backdrop-filter: blur(80px) saturate(250%) brightness(1.1);
             overflow: hidden;
             box-shadow: 0 4px 22px rgba(0, 0, 0, 0.1);
             
+            // Индикатор языка программирования
+            .code-language-badge {
+              position: absolute;
+              top: 10px;
+              left: 10px;
+              background: rgba(0, 136, 255, 0.15);
+              color: #58a6ff;
+              padding: 4px 12px;
+              border-radius: 6px;
+              font-family: 'JetBrains Mono', monospace;
+              font-size: 12px;
+              font-weight: 600;
+              letter-spacing: 0.5px;
+              text-transform: uppercase;
+              z-index: 10;
+              backdrop-filter: blur(10px);
+              border: 1px solid rgba(88, 166, 255, 0.3);
+              user-select: none;
+              
+              // Специальные цвета для разных языков
+              &[data-language="python"] {
+                background: rgba(53, 114, 165, 0.15);
+                color: #4584b6;
+                border-color: rgba(69, 132, 182, 0.3);
+              }
+              
+              &[data-language="javascript"],
+              &[data-language="jsx"] {
+                background: rgba(240, 219, 79, 0.15);
+                color: #f0db4f;
+                border-color: rgba(240, 219, 79, 0.3);
+              }
+              
+              &[data-language="typescript"],
+              &[data-language="tsx"] {
+                background: rgba(49, 120, 198, 0.15);
+                color: #3178c6;
+                border-color: rgba(49, 120, 198, 0.3);
+              }
+              
+              &[data-language="html"] {
+                background: rgba(227, 76, 38, 0.15);
+                color: #e34c26;
+                border-color: rgba(227, 76, 38, 0.3);
+              }
+              
+              &[data-language="css"],
+              &[data-language="scss"] {
+                background: rgba(38, 77, 228, 0.15);
+                color: #264de4;
+                border-color: rgba(38, 77, 228, 0.3);
+              }
+              
+              &[data-language="sql"] {
+                background: rgba(52, 130, 164, 0.15);
+                color: #3482a4;
+                border-color: rgba(52, 130, 164, 0.3);
+              }
+              
+              &[data-language="go"] {
+                background: rgba(0, 173, 216, 0.15);
+                color: #00add8;
+                border-color: rgba(0, 173, 216, 0.3);
+              }
+              
+              &[data-language="rust"] {
+                background: rgba(222, 84, 42, 0.15);
+                color: #de542a;
+                border-color: rgba(222, 84, 42, 0.3);
+              }
+              
+              &[data-language="java"] {
+                background: rgba(237, 139, 0, 0.15);
+                color: #ed8b00;
+                border-color: rgba(237, 139, 0, 0.3);
+              }
+              
+              &[data-language="php"] {
+                background: rgba(119, 123, 180, 0.15);
+                color: #777bb4;
+                border-color: rgba(119, 123, 180, 0.3);
+              }
+              
+              &[data-language="ruby"] {
+                background: rgba(204, 52, 45, 0.15);
+                color: #cc342d;
+                border-color: rgba(204, 52, 45, 0.3);
+              }
+            }
 
-            // Область с кодом
+            // Область с кодом (с отступом сверху для badge)
             .content-code {
               max-width: 840px;
-              padding: 20px;
+              padding: 45px 20px 20px; // Увеличиваем верхний padding для badge
               margin: 0;
               overflow-x: auto;
-
-
 
               code {
                 font-family: 'JetBrains Mono', monospace;
                 font-size: 15px;
                 color: #FFFFFF;
                 line-height: 1.5;
+              }
+
+              // Улучшенные стили для номеров строк
+              &.line-numbers {
+                padding-left: 3.8em;
+                counter-reset: linenumber;
+                
+                .line-numbers-rows {
+                  position: absolute;
+                  pointer-events: none;
+                  top: 45px; // Сдвигаем вниз из-за badge
+                  font-size: 100%;
+                  left: -3.8em;
+                  width: 3em;
+                  letter-spacing: -1px;
+                  border-right: 1px solid rgba(255, 255, 255, 0.1);
+                  user-select: none;
+
+                  span {
+                    display: block;
+                    counter-increment: linenumber;
+                    
+                    &:before {
+                      content: counter(linenumber);
+                      color: rgba(255, 255, 255, 0.3);
+                      display: block;
+                      padding-right: 0.8em;
+                      text-align: right;
+                    }
+                  }
+                }
               }
 
               // Горизонтальный скроллбар для кода
@@ -607,10 +724,14 @@ backdrop-filter: blur(80px) saturate(250%) brightness(1.1);
               &::-webkit-scrollbar-thumb {
                 background: rgba(255, 255, 255, 0.3);
                 border-radius: 4px;
+                
+                &:hover {
+                  background: rgba(255, 255, 255, 0.4);
+                }
               }
             }
 
-            // Кнопка копирования кода
+            // Кнопка копирования кода (позиционируем правее, чтобы не перекрывала badge)
             .copy-button {
               position: absolute;
               top: 10px;
@@ -623,9 +744,10 @@ backdrop-filter: blur(80px) saturate(250%) brightness(1.1);
               display: flex;
               align-items: center;
               justify-content: center;
-              gap: 2px; // Расстояние между иконкой и текстом
+              gap: 2px;
               cursor: pointer;
               transition: all 0.2s;
+              z-index: 10;
 
               // Иконка content_copy
               span:first-child {
@@ -640,17 +762,108 @@ backdrop-filter: blur(80px) saturate(250%) brightness(1.1);
                 font-size: 12px;
                 font-weight: 400;
                 color: #FFFFFF;
-                letter-spacing: -0.1em; // Letter spacing -10%
+                letter-spacing: -0.1em;
               }
 
               &:hover {
                 background: rgba(45, 45, 45, 0.9);
+                transform: translateY(-1px);
               }
 
               // Состояние после копирования
               &.copied {
                 background: rgba(0, 136, 255, 0.3);
+                
+                span {
+                  color: #58a6ff;
+                }
               }
+            }
+          }
+
+          // Адаптивность для мобильных устройств
+          @media (max-width: 768px) {
+            .content-code-wrapper {
+              .code-language-badge {
+                font-size: 10px;
+                padding: 3px 8px;
+              }
+              
+              .copy-button {
+                width: 90px;
+                height: 24px;
+                
+                .copy-text {
+                  font-size: 10px;
+                }
+              }
+              
+              .content-code {
+                padding: 40px 15px 15px;
+                
+                code {
+                  font-size: 13px;
+                }
+              }
+            }
+          }
+
+          // Темная тема для Prism (VS Code Dark+)
+          // Эти стили улучшают подсветку синтаксиса
+          .token {
+            &.comment,
+            &.prolog,
+            &.doctype,
+            &.cdata {
+              color: #6a9955;
+            }
+
+            &.punctuation {
+              color: #d4d4d4;
+            }
+
+            &.property,
+            &.tag,
+            &.boolean,
+            &.number,
+            &.constant,
+            &.symbol,
+            &.deleted {
+              color: #b5cea8;
+            }
+
+            &.selector,
+            &.attr-name,
+            &.string,
+            &.char,
+            &.builtin,
+            &.inserted {
+              color: #ce9178;
+            }
+
+            &.operator,
+            &.entity,
+            &.url,
+            .language-css &.string,
+            &.style &.string {
+              color: #d4d4d4;
+            }
+
+            &.atrule,
+            &.attr-value,
+            &.keyword {
+              color: #c586c0;
+            }
+
+            &.function,
+            &.class-name {
+              color: #dcdcaa;
+            }
+
+            &.regex,
+            &.important,
+            &.variable {
+              color: #d16969;
             }
           }
 

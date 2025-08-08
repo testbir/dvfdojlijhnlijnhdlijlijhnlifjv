@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from db.dependencies import get_db_session
 from models.content import ContentBlock
-from schemas.block import ContentBlockCreateSchema, BlockOrderUpdate, ContentBlockSchema
+from schemas.block import ContentBlockCreateSchema, BlockOrderUpdate, ContentBlockSchema, SUPPORTED_LANGUAGES
 
 router = APIRouter()
 
@@ -47,5 +47,11 @@ async def admin_get_block(block_id: int, db: AsyncSession = Depends(get_db_sessi
         "title": block.title,
         "order": block.order,
         "content": block.content,
-        "video_preview": block.video_preview, 
+        "video_preview": block.video_preview,
+        "language": block.language  # Добавляем язык
     }
+
+@router.get("/internal/languages", summary="Получить список поддерживаемых языков программирования")
+async def get_supported_languages():
+    """Возвращает список поддерживаемых языков для блоков кода"""
+    return SUPPORTED_LANGUAGES

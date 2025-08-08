@@ -1,7 +1,6 @@
-// services/learningService.ts
+// frontend/src/services/learningService.ts
 
 import learningApi from "../api/learningApi"; 
-
 
 interface Module {
   id: string;
@@ -22,6 +21,7 @@ interface ContentBlock {
   title: string;
   content: string;
   order: number;
+  language?: string; // Добавляем поддержку языка
 }
 
 interface CourseData {
@@ -49,7 +49,7 @@ class LearningService {
     return data;
   }
 
-  // Получить контент модуля
+  // Получить контент модуля (теперь включает language для блоков кода)
   async getModuleContent(
     courseId: string,
     moduleId: string
@@ -59,6 +59,7 @@ class LearningService {
     );
     return data;
   }
+  
   // Отметить модуль как завершенный
   async markModuleCompleted(courseId: string, moduleId: string): Promise<void> {
     try {
@@ -80,7 +81,7 @@ class LearningService {
     }
   }
 
-  // Обновить позицию пользователя в курсе (для сохранения места где остановился)
+  // Обновить позицию пользователя в курсе
   async updateUserPosition(courseId: string, moduleId: string, position: number): Promise<void> {
     try {
       await this.api.put(`/learning/courses/${courseId}/position`, {

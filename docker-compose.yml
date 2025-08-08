@@ -53,7 +53,9 @@ services:
       context: ./catalog_service
     container_name: catalogservice_team
     working_dir: /app
-    command: sh -c "./init_db.sh && uvicorn main:app --host 0.0.0.0 --port 8001 --reload"
+    command: sh -c "./init_db.sh && python -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload"
+    environment:
+      - PYTHONPATH=/app
     volumes:
       - ./catalog_service:/app
     ports:

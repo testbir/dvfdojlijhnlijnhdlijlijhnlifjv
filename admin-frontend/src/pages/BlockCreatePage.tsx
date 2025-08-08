@@ -1,4 +1,4 @@
-// admin-frontend/src/pages/BlockCreatePage.tsx (обновленная версия)
+// admin-frontend/src/pages/BlockCreatePage.tsx (обновленная версия с поддержкой языков)
 
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -18,6 +18,9 @@ import {
   Image,
   Alert,
   Progress,
+  Text,
+  Code,
+  Paper,
 } from '@mantine/core';
 
 const blockTypes = [
@@ -25,6 +28,32 @@ const blockTypes = [
   { value: 'video', label: 'Видео' },
   { value: 'code', label: 'Код' },
   { value: 'image', label: 'Изображение' },
+];
+
+// Поддерживаемые языки программирования
+const SUPPORTED_LANGUAGES = [
+  { value: 'python', label: 'Python' },
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'typescript', label: 'TypeScript' },
+  { value: 'tsx', label: 'TypeScript React (TSX)' },
+  { value: 'jsx', label: 'JavaScript React (JSX)' },
+  { value: 'html', label: 'HTML' },
+  { value: 'css', label: 'CSS' },
+  { value: 'scss', label: 'SCSS' },
+  { value: 'sql', label: 'SQL' },
+  { value: 'json', label: 'JSON' },
+  { value: 'yaml', label: 'YAML' },
+  { value: 'bash', label: 'Bash/Shell' },
+  { value: 'java', label: 'Java' },
+  { value: 'csharp', label: 'C#' },
+  { value: 'cpp', label: 'C++' },
+  { value: 'go', label: 'Go' },
+  { value: 'rust', label: 'Rust' },
+  { value: 'php', label: 'PHP' },
+  { value: 'ruby', label: 'Ruby' },
+  { value: 'markdown', label: 'Markdown' },
+  { value: 'dockerfile', label: 'Dockerfile' },
+  { value: 'plaintext', label: 'Plain Text' },
 ];
 
 export default function BlockCreatePage() {
@@ -35,6 +64,7 @@ export default function BlockCreatePage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [order, setOrder] = useState(1);
+  const [language, setLanguage] = useState('python'); // Язык по умолчанию для кода
   const [videoPreview, setVideoPreview] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loadingUpload, setLoadingUpload] = useState(false);
@@ -70,7 +100,6 @@ export default function BlockCreatePage() {
       const formData = new FormData();
       formData.append('file', file);
       
-      // Используем новый эндпоинт для видео
       const response = await axios.post('/admin/upload/video-direct', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
@@ -133,6 +162,7 @@ export default function BlockCreatePage() {
         title,
         content: content.trim(),
         order,
+        language: type === 'code' ? language : undefined, // Добавляем язык для блоков кода
         video_preview: type === 'video' ? videoPreview.trim() || null : undefined,
       });
       navigate(-1);
@@ -168,15 +198,59 @@ export default function BlockCreatePage() {
           mb="md"
         />
 
-        {(type === 'text' || type === 'code') && (
+        {type === 'text' && (
           <Textarea
             label="Контент"
             value={content}
             onChange={(e) => setContent(e.currentTarget.value)}
             mb="md"
             autosize
-            minRows={3}
+            minRows={5}
           />
+        )}
+
+        {type === 'code' && (
+          <>
+            <Select
+              label="Язык программирования"
+              data={SUPPORTED_LANGUAGES}
+              value={language}
+              onChange={(val) => setLanguage(val!)}
+              mb="md"
+              searchable
+              nothingFoundMessage="Язык не найден"
+              description="Выберите язык для правильной подсветки синтаксиса"
+            />
+            
+            <Textarea
+              label="Код"
+              value={content}
+              onChange={(e) => setContent(e.currentTarget.value)}
+              mb="md"
+              autosize
+              minRows={10}
+              styles={{
+                input: { 
+                  fontFamily: 'JetBrains Mono, Consolas, Monaco, monospace',
+                  fontSize: '14px'
+                }
+              }}
+              description={`Введите код на ${SUPPORTED_LANGUAGES.find(l => l.value === language)?.label}`}
+            />
+
+            {content && (
+              <Paper shadow="xs" p="md" mb="md" withBorder>
+              <Text size="sm" fw={500} mb="xs">Предпросмотр:</Text>
+                <Code block style={{ 
+                  maxHeight: 200, 
+                  overflow: 'auto',
+                  fontFamily: 'JetBrains Mono, Consolas, Monaco, monospace' 
+                }}>
+                  {content}
+                </Code>
+              </Paper>
+            )}
+          </>
         )}
 
         {type === 'image' && (

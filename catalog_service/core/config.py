@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     BUY_COURSE_RATE_LIMIT: str = "3/minute"
     COMPLETE_MODULE_RATE_LIMIT: str = "10/minute"
     
-    POSTGRES_HOST: str = "postgres"
+    POSTGRES_HOST: str = "db"
     POSTGRES_PORT: str = "5432"
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str

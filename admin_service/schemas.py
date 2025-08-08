@@ -37,7 +37,7 @@ class ContentBlockCreate(BaseModel):
     content: str
     order: int
     video_preview: Optional[str] = None
-
+    language: Optional[str] = None  # Новое поле для языка программирования
 
 
 class AdminLogin(BaseModel):

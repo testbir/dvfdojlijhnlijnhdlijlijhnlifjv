@@ -1,20 +1,53 @@
 // frontend/src/pages/LearningPage.tsx
 
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { learningService } from '../services/learningService';
 import '../styles/LearningPage.scss';
 
+
+import Prism from 'prismjs';
+
+// Сначала плагины и стили
 import 'prismjs/plugins/line-numbers/prism-line-numbers.css';
 import 'prismjs/plugins/line-numbers/prism-line-numbers';
-import Prism from 'prismjs';
 import 'prism-themes/themes/prism-vsc-dark-plus.css';
-import 'prismjs/components/prism-python';   //  ⬅️ добавили
 
-// нужные языки
-import 'prismjs/components/prism-markup';   // html / xml
+// КРИТИЧНО: clike ДОЛЖЕН быть ПЕРВЫМ из всех компонентов
+import 'prismjs/components/prism-clike';
+
+// Теперь базовые языки
+import 'prismjs/components/prism-markup'; // HTML
+import 'prismjs/components/prism-css';    // CSS
+import 'prismjs/components/prism-javascript'; // JavaScript
+
+// Независимые языки
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-sql';
+import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-yaml';
+import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-go';
+import 'prismjs/components/prism-rust';
+import 'prismjs/components/prism-php';
+import 'prismjs/components/prism-ruby';
+import 'prismjs/components/prism-markdown';
+import 'prismjs/components/prism-docker';
+
+// Зависимые от JavaScript
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-jsx';
+import 'prismjs/components/prism-tsx';
+
+// Зависимые от CSS
+import 'prismjs/components/prism-scss';
+
+// Зависимые от clike (ПОСЛЕ clike!)
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-csharp';
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
 
 interface Module {
   id: string;
@@ -35,6 +68,7 @@ interface ContentBlock {
   title: string;
   content: string;
   order: number;
+  language?: string;
 }
 
 interface CourseData {
@@ -45,7 +79,17 @@ interface CourseData {
   progress: number;
 }
 
-
+// Маппинг языков для Prism (некоторые языки имеют другие названия в Prism)
+const LANGUAGE_MAP: { [key: string]: string } = {
+  'html': 'markup',
+  'dockerfile': 'docker',
+  'plaintext': 'plain',
+  'text': 'plain',
+  'shell': 'bash',
+  'sh': 'bash',
+  'powershell': 'bash',
+  'cmd': 'bash',
+};
 
 const LearningPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -61,7 +105,6 @@ const LearningPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
-
   useEffect(() => {
     loadCourseData();
   }, [courseId]);
@@ -72,11 +115,12 @@ const LearningPage: React.FC = () => {
     }
   }, [selectedModule]);
 
-  // ⬇️ сразу после import-ов и остальных useEffect-ов
 useEffect(() => {
-  Prism.highlightAll();          // раскрашивает + вешает line-numbers
-}, [moduleContent]);              // вызываем каждый раз, когда загрузился новый блок
-
+  // Небольшая задержка, чтобы DOM успел обновиться
+  setTimeout(() => {
+    Prism.highlightAll();
+  }, 0);
+}, [moduleContent]);
 
   const loadCourseData = async () => {
     try {
@@ -186,19 +230,23 @@ useEffect(() => {
         );
       
 case 'code': {
-  const lang = 'python';            // или вычисляй динамически
+  // Безопасная обработка языка
+  const language = (block.language || 'plaintext').toLowerCase().trim();
+  const prismLanguage = LANGUAGE_MAP[language] || language;
 
   return (
     <div className="content-code-wrapper">
       <pre className="content-code line-numbers">
-        <code className={`language-${lang}`}>
-          {block.content}         {/* сырой текст кода, БЕЗ Prism.highlight */}
+        <code className={`language-${prismLanguage}`}>
+          {block.content}
         </code>
       </pre>
 
+      {/* Кнопка копирования */}
       <button
         className={`copy-button ${copiedCodeId === block.id ? 'copied' : ''}`}
         onClick={() => handleCopyCode(block.id, block.content)}
+        title="Копировать код"
       >
         <span className="material-symbols-outlined">
           {copiedCodeId === block.id ? 'check' : 'content_copy'}
@@ -210,8 +258,6 @@ case 'code': {
     </div>
   );
 }
-
-
       
       case 'video':
         return (
@@ -311,13 +357,11 @@ case 'code': {
                     aria-expanded={expandedGroups.has(group.id)}
                   >
                     <span className="group-title">{group.title}</span>
-<span
-  className={`material-symbols-outlined group-toggle${expandedGroups.has(group.id) ? " expanded" : ""}`}
->
-  change_history
-</span>
-
-
+                    <span
+                      className={`material-symbols-outlined group-toggle${expandedGroups.has(group.id) ? " expanded" : ""}`}
+                    >
+                      change_history
+                    </span>
                   </button>
                   
                   {expandedGroups.has(group.id) && (
