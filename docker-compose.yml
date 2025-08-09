@@ -85,6 +85,25 @@ services:
     networks:
       - app-network
 
+  learning_service:
+    build:
+      context: ./learning_service
+      dockerfile: Dockerfile
+    container_name: learning_service
+    env_file:
+      - ./learning_service/.env
+    ports:
+      - "8003:8002"   # host:container
+    depends_on:
+      db:
+        condition: service_healthy
+      catalogservice:
+        condition: service_started
+    networks:
+      - app-network
+
+
+
   celeryworker:
     build:
       context: ./auth_service
