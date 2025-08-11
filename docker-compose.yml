@@ -86,6 +86,9 @@ services:
       - app-network
 
 
+
+
+
   celeryworker:
     build:
       context: ./auth_service
