@@ -8,8 +8,8 @@ from typing import List, Dict
 from db.dependencies import get_db_session
 from models.course import Course
 from models.access import CourseAccess
-from models.module import Module
-from models.progress import UserModuleProgress
+from catalog_service.models.module import Module
+from catalog_service.models.progress import UserModuleProgress
 
 router = APIRouter(prefix="/internal", tags=["Internal"])
 
@@ -445,7 +445,7 @@ async def duplicate_course(course_id: int, db: AsyncSession = Depends(get_db_ses
         await db.flush()
         
         # Копируем блоки контента
-        from models.content import ContentBlock
+        from catalog_service.models.content import ContentBlock
         blocks_result = await db.execute(
             select(ContentBlock).where(ContentBlock.module_id == module.id)
         )

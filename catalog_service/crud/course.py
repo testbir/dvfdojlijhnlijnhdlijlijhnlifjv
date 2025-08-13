@@ -3,7 +3,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from models.course import Course
-from models.module import Module
+from catalog_service.models.module import Module
 from models.access import CourseAccess
 
 async def get_course_structure(db: AsyncSession, course_id: int):

@@ -11,10 +11,10 @@ from core.base import Base
 from core.config import settings
 
 from models.course import Course
-from models.module import Module
-from models.content import ContentBlock
+from catalog_service.models.module import Module
+from catalog_service.models.content import ContentBlock
 from models.access import CourseAccess
-from models.progress import UserModuleProgress
+from catalog_service.models.progress import UserModuleProgress
 from models.banner import Banner
 from models.promo import PromoImage
 

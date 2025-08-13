@@ -9,8 +9,8 @@ from datetime import datetime
 from db.dependencies import get_db_session
 from models.course import Course
 from models.access import CourseAccess
-from models.module import Module
-from models.progress import UserModuleProgress
+from catalog_service.models.module import Module
+from catalog_service.models.progress import UserModuleProgress
 from utils.auth import get_current_user_id
 from schemas.dashboard import UserDashboardSchema, UserStatsSchema, UserCourseSchema
 from schemas.progress import CourseProgressSchema
