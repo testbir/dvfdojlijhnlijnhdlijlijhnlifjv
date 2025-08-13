@@ -3,25 +3,9 @@
 
 from pydantic import BaseModel, model_validator
 from typing import List, Optional
-from schemas.module import ModuleSchema, ModuleShortSchema
 from datetime import datetime
 
 
-
-class CourseStructureSchema(BaseModel):
-    course_id: int  # Идентификатор курса
-    modules: List[ModuleSchema]  # Список модулей курса
-
-
-class CourseStructureShortSchema(BaseModel):
-    course_id: int  # Идентификатор курса
-    modules: List[ModuleShortSchema]  # Список модулей без блоков контента
-
-
-class CourseContentSchema(BaseModel):
-    course_id: int  # Идентификатор курса
-    course_title: str  # Название курса
-    modules: List[ModuleSchema]  # Полный список модулей с контентом
 
 class CourseListSchema(BaseModel):
     id: int

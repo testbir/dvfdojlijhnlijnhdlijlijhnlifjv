@@ -3,7 +3,6 @@
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
-from .progress import CourseProgressSchema
 
 class UserCourseSchema(BaseModel):
     """Упрощенная схема курса для dashboard"""
@@ -32,7 +31,6 @@ class UserDashboardSchema(BaseModel):
     user_id: int
     stats: UserStatsSchema
     courses: List[UserCourseSchema]
-    recent_progress: List[CourseProgressSchema]  # последние 3-5 курсов с активностью
 
     class Config:
         json_encoders = {

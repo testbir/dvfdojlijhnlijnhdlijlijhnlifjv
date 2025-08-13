@@ -8,9 +8,6 @@ from models.course import Course
 from models.access import CourseAccess
 
 from schemas.course import (
-    CourseStructureSchema,
-    CourseStructureShortSchema,
-    CourseContentSchema,
     CourseListSchema,
     CourseDetailSchema,
     CourseCreate,
@@ -22,7 +19,7 @@ from utils.cache import cache_result
 
 from datetime import datetime, timezone
 
-from crud.course import get_course_structure, has_course_access
+from crud.course import  has_course_access
 from utils.auth import get_current_user_id
 from utils.rate_limit import limiter
 from typing import List

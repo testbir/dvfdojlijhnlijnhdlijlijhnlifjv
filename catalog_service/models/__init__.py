@@ -1,10 +1,7 @@
-from core.base import Base
-
-from .course import Course
-from .module import Module
-from .content import ContentBlock
-from .progress import UserModuleProgress
-
-from .banner import Banner           # 👈 добавь это
-from .promo import PromoImage        # 👈 и это
+from .access import CourseAccess
+from .banner import Banner
+from .promo import PromoImage
 from .promocode import PromoCode
+from .course_modal import CourseModal
+from .student_works import StudentWorksSection, StudentWork
+from .lead_magnet import LeadMagnet
