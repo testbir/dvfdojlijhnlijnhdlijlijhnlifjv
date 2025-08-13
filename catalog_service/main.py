@@ -4,12 +4,16 @@ from fastapi import FastAPI
 from dotenv import load_dotenv
 from catalog_service.api.public import accounts
 from db.init_db import init_db
-from api import (course, banner, promo, internal, 
-                 promocode, course_modal, student_works, public_course_extras)
 from core.config import settings
 
 from utils.rate_limit import limiter, custom_rate_limit_handler
 from fastapi.middleware.cors import CORSMiddleware
+
+
+from api.public import courses as public_courses, extras as public_extras, accounts as public_accounts
+from api.admin import courses as admin_courses, lead_magnets as admin_lead_magnets
+from api.internal import access as internal_access, users as internal_users, statistics as internal_statistics
+
 
 load_dotenv()
 
@@ -30,12 +34,18 @@ async def on_startup():
 app.state.limiter = limiter
 
 # Основные роутеры
-app.include_router(course.router, prefix="/courses", tags=["Courses"])
-app.include_router(banner.router, tags=["Banners"])
-app.include_router(promo.router, prefix="/promos", tags=["Promos"])
-app.include_router(internal.router, tags=["Internal"])
-app.include_router(promocode.router, tags=["Promocodes"])
-app.include_router(accounts.router, prefix="/api", tags=["User Accounts"])
-app.include_router(course_modal.router, tags=["Course Modals"])
-app.include_router(student_works.router, tags=["Student Works"])
-app.include_router(public_course_extras.router, tags=["Public Course Extras"])
+
+# public
+app.include_router(public_courses.router,  prefix="/v1/public",  tags=["Courses"])
+app.include_router(public_extras.router,   prefix="/v1/public",  tags=["Public Course Extras"])
+app.include_router(public_accounts.router, prefix="/v1/public",  tags=["User Accounts"])
+
+# admin
+app.include_router(admin_courses.router,        prefix="/v1/admin",   tags=["Admin - Courses"])
+app.include_router(admin_lead_magnets.router,   prefix="/v1/admin",   tags=["Admin - Lead Magnets"])
+
+# internal
+app.include_router(internal_access.router,      prefix="/v1/internal", tags=["Internal - Access"])
+app.include_router(internal_users.router,       prefix="/v1/internal", tags=["Internal - Users"])
+app.include_router(internal_statistics.router,  prefix="/v1/internal", tags=["Internal - Statistics"])
+
