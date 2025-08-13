@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from db.dependencies import get_db_session
 from models.course import Course
-from catalog_service.models.module import Module
 from models.access import CourseAccess
 
 from schemas.course import (
@@ -23,9 +22,6 @@ from utils.cache import cache_result
 
 from datetime import datetime, timezone
 
-from schemas.module import ModuleSchema, ModuleShortSchema
-from schemas.block import ContentBlockSchema
-
 from crud.course import get_course_structure, has_course_access
 from utils.auth import get_current_user_id
 from utils.rate_limit import limiter
@@ -33,52 +29,7 @@ from typing import List
 
 router = APIRouter()
 
-@router.get("/{course_id}/structure/", response_model=CourseStructureShortSchema, summary="Структура курса")
-async def course_structure(course_id: int, db: AsyncSession = Depends(get_db_session)):
-    result = await db.execute(select(Course).where(Course.id == course_id))
-    course = result.scalar_one_or_none()
-    if not course:
-        raise HTTPException(status_code=404, detail="Курс не найден")
 
-    modules = await get_course_structure(db, course_id)
-    return {
-        "course_id": course_id,
-        "modules": modules
-    }
-
-@router.get("/{course_id}/content/", response_model=CourseContentSchema, summary="Контент курса")
-async def course_content(course_id: int, request: Request, db: AsyncSession = Depends(get_db_session)):
-    user_id = get_current_user_id(request)  # Требует авторизации
-
-    result = await db.execute(select(Course).where(Course.id == course_id))
-    course = result.scalar_one_or_none()
-    if not course:
-        raise HTTPException(status_code=404, detail="Курс не найден")
-
-    # Проверяем доступ: бесплатный курс доступен всем авторизованным
-    if not course.is_free:
-        result = await db.execute(
-            select(CourseAccess).where(
-                CourseAccess.user_id == user_id,
-                CourseAccess.course_id == course_id
-            )
-        )
-        access = result.scalar_one_or_none()
-        if not access:
-            raise HTTPException(status_code=403, detail="Нет доступа к курсу")
-
-    result = await db.execute(
-        select(Module)
-        .where(Module.course_id == course_id)
-        .order_by(Module.order)
-    )
-    modules = result.scalars().all()
-
-    return {
-        "course_id": course.id,
-        "course_title": course.title,
-        "modules": modules
-    }
 
 @router.get("/", response_model=List[CourseListSchema], summary="Список всех курсов")
 @cache_result(ttl=600)

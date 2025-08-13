@@ -11,11 +11,8 @@ from core.base import Base
 from core.config import settings
 
 from models.course import Course
-from catalog_service.models.module import Module
-from catalog_service.models.content import ContentBlock
 from models.access import CourseAccess
-from catalog_service.models.progress import UserModuleProgress
-from models.banner import Banner
+
 from models.promo import PromoImage
 
 from urllib.parse import urlparse, urlunparse
