@@ -2,9 +2,10 @@
 
 from fastapi import FastAPI
 from dotenv import load_dotenv
+from catalog_service.api.public import accounts
 from db.init_db import init_db
 from api import (course, banner, promo, internal, 
-                 promocode, accounts, course_modal, student_works, public_course_extras)
+                 promocode, course_modal, student_works, public_course_extras)
 from core.config import settings
 
 from utils.rate_limit import limiter, custom_rate_limit_handler

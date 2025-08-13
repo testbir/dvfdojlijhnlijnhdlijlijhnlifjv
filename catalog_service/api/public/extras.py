@@ -1,3 +1,4 @@
+
 # catalog_service/api/public_course_extras.py
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,6 +11,12 @@ from models.student_works import StudentWorksSection, StudentWork
 from models.course import Course
 
 router = APIRouter(prefix="/courses", tags=["Public Course Extras"])
+
+
+
+
+
+
 
 @router.get("/{course_id}/modal", response_model=Optional[dict])
 async def get_course_modal_public(

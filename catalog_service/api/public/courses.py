@@ -1,30 +1,26 @@
-# catalog_service/api/course.py
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from db.dependencies import get_db_session
-from models.course import Course
-from models.access import CourseAccess
 
-from schemas.course import (
-    CourseListSchema,
-    CourseDetailSchema,
-    CourseCreate,
-    BuyCourseRequest,
-    BuyCourseResponse,
-)
 
-from utils.cache import cache_result
 
-from datetime import datetime, timezone
 
-from crud.course import  has_course_access
-from utils.auth import get_current_user_id
-from utils.rate_limit import limiter
-from typing import List
 
-router = APIRouter()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -80,6 +76,9 @@ async def list_courses(request: Request, db: AsyncSession = Depends(get_db_sessi
         })
 
     return result_list
+
+
+
 
 
 
@@ -151,65 +150,6 @@ async def course_detail(course_id: int, request: Request, db: AsyncSession = Dep
 
 
 
-
-@router.post("/{course_id}/buy/", response_model=BuyCourseResponse, summary="Приобрести курс")
-@limiter.limit("3/minute")
-async def buy_course(course_id: int, request_data: BuyCourseRequest, request: Request, db: AsyncSession = Depends(get_db_session)):
-    user_id = get_current_user_id(request)
-
-    result = await db.execute(select(Course).where(Course.id == course_id))
-    course = result.scalar_one_or_none()
-    if not course:
-        raise HTTPException(status_code=404, detail="Курс не найден")
-
-    # Проверяем, есть ли уже доступ
-    result = await db.execute(
-        select(CourseAccess).where(
-            CourseAccess.user_id == user_id,
-            CourseAccess.course_id == course_id
-        )
-    )
-    access_exists = result.scalar_one_or_none()
-    if access_exists:
-        return {"success": True, "message": "Курс уже доступен"}
-
-    # Создаем запись о доступе (и для бесплатных, и для платных)
-    new_access = CourseAccess(user_id=user_id, course_id=course_id)
-    db.add(new_access)
-    await db.commit()
-
-    if course.is_free:
-        return {"success": True, "message": "Бесплатный курс успешно открыт"}
-    else:
-        # Здесь должна быть проверка оплаты по payment_id
-        return {"success": True, "message": "Курс успешно приобретён"}
-
-@router.post("/internal/courses/")
-async def admin_create_course(data: CourseCreate, db: AsyncSession = Depends(get_db_session)):
-    print(">> Принятые данные:", data.dict())
-    course = Course(**data.model_dump(mode="python"))
-    db.add(course)
-    await db.commit()
-    await db.refresh(course)
-    
-    return {"id": course.id, "message": "Курс создан"}
-
-@router.put("/internal/courses/{course_id}")
-async def admin_update_course(course_id: int, data: CourseCreate, db: AsyncSession = Depends(get_db_session)):
-    result = await db.execute(select(Course).where(Course.id == course_id))
-    course = result.scalar_one_or_none()
-    if not course:
-        raise HTTPException(status_code=404, detail="Курс не найден")
-
-    for key, value in data.model_dump(mode="python", exclude_unset=True).items():
-        if isinstance(value, str) and not value.strip():
-            value = None
-        setattr(course, key, value)
-
-    await db.commit()
-    await db.refresh(course)
-    return {"id": course.id, "message": "Курс обновлён"}
-
 @router.post("/{course_id}/check-access/", summary="Проверка доступа к курсу")
 async def check_course_access(course_id: int, request: Request, db: AsyncSession = Depends(get_db_session)):
     """
@@ -255,37 +195,35 @@ async def check_course_access(course_id: int, request: Request, db: AsyncSession
             "message": "Необходима регистрация"
         }
 
-@router.delete("/internal/courses/{course_id}")
-async def admin_delete_course(course_id: int, db: AsyncSession = Depends(get_db_session)):
+
+@router.post("/{course_id}/buy/", response_model=BuyCourseResponse, summary="Приобрести курс")
+@limiter.limit("3/minute")
+async def buy_course(course_id: int, request_data: BuyCourseRequest, request: Request, db: AsyncSession = Depends(get_db_session)):
+    user_id = get_current_user_id(request)
+
     result = await db.execute(select(Course).where(Course.id == course_id))
     course = result.scalar_one_or_none()
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
 
-    await db.delete(course)
+    # Проверяем, есть ли уже доступ
+    result = await db.execute(
+        select(CourseAccess).where(
+            CourseAccess.user_id == user_id,
+            CourseAccess.course_id == course_id
+        )
+    )
+    access_exists = result.scalar_one_or_none()
+    if access_exists:
+        return {"success": True, "message": "Курс уже доступен"}
+
+    # Создаем запись о доступе (и для бесплатных, и для платных)
+    new_access = CourseAccess(user_id=user_id, course_id=course_id)
+    db.add(new_access)
     await db.commit()
-    return {"message": "Курс удалён"}
 
-def get_discount_info(course: Course):
-
-    now = datetime.now(timezone.utc)
-
-    is_active = (
-        course.discount and float(course.discount) > 0 and
-        course.discount_start and course.discount_until and
-        course.discount_start <= now < course.discount_until
-    )
-    ends_in = (
-        (course.discount_until - now).total_seconds()
-        if is_active else None
-    )
-    return is_active, ends_in
-
-
-@router.get("/internal/courses/{course_id}", response_model=CourseCreate)
-async def admin_get_course(course_id: int, db: AsyncSession = Depends(get_db_session)):
-    result = await db.execute(select(Course).where(Course.id == course_id))
-    course = result.scalar_one_or_none()
-    if not course:
-        raise HTTPException(status_code=404, detail="Курс не найден")
-    return course
+    if course.is_free:
+        return {"success": True, "message": "Бесплатный курс успешно открыт"}
+    else:
+        # Здесь должна быть проверка оплаты по payment_id
+        return {"success": True, "message": "Курс успешно приобретён"}
