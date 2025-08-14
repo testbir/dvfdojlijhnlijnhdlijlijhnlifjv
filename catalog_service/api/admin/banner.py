@@ -1,44 +1,30 @@
-# catalog_service/api/banner.py
+# catalog_service/api/admin/banner.py
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from db.dependencies import get_db_session
-from models.banner import Banner
-from pydantic import BaseModel
-from typing import List, Optional
-from schemas.banner import BannerUpdateSchema
+from typing import List
 
-router = APIRouter()
+from catalog_service.schemas.banner import BannerSchema, BannerCreateSchema, BannerUpdateSchema
+from catalog_service.db.dependencies import get_db_session
+from catalog_service.models.banner import Banner
 
-class BannerSchema(BaseModel):
-    id: int
-    image: str
-    order: int
-    link: str
+router = APIRouter(prefix="/banners")
 
-    class Config:
-        orm_mode = True
-
-class BannerCreateSchema(BaseModel):
-    image: str
-    order: int = 0
-    link: Optional[str] = ""
-
-@router.get("/internal/banners/", response_model=List[BannerSchema])
+@router.get("/", response_model=List[BannerSchema])
 async def list_banners(db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Banner).order_by(Banner.order))
     return result.scalars().all()
 
-@router.post("/internal/banners/")
+@router.post("/")
 async def create_banner(data: BannerCreateSchema, db: AsyncSession = Depends(get_db_session)):
-    banner = Banner(**data.dict())
+    banner = Banner(**data.model_dump())
     db.add(banner)
     await db.commit()
     await db.refresh(banner)
     return {"id": banner.id, "message": "Баннер создан"}
 
-@router.delete("/internal/banners/{banner_id}")
+@router.delete("/{banner_id}")
 async def delete_banner(banner_id: int, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Banner).where(Banner.id == banner_id))
     banner = result.scalar_one_or_none()
@@ -46,19 +32,20 @@ async def delete_banner(banner_id: int, db: AsyncSession = Depends(get_db_sessio
         raise HTTPException(status_code=404, detail="Баннер не найден")
     await db.delete(banner)
     await db.commit()
-    return {"message": "Баннер удалён"}
+    return Response(status_code=204)
 
-@router.put("/internal/banners/{banner_id}")
+@router.put("/{banner_id}", response_model=BannerSchema)
 async def update_banner(banner_id: int, data: BannerUpdateSchema, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Banner).where(Banner.id == banner_id))
     banner = result.scalar_one_or_none()
     if not banner:
         raise HTTPException(status_code=404, detail="Баннер не найден")
 
-    if data.image is not None:
-        banner.image = data.image
-    banner.order = data.order
-    banner.link = data.link
+    # защищаем NOT NULL для image
+    for k, v in data.model_dump(exclude_unset=True).items():
+        if k == "image" and v is None:
+            continue
+        setattr(banner, k, v)
 
     await db.commit()
     await db.refresh(banner)

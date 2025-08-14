@@ -1,7 +1,8 @@
 # catalog_service/models/banner.py
 
 from sqlalchemy import Column, Integer, String
-from core.base import Base
+
+from catalog_service.core.base import Base
 
 class Banner(Base):
     __tablename__ = "homepage_banners"

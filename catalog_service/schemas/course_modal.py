@@ -3,6 +3,8 @@
 from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 
+
+
 class CourseModalBlockCreate(BaseModel):
     type: str  # 'text' или 'image'
     content: str

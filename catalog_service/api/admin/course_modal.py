@@ -1,22 +1,23 @@
-# catalog_service/api/course_modal.py
+# catalog_service/api/admin/course_modal.py
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List, Optional
-from db.dependencies import get_db_session
-from models.course_modal import CourseModal, CourseModalBlock
-from models.course import Course
-from schemas.course_modal import (
+from typing import Optional
+
+from catalog_service.db.dependencies import get_db_session
+from catalog_service.models.course_modal import CourseModal, CourseModalBlock
+from catalog_service.models.course import Course
+from catalog_service.schemas.course_modal import (
     CourseModalCreate, 
     CourseModalUpdate, 
     CourseModalSchema,
-    CourseModalBlockSchema
+    CourseModalBlockSchema,
 )
 
-router = APIRouter(prefix="/internal/course-modals", tags=["Course Modals"])
+router = APIRouter(prefix="/course-modals")
 
-@router.get("/course/{course_id}/", response_model=Optional[CourseModalSchema])
+@router.get("/{course_id}", response_model=Optional[CourseModalSchema])
 async def get_course_modal(course_id: int, db: AsyncSession = Depends(get_db_session)):
     """Получить модальное окно для курса"""
     # Проверяем существование курса
@@ -46,10 +47,10 @@ async def get_course_modal(course_id: int, db: AsyncSession = Depends(get_db_ses
         id=modal.id,
         course_id=modal.course_id,
         title=modal.title,
-        blocks=[CourseModalBlockSchema.from_orm(block) for block in blocks]
+        blocks=[CourseModalBlockSchema.model_validate(block, from_attributes=True) for block in blocks]
     )
 
-@router.post("/course/{course_id}/", response_model=CourseModalSchema)
+@router.post("/{course_id}", response_model=CourseModalSchema)
 async def create_course_modal(
     course_id: int, 
     data: CourseModalCreate, 
@@ -94,10 +95,10 @@ async def create_course_modal(
         id=modal.id,
         course_id=modal.course_id,
         title=modal.title,
-        blocks=[CourseModalBlockSchema.from_orm(block) for block in blocks]
+        blocks=[CourseModalBlockSchema.model_validate(block, from_attributes=True) for block in blocks]
     )
 
-@router.put("/course/{course_id}/", response_model=CourseModalSchema)
+@router.put("/{course_id}", response_model=CourseModalSchema)
 async def update_course_modal(
     course_id: int, 
     data: CourseModalUpdate, 
@@ -119,9 +120,6 @@ async def update_course_modal(
     # Обновляем блоки
     if data.blocks is not None:
         # Удаляем старые блоки
-        await db.execute(
-            select(CourseModalBlock).where(CourseModalBlock.modal_id == modal.id)
-        )
         old_blocks_result = await db.execute(
             select(CourseModalBlock).where(CourseModalBlock.modal_id == modal.id)
         )
@@ -154,10 +152,10 @@ async def update_course_modal(
         id=modal.id,
         course_id=modal.course_id,
         title=modal.title,
-        blocks=[CourseModalBlockSchema.from_orm(block) for block in blocks]
+        blocks=[CourseModalBlockSchema.model_validate(block, from_attributes=True) for block in blocks]
     )
 
-@router.delete("/course/{course_id}/")
+@router.delete("/{course_id}")
 async def delete_course_modal(course_id: int, db: AsyncSession = Depends(get_db_session)):
     """Удалить модальное окно курса"""
     result = await db.execute(
@@ -170,4 +168,4 @@ async def delete_course_modal(course_id: int, db: AsyncSession = Depends(get_db_
     await db.delete(modal)
     await db.commit()
     
-    return {"message": "Модальное окно удалено"}
+    return Response(status_code=204)

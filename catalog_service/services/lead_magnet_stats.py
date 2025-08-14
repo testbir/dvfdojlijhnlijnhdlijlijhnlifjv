@@ -8,10 +8,10 @@ from catalog_service.models.lead_magnet import LeadMagnet
 
 
 async def fetch_user_course_ids(user_id: int, client: AsyncClient) -> list[int]:
-    # Можно подстроить под конкретный путь вашего `admin_service` или `auth_service`
     resp = await client.get(f"http://adminservice/internal/users/{user_id}/courses")
     resp.raise_for_status()
-    return resp.json()  # ожидается список ID курсов
+    payload = resp.json()
+    return [c["course_id"] for c in payload.get("courses", [])]
 
 
 async def calculate_lead_magnet_stats(

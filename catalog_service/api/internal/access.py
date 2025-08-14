@@ -1,17 +1,17 @@
+# catalog_service/api/internal/access.py
+
+
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from db.dependencies import get_db_session
-from models.course import Course
-from models.access import CourseAccess
 
-router = APIRouter()
+from catalog_service.db.dependencies import get_db_session
+from catalog_service.models.course import Course
+from catalog_service.models.access import CourseAccess
 
-class AccessVerifyRequest(BaseException):
-    user_id: int
-    course_id: int
+router = APIRouter(prefix="/access")
 
-@router.post("/access/verify", summary="Проверка доступа")
+@router.post("/verify", summary="Проверка доступа")
 async def access_verify(payload: dict = Body(...), db: AsyncSession = Depends(get_db_session)):
     user_id = int(payload.get("user_id"))
     course_id = int(payload.get("course_id"))
@@ -34,5 +34,4 @@ async def access_verify(payload: dict = Body(...), db: AsyncSession = Depends(ge
 
 @router.post("/enrollment/events", summary="Событие доступа (grant|revoke)")
 async def enrollment_event(payload: dict = Body(...)):
-    # Заглушка. Логика рассылки в другие сервисы позже.
     return {"accepted": True}

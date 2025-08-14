@@ -1,7 +1,7 @@
 # catalog_service/schemas/promo.py
 
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class PromoCreateSchema(BaseModel):
     image: str
@@ -11,5 +11,4 @@ class PromoCreateSchema(BaseModel):
 class PromoSchema(PromoCreateSchema):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

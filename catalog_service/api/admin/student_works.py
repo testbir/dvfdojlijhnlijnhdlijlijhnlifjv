@@ -1,22 +1,23 @@
-# catalog_service/api/student_works.py
+# catalog_service/api/admin/student_works.py
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
-from db.dependencies import get_db_session
-from models.student_works import StudentWorksSection, StudentWork
-from models.course import Course
-from schemas.student_works import (
+
+from catalog_service.db.dependencies import get_db_session
+from catalog_service.models.student_works import StudentWorksSection, StudentWork
+from catalog_service.models.course import Course
+from catalog_service.schemas.student_works import (
     StudentWorksSectionCreate,
     StudentWorksSectionUpdate,
     StudentWorksSectionSchema,
     StudentWorkSchema
 )
 
-router = APIRouter(prefix="/internal/student-works", tags=["Student Works"])
+router = APIRouter(prefix="/student-works")
 
-@router.get("/course/{course_id}/", response_model=Optional[StudentWorksSectionSchema])
+@router.get("/{course_id}", response_model=Optional[StudentWorksSectionSchema])
 async def get_student_works_section(course_id: int, db: AsyncSession = Depends(get_db_session)):
     """Получить секцию работ учеников для курса"""
     # Проверяем существование курса
@@ -47,10 +48,10 @@ async def get_student_works_section(course_id: int, db: AsyncSession = Depends(g
         course_id=section.course_id,
         title=section.title,
         description=section.description,
-        works=[StudentWorkSchema.from_orm(work) for work in works]
+        works=[StudentWorkSchema.model_validate(work, from_attributes=True) for work in works]
     )
 
-@router.post("/course/{course_id}/", response_model=StudentWorksSectionSchema)
+@router.post("/{course_id}", response_model=StudentWorksSectionSchema)
 async def create_student_works_section(
     course_id: int,
     data: StudentWorksSectionCreate,
@@ -101,10 +102,10 @@ async def create_student_works_section(
         course_id=section.course_id,
         title=section.title,
         description=section.description,
-        works=[StudentWorkSchema.from_orm(work) for work in works]
+        works=[StudentWorkSchema.model_validate(work, from_attributes=True) for work in works]
     )
 
-@router.put("/course/{course_id}/", response_model=StudentWorksSectionSchema)
+@router.put("/{course_id}", response_model=StudentWorksSectionSchema)
 async def update_student_works_section(
     course_id: int,
     data: StudentWorksSectionUpdate,
@@ -162,10 +163,10 @@ async def update_student_works_section(
         course_id=section.course_id,
         title=section.title,
         description=section.description,
-        works=[StudentWorkSchema.from_orm(work) for work in works]
+        works=[StudentWorkSchema.model_validate(work, from_attributes=True) for work in works]
     )
 
-@router.delete("/course/{course_id}/")
+@router.delete("/{course_id}")
 async def delete_student_works_section(course_id: int, db: AsyncSession = Depends(get_db_session)):
     """Удалить секцию работ учеников"""
     result = await db.execute(
@@ -178,4 +179,4 @@ async def delete_student_works_section(course_id: int, db: AsyncSession = Depend
     await db.delete(section)
     await db.commit()
     
-    return {"message": "Секция работ удалена"}
+    return Response(status_code=204)

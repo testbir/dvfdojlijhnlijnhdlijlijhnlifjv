@@ -1,9 +1,9 @@
 # catalog_service/models/course.py
 
 from sqlalchemy import Column, Integer, String, Text, Boolean, DECIMAL
-from sqlalchemy.orm import relationship
-from core.base import Base
 from sqlalchemy import DateTime
+
+from catalog_service.core.base import Base
 
 class Course(Base):
     __tablename__ = "courses_course"
@@ -29,10 +29,5 @@ class Course(Base):
     discount_start = Column(DateTime(timezone=True), nullable=True)
     discount_until = Column(DateTime(timezone=True), nullable=True)
     
-    
-
-    modules = relationship(
-        "Module", back_populates="course", cascade="all, delete-orphan", passive_deletes=True
-    )
     
     group_title = Column(String(100), nullable=True)

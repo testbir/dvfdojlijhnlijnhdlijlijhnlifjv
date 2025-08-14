@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     class Config:
-        env_file = ".env"
+        env_file = "catalog_service/.env"
 
 
 settings = Settings()

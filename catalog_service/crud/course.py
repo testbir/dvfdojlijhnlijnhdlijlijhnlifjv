@@ -2,9 +2,9 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models.course import Course
 
-from models.access import CourseAccess
+from catalog_service.models.course import Course
+from catalog_service.models.access import CourseAccess
 
 
 async def has_course_access(db: AsyncSession, user_id: int, course_id: int) -> bool:

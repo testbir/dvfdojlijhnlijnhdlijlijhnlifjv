@@ -1,15 +1,17 @@
-# catalog_service/api/promocode.py
+# catalog_service/api/admin/promocodes.py
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
 from datetime import datetime
-from db.dependencies import get_db_session
-from models.promocode import PromoCode
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-router = APIRouter(prefix="/promocodes", tags=["Promocodes"])
+from catalog_service.db.dependencies import get_db_session
+from catalog_service.models.promocode import PromoCode
+
+
+router = APIRouter(prefix="/promocodes")
 
 class PromoCodeCreate(BaseModel):
     code: str
@@ -39,15 +41,14 @@ class PromoCodeResponse(BaseModel):
     is_active: bool
     applicable_courses: List[int]
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
-@router.get("/internal/", response_model=List[PromoCodeResponse])
+@router.get("/", response_model=List[PromoCodeResponse])
 async def list_promocodes(db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(PromoCode))
     return result.scalars().all()
 
-@router.post("/internal/", response_model=PromoCodeResponse)
+@router.post("/", response_model=PromoCodeResponse)
 async def create_promocode(data: PromoCodeCreate, db: AsyncSession = Depends(get_db_session)):
     # Проверяем уникальность кода
     result = await db.execute(
@@ -86,23 +87,26 @@ async def create_promocode(data: PromoCodeCreate, db: AsyncSession = Depends(get
     await db.refresh(promo)
     return promo
 
-@router.put("/internal/{promo_id}", response_model=PromoCodeResponse)
+@router.put("/{promo_id}", response_model=PromoCodeResponse)
 async def update_promocode(promo_id: int, data: PromoCodeUpdate, db: AsyncSession = Depends(get_db_session)):
-    result = await db.execute(
-        select(PromoCode).where(PromoCode.id == promo_id)
-    )
+    result = await db.execute(select(PromoCode).where(PromoCode.id == promo_id))
     promo = result.scalar_one_or_none()
     if not promo:
         raise HTTPException(status_code=404, detail="Промокод не найден")
 
-    for key, value in data.dict(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    if "valid_until" in updates and updates["valid_until"] is not None:
+        updates["valid_until"] = updates["valid_until"].replace(tzinfo=None)
+
+    for key, value in updates.items():
         setattr(promo, key, value)
 
     await db.commit()
     await db.refresh(promo)
     return promo
 
-@router.delete("/internal/{promo_id}")
+
+@router.delete("/{promo_id}")
 async def delete_promocode(promo_id: int, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(
         select(PromoCode).where(PromoCode.id == promo_id)
@@ -113,65 +117,5 @@ async def delete_promocode(promo_id: int, db: AsyncSession = Depends(get_db_sess
 
     await db.delete(promo)
     await db.commit()
-    return {"message": "Промокод удален"}
+    return Response(status_code=204)
 
-@router.post("/check/")
-async def check_promocode(code: str, course_id: Optional[int] = None, db: AsyncSession = Depends(get_db_session)):
-    result = await db.execute(
-        select(PromoCode).where(
-            PromoCode.code == code,
-            PromoCode.is_active == True
-        )
-    )
-    promo = result.scalar_one_or_none()
-
-    if not promo:
-        raise HTTPException(status_code=404, detail="Промокод не найден или неактивен")
-
-    now = datetime.utcnow()
-    if now < promo.valid_from or now > promo.valid_until:
-        raise HTTPException(status_code=400, detail="Срок действия промокода истек")
-
-    if promo.uses_left <= 0:
-        raise HTTPException(status_code=400, detail="Промокод больше не может быть использован")
-
-    if course_id and promo.applicable_courses and course_id not in promo.applicable_courses:
-        raise HTTPException(status_code=400, detail="Промокод не применим к данному курсу")
-
-    return {
-        "valid": True,
-        "discount_percent": promo.discount_percent,
-        "discount_amount": promo.discount_amount
-    }
-
-@router.post("/use/")
-async def use_promocode(code: str, course_id: Optional[int] = None, db: AsyncSession = Depends(get_db_session)):
-    result = await db.execute(
-        select(PromoCode).where(
-            PromoCode.code == code,
-            PromoCode.is_active == True
-        )
-    )
-    promo = result.scalar_one_or_none()
-
-    if not promo:
-        raise HTTPException(status_code=404, detail="Промокод не найден")
-
-    now = datetime.utcnow()
-    if now < promo.valid_from or now > promo.valid_until:
-        raise HTTPException(status_code=400, detail="Срок действия промокода истек")
-
-    if promo.uses_left <= 0:
-        raise HTTPException(status_code=400, detail="Промокод больше не может быть использован")
-
-    if course_id and promo.applicable_courses and course_id not in promo.applicable_courses:
-        raise HTTPException(status_code=400, detail="Промокод не применим к данному курсу")
-
-    promo.uses_left -= 1
-    await db.commit()
-
-    return {
-        "success": True,
-        "discount_percent": promo.discount_percent,
-        "discount_amount": promo.discount_amount
-    }

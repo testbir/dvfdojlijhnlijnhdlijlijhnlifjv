@@ -20,4 +20,5 @@ COPY . .
 RUN chmod +x /app/init_db.sh
 
 # Команда по умолчанию
-CMD ["sh", "-c", "./init_db.sh && python -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload"]
+CMD ["sh", "-c", "./init_db.sh && python -m uvicorn catalog_service.main:app --host 0.0.0.0 --port 8001 --reload"]
+

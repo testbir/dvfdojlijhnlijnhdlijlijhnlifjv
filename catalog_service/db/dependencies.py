@@ -1,6 +1,7 @@
 # catalog_service/db/dependencies.py
 
-from db.init_db import async_session_maker
+from catalog_service.db.init_db import async_session_maker
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import AsyncGenerator
 

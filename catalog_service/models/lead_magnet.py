@@ -3,7 +3,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 
-from core.base import Base 
+from catalog_service.core.base import Base
 
 class LeadMagnet(Base):
     __tablename__ = "marketing_lead_magnets"

@@ -1,0 +1,9 @@
+# learning_service/requirements.py
+
+uvicorn
+fastapi
+python-dotenv
+sqlalchemy
+asyncpg
+pydantic-settings
+python-jose

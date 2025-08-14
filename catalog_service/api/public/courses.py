@@ -1,18 +1,22 @@
+# catalog_service/api/public/courses.py
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 from datetime import datetime, timezone
 
-from db.dependencies import get_db_session
-from models.course import Course
-from models.access import CourseAccess
-from schemas.course import (
-    CourseListSchema, CourseDetailSchema,
-    CourseCreate, BuyCourseRequest, BuyCourseResponse,
+from catalog_service.core.config import settings
+from catalog_service.db.dependencies import get_db_session
+from catalog_service.models.course import Course
+from catalog_service.models.access import CourseAccess
+from catalog_service.utils.auth import get_current_user_id
+from catalog_service.utils.rate_limit import limiter
+from catalog_service.schemas.course import (
+    CourseListSchema, CourseDetailSchema, 
+    BuyCourseRequest, BuyCourseResponse,
 )
-from utils.auth import get_current_user_id
-from utils.rate_limit import limiter
+
 
 router = APIRouter(prefix="/courses")
 
@@ -34,6 +38,14 @@ async def list_courses(request: Request, db: AsyncSession = Depends(get_db_sessi
     except:
         user_id = None
 
+    # 🔽 вот это добавь перед циклом
+    user_course_ids: set[int] = set()
+    if user_id:
+        res_ids = await db.execute(
+            select(CourseAccess.course_id).where(CourseAccess.user_id == user_id)
+        )
+        user_course_ids = {cid for (cid,) in res_ids.all()}
+
     result = await db.execute(select(Course).order_by(Course.order.asc()))
     courses = result.scalars().all()
     out: List[CourseListSchema] = []
@@ -44,22 +56,13 @@ async def list_courses(request: Request, db: AsyncSession = Depends(get_db_sessi
         if is_discount_active:
             final_price = final_price * (1 - float(course.discount or 0) / 100)
 
-        if course.is_free:
-            has_access = True
-        elif user_id:
-            acc_res = await db.execute(
-                select(CourseAccess).where(
-                    CourseAccess.user_id == user_id,
-                    CourseAccess.course_id == course.id
-                )
-            )
-            has_access = acc_res.scalar_one_or_none() is not None
-        else:
-            has_access = False
+        # 🔽 и вот так вычисляй доступ
+        has_access = True if course.is_free else (course.id in user_course_ids)
 
         out.append(CourseListSchema(
             id=course.id,
             title=course.title,
+            group_title=course.group_title,
             short_description=course.short_description,
             image=course.image,
             is_free=course.is_free,
@@ -67,13 +70,14 @@ async def list_courses(request: Request, db: AsyncSession = Depends(get_db_sessi
             discount=float(course.discount or 0.0),
             final_price=round(final_price, 2),
             has_access=has_access,
-            button_text="ОТКРЫТЬ",
+            button_text="ОТКРЫТЬ",  # как и хотели, всегда "ОТКРЫТЬ" в каталоге
             order=course.order,
             is_discount_active=is_discount_active,
         ))
     return out
 
-@router.get("/{course_id}/", response_model=CourseDetailSchema, summary="Детали курса")
+
+@router.get("/{course_id}", response_model=CourseDetailSchema, summary="Детали курса")
 async def course_detail(course_id: int, request: Request, db: AsyncSession = Depends(get_db_session)):
     try:
         user_id = get_current_user_id(request)
@@ -118,6 +122,7 @@ async def course_detail(course_id: int, request: Request, db: AsyncSession = Dep
         video=course.video,
         video_preview=course.video_preview,
         banner_text=course.banner_text,
+        group_title=course.group_title,  
         banner_color_left=course.banner_color_left,
         banner_color_right=course.banner_color_right,
         order=course.order,
@@ -125,8 +130,8 @@ async def course_detail(course_id: int, request: Request, db: AsyncSession = Dep
         discount_ends_in=discount_ends_in,
     )
 
-@router.post("/{course_id}/buy/", response_model=BuyCourseResponse, summary="Приобрести курс")
-@limiter.limit("3/minute")
+@router.post("/{course_id}/buy", response_model=BuyCourseResponse, summary="Приобрести курс")
+@limiter.limit(settings.BUY_COURSE_RATE_LIMIT)
 async def buy_course(course_id: int, request_data: BuyCourseRequest, request: Request, db: AsyncSession = Depends(get_db_session)):
     user_id = get_current_user_id(request)
 
@@ -153,7 +158,7 @@ async def buy_course(course_id: int, request_data: BuyCourseRequest, request: Re
         message=("Бесплатный курс успешно открыт" if course.is_free else "Курс успешно приобретён")
     )
 
-@router.post("/{course_id}/check-access/", summary="Проверка доступа (deprecated)")
+@router.post("/{course_id}/check-access", summary="Проверка доступа (deprecated)")
 async def check_course_access(course_id: int, request: Request, db: AsyncSession = Depends(get_db_session)):
     try:
         user_id = get_current_user_id(request)

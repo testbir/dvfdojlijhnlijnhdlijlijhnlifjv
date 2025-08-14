@@ -1,22 +1,22 @@
-# catalog_service/api/lead_magnets.py
+# catalog_service/api/admin/lead_magnets.py
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from db.dependencies import get_db_session
-from models.lead_magnet import LeadMagnet
-from models.course import Course
-from schemas.lead_magnet import LeadMagnetCreate, LeadMagnetRead
+from catalog_service.db.dependencies import get_db_session
+from catalog_service.models.lead_magnet import LeadMagnet
+from catalog_service.models.course import Course
+from catalog_service.schemas.lead_magnet import LeadMagnetCreate, LeadMagnetRead
 
-router = APIRouter()
+router = APIRouter(prefix="/lead-magnets")
 
-@router.get("/internal/lead-magnets/", response_model=list[LeadMagnetRead])
+@router.get("/", response_model=list[LeadMagnetRead])
 async def list_lead_magnets(session: AsyncSession = Depends(get_db_session)):
     result = await session.execute(select(LeadMagnet))
     return result.scalars().all()
 
-@router.post("/internal/lead-magnets/", response_model=LeadMagnetRead)
+@router.post("/", response_model=LeadMagnetRead)
 async def create_lead_magnet(
     data: LeadMagnetCreate,
     session: AsyncSession = Depends(get_db_session),
@@ -43,13 +43,13 @@ async def create_lead_magnet(
     if duplicate:
         raise HTTPException(status_code=400, detail="Такая связка уже существует")
 
-    obj = LeadMagnet(**data.dict())
+    obj = LeadMagnet(**data.model_dump())
     session.add(obj)
     await session.commit()
     await session.refresh(obj)
     return obj
 
-@router.delete("/internal/lead-magnets/{lead_magnet_id}", status_code=204)
+@router.delete("/{lead_magnet_id}", status_code=204)
 async def delete_lead_magnet(
     lead_magnet_id: int,
     session: AsyncSession = Depends(get_db_session),

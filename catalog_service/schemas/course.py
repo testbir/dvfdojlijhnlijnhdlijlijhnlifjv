@@ -1,8 +1,8 @@
 
 # catalog_service/schemas/course.py
 
-from pydantic import BaseModel, model_validator
-from typing import List, Optional
+from pydantic import BaseModel, ConfigDict, model_validator
+from typing import Optional
 from datetime import datetime
 
 
@@ -29,14 +29,13 @@ class CourseListSchema(BaseModel):
     discount_ends_in: Optional[float] = None
     is_discount_active: Optional[bool] = False
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CourseDetailSchema(BaseModel):
     id: int
     title: str
-    full_description: str
+    full_description: Optional[str]
     short_description: Optional[str]
     image: Optional[str]
     is_free: bool
@@ -59,8 +58,7 @@ class CourseDetailSchema(BaseModel):
     discount_ends_in: Optional[float] = None
     is_discount_active: Optional[bool] = False
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 
@@ -112,6 +110,8 @@ class CourseCreate(BaseModel):
 
     discount_start: Optional[datetime] = None
     discount_until: Optional[datetime] = None
+    
+    model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode="after")
     def validate_discount_range(self) -> "CourseCreate":

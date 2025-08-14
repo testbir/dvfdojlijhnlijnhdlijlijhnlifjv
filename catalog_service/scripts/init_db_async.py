@@ -5,15 +5,10 @@
 
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy import text, inspect
-from sqlalchemy.schema import CreateTable
-from core.base import Base
-from core.config import settings
+from sqlalchemy import text
 
-from models.course import Course
-from models.access import CourseAccess
-
-from models.promo import PromoImage
+from catalog_service.core.base import Base
+from catalog_service.core.config import settings
 
 from urllib.parse import urlparse, urlunparse
 

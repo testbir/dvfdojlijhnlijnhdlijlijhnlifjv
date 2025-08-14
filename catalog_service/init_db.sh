@@ -36,7 +36,7 @@ if [ "$FASTAPI_ENV" = "development" ]; then
 import sys
 sys.path.append('/app')
 try:
-    from scripts.init_db_async import init_db
+    from catalog_service.scripts.init_db_async import init_db
     import asyncio
     asyncio.run(init_db())
     print("Database initialization completed")

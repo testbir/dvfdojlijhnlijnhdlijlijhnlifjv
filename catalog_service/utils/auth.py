@@ -1,10 +1,11 @@
 # catalog_service/utils/auth.py
 
 from jose import JWTError, jwt
-from fastapi import Request, HTTPException, Depends
+from fastapi import Request, HTTPException
 from starlette.status import HTTP_401_UNAUTHORIZED
 from typing import Optional
-from core.config import settings
+
+from catalog_service.core.config import settings
 
 JWT_SECRET_KEY = settings.JWT_SECRET_KEY
 ALGORITHM = "HS256"

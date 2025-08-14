@@ -3,11 +3,7 @@
 uvicorn
 fastapi
 python-dotenv
-SQLAlchemy
-fastapi
-uvicorn
 sqlalchemy
-python-dotenv
 pydantic-settings
 python-jose
 psycopg2-binary

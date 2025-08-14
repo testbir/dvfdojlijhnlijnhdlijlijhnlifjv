@@ -1,18 +1,9 @@
-# catalog_service/api/accounts.py
+# catalog_service/api/public/accounts.py
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from typing import List
-from datetime import datetime
+from fastapi import APIRouter, HTTPException, Request
 
-from db.dependencies import get_db_session
-from models.course import Course
-from models.access import CourseAccess
-from utils.auth import get_current_user_id
-from schemas.dashboard import UserDashboardSchema, UserStatsSchema, UserCourseSchema
-
-from utils.auth_client import get_user_data_from_auth
+from catalog_service.utils.auth import get_current_user_id
+from catalog_service.utils.auth_client import get_user_data_from_auth
 
 router = APIRouter()
 
@@ -21,7 +12,7 @@ router = APIRouter()
 
     
 
-@router.get("/profile/", summary="Профиль пользователя")
+@router.get("/profile", summary="Профиль пользователя")
 async def get_user_profile(request: Request):
     """
     Возвращает данные пользователя из auth_service

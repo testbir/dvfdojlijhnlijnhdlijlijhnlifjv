@@ -1,7 +1,8 @@
 # catalog_service/models/promo.py
 
 from sqlalchemy import Column, Integer, String, ForeignKey
-from core.base import Base
+
+from catalog_service.core.base import Base
 
 class PromoImage(Base):
     __tablename__ = "homepage_promo_images"

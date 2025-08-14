@@ -1,31 +1,34 @@
+# catalog_service/api/internal/statistics.py
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, extract
 from datetime import datetime, timedelta
-from db.dependencies import get_db_session
-from models.course import Course
-from models.access import CourseAccess
 
-router = APIRouter()
+from catalog_service.db.dependencies import get_db_session
+from catalog_service.models.course import Course
+from catalog_service.models.access import CourseAccess
 
-@router.get("/statistics/courses", summary="Статистика по курсам")
+router = APIRouter(prefix="/statistics")
+
+@router.get("/courses", summary="Статистика по курсам")
 async def stats_courses(db: AsyncSession = Depends(get_db_session)):
     total = (await db.execute(select(func.count(Course.id)))).scalar()
     free  = (await db.execute(select(func.count(Course.id)).where(Course.is_free == True))).scalar()
     paid  = (await db.execute(select(func.count(Course.id)).where(Course.is_free == False))).scalar()
     return {"total": total, "free": free, "paid": paid}
 
-@router.get("/statistics/revenue", summary="Статистика доходов")
+@router.get("/revenue", summary="Статистика доходов")
 async def stats_revenue(db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(
-        select(func.sum(Course.price * (1 - Course.discount / 100)))
+        select(func.sum(func.coalesce(Course.price, 0) * (1 - func.coalesce(Course.discount, 0) / 100)))
         .select_from(Course.__table__.join(CourseAccess.__table__, Course.id == CourseAccess.course_id))
         .where(Course.is_free == False)
     )
     revenue = res.scalar()
     return {"total": float(revenue) if revenue else 0.0}
 
-@router.get("/statistics/revenue-by-month", summary="Доходы по месяцам")
+@router.get("/revenue-by-month", summary="Доходы по месяцам")
 async def stats_revenue_by_month(months: int = 12, db: AsyncSession = Depends(get_db_session)):
     end_date = datetime.now()
     start_date = end_date - timedelta(days=months * 30)
@@ -33,7 +36,7 @@ async def stats_revenue_by_month(months: int = 12, db: AsyncSession = Depends(ge
         select(
             extract('year', CourseAccess.purchased_at).label('year'),
             extract('month', CourseAccess.purchased_at).label('month'),
-            func.sum(Course.price * (1 - Course.discount / 100)).label('revenue')
+            func.sum(func.coalesce(Course.price, 0) * (1 - func.coalesce(Course.discount, 0) / 100)).label('revenue')
         )
         .select_from(CourseAccess.__table__.join(Course.__table__, CourseAccess.course_id == Course.id))
         .where(CourseAccess.purchased_at >= start_date, Course.is_free == False)
@@ -43,7 +46,7 @@ async def stats_revenue_by_month(months: int = 12, db: AsyncSession = Depends(ge
     rows = res.all()
     return [{"month": f"{int(y)}-{int(m):02d}", "revenue": float(r or 0.0)} for y, m, r in rows]
 
-@router.get("/statistics/courses/{course_id}", summary="Статистика по курсу")
+@router.get("/courses/{course_id}", summary="Статистика по курсу")
 async def stats_course(course_id: int, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Course).where(Course.id == course_id))
     course = res.scalar_one_or_none()
@@ -62,7 +65,7 @@ async def stats_course(course_id: int, db: AsyncSession = Depends(get_db_session
         "is_free": course.is_free
     }
 
-@router.get("/statistics/recent-purchases", summary="Последние покупки")
+@router.get("/recent-purchases", summary="Последние покупки")
 async def stats_recent_purchases(limit: int = 10, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(
         select(CourseAccess.user_id, CourseAccess.purchased_at, Course.title, Course.price, Course.discount)
@@ -81,7 +84,7 @@ async def stats_recent_purchases(limit: int = 10, db: AsyncSession = Depends(get
         } for r in rows
     ]
 
-@router.get("/statistics/popular-courses", summary="Популярные курсы")
+@router.get("/popular-courses", summary="Популярные курсы")
 async def stats_popular(db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(
         select(Course.id, Course.title, func.count(CourseAccess.id).label('enrollments'))
