@@ -10,9 +10,11 @@ from learning_service.db.dependencies import get_db_session
 from learning_service.models.module import Module
 from learning_service.schemas.module import ModuleCreate, ModuleUpdate, ModuleSchema
 
-router = APIRouter()
+router_courses = APIRouter(prefix="/courses")
+router_modules = APIRouter(prefix="/modules")
 
-@router.post("/courses/{course_id}/modules/", response_model=ModuleSchema)
+
+@router_courses.post("/{course_id}/modules/", response_model=ModuleSchema)
 async def create_module(course_id: int, data: ModuleCreate, db: AsyncSession = Depends(get_db_session)):
     # авто-order если не задан: max(order)+1 в рамках курса
     order = data.order
@@ -33,7 +35,7 @@ async def create_module(course_id: int, data: ModuleCreate, db: AsyncSession = D
     await db.refresh(obj)
     return obj
 
-@router.get("/modules/{module_id}", response_model=ModuleSchema)
+@router_modules.get("/{module_id}", response_model=ModuleSchema)
 async def get_module(module_id: int, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Module).where(Module.id == module_id))
     obj = res.scalar_one_or_none()
@@ -41,7 +43,7 @@ async def get_module(module_id: int, db: AsyncSession = Depends(get_db_session))
         raise HTTPException(status_code=404, detail="Модуль не найден")
     return obj
 
-@router.put("/modules/{module_id}", response_model=ModuleSchema)
+@router_modules.put("/{module_id}", response_model=ModuleSchema)
 async def update_module(module_id: int, data: ModuleUpdate, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Module).where(Module.id == module_id))
     obj = res.scalar_one_or_none()
@@ -55,7 +57,7 @@ async def update_module(module_id: int, data: ModuleUpdate, db: AsyncSession = D
     await db.refresh(obj)
     return obj
 
-@router.delete("/modules/{module_id}")
+@router_modules.delete("/{module_id}")
 async def delete_module(module_id: int, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Module).where(Module.id == module_id))
     obj = res.scalar_one_or_none()
@@ -65,7 +67,7 @@ async def delete_module(module_id: int, db: AsyncSession = Depends(get_db_sessio
     await db.commit()
     return {"success": True}
 
-@router.get("/courses/{course_id}/modules/", response_model=List[ModuleSchema])
+@router_courses.get("/{course_id}/modules/", response_model=List[ModuleSchema])
 async def list_course_modules(course_id: int, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Module).where(Module.course_id == course_id).order_by(Module.order.asc()))
     return res.scalars().all()

@@ -1,4 +1,4 @@
-# learning_service/api/admin/block.py
+# learning_service/api/admin/blocks.py
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,14 +10,16 @@ from learning_service.models.block import Block
 from learning_service.models.module import Module
 from learning_service.schemas.block import BlockCreate, BlockUpdate, BlockSchema
 
-router = APIRouter()
+router_modules = APIRouter(prefix="/modules")
+router_blocks = APIRouter(prefix="/blocks")
 
-@router.get("/modules/{module_id}/blocks/", response_model=List[BlockSchema])
+
+@router_modules.get("/{module_id}/blocks/", response_model=List[BlockSchema])
 async def list_blocks(module_id: int, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Block).where(Block.module_id == module_id).order_by(Block.order.asc()))
     return res.scalars().all()
 
-@router.post("/modules/{module_id}/blocks/", response_model=BlockSchema)
+@router_modules.post("/{module_id}/blocks/", response_model=BlockSchema)
 async def create_block(module_id: int, data: BlockCreate, db: AsyncSession = Depends(get_db_session)):
     # проверим модуль
     m = await db.execute(select(Module).where(Module.id == module_id))
@@ -43,7 +45,7 @@ async def create_block(module_id: int, data: BlockCreate, db: AsyncSession = Dep
     await db.refresh(obj)
     return obj
 
-@router.get("/blocks/{block_id}", response_model=BlockSchema)
+@router_blocks.get("/{block_id}", response_model=BlockSchema)
 async def get_block(block_id: int, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Block).where(Block.id == block_id))
     obj = res.scalar_one_or_none()
@@ -51,7 +53,7 @@ async def get_block(block_id: int, db: AsyncSession = Depends(get_db_session)):
         raise HTTPException(status_code=404, detail="Блок не найден")
     return obj
 
-@router.put("/blocks/{block_id}", response_model=BlockSchema)
+@router_blocks.put("/{block_id}", response_model=BlockSchema)
 async def update_block(block_id: int, data: BlockUpdate, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Block).where(Block.id == block_id))
     obj = res.scalar_one_or_none()
@@ -65,7 +67,7 @@ async def update_block(block_id: int, data: BlockUpdate, db: AsyncSession = Depe
     await db.refresh(obj)
     return obj
 
-@router.delete("/blocks/{block_id}")
+@router_blocks.delete("/{block_id}")
 async def delete_block(block_id: int, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Block).where(Block.id == block_id))
     obj = res.scalar_one_or_none()

@@ -15,9 +15,10 @@ app.add_middleware(
 )
 
 # admin
-app.include_router(admin_modules.router, prefix="/v1/admin", tags=["Admin - Modules"])
-app.include_router(admin_blocks.router,   prefix="/v1/admin", tags=["Admin - Blocks"])
-
+app.include_router(admin_modules.router_courses, prefix="/v1/admin", tags=["Admin - Modules"])
+app.include_router(admin_modules.router_modules, prefix="/v1/admin", tags=["Admin - Modules"])
+app.include_router(admin_blocks.router_modules,  prefix="/v1/admin", tags=["Admin - Blocks"])
+app.include_router(admin_blocks.router_blocks,   prefix="/v1/admin", tags=["Admin - Blocks"])
 # public
 app.include_router(public_courses.router,  prefix="/v1/public", tags=["Public - Courses/Modules"])
 app.include_router(public_progress.router, prefix="/v1/public", tags=["Public - Progress"])
