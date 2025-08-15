@@ -9,38 +9,31 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from points_service.api.public import balance as public_balance
-from points_service.api.public import transactions as public_transactions
-from points_service.api.internal import points as internal_points
-from points_service.api import health as health_api
+from points_service.core.config import settings
+from points_service.db.init_db import init_db
 from points_service.utils.monitoring import log_requests
+from points_service.api import health as health_api
+from points_service.api.public import balance as public_balance
+from points_service.api.internal import awards as internal_awards
 
-# базовая настройка логирования (можно переопределить через конфиг)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(title="Points Service")
 
-# middleware логирования
+@app.on_event("startup")
+async def _startup():
+    await init_db()
+
 app.middleware("http")(log_requests)
 
-# CORS (в проде сузить список доменов)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Публичные маршруты
-app.include_router(public_balance.router,      prefix="/v1/public",  tags=["Public - Balance"])
-app.include_router(public_transactions.router, prefix="/v1/public",  tags=["Public - Transactions"])
-
-# Внутренние маршруты (только для доверенных сервисов)
-app.include_router(internal_points.router,     prefix="/v1/internal", tags=["Internal - Points"])
-
-# Health-check без префикса
+app.include_router(public_balance.router, prefix="/v1/public", tags=["Public - Points"])
+app.include_router(internal_awards.router, prefix="/v1/internal", tags=["Internal - Points"])
 app.include_router(health_api.router, tags=["Health"])

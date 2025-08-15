@@ -6,190 +6,100 @@
 Используется: learning_service (за завершение модулей), другие сервисы.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
-
+from sqlalchemy import text, select
 from points_service.db.dependencies import get_db_session
 from points_service.models.points import UserPoints, PointsTransaction
 from points_service.schemas.points import (
-    InternalAwardRequest,
-    InternalSpendRequest,
-    InternalRefundRequest,
-    InternalMutationResponse,
-    TransactionSchema,
+    InternalAwardRequest, InternalSpendRequest, InternalRefundRequest,
+    InternalMutationResponse, TransactionSchema
 )
 from points_service.utils.auth import InternalAuth
 
-router = APIRouter(prefix="/points")
+router = APIRouter(prefix="/points", dependencies=[Depends(InternalAuth())])
 
-
-async def _ensure_user_row(db: AsyncSession, user_id: int):
-    # Создаём запись кошелька при отсутствии (idempotent)
+async def _ensure_wallet(db: AsyncSession, user_id: int):
     await db.execute(
-        text(
-            """
-            INSERT INTO user_points (user_id, balance)
-            VALUES (:user_id, 0)
-            ON CONFLICT (user_id) DO NOTHING
-            """
-        ),
-        {"user_id": user_id},
+        text("INSERT INTO user_points (user_id, balance) VALUES (:u, 0) ON CONFLICT (user_id) DO NOTHING"),
+        {"u": user_id},
     )
 
-
-async def _get_locked_wallet(db: AsyncSession, user_id: int) -> UserPoints:
-    await _ensure_user_row(db, user_id)
-    res = await db.execute(
-        select(UserPoints).where(UserPoints.user_id == user_id).with_for_update()
-    )
-    obj = res.scalar_one()
-    return obj
-
-
-async def _check_idempotency(db: AsyncSession, idempotency_key: str):
-    res = await db.execute(
-        select(PointsTransaction).where(PointsTransaction.idempotency_key == idempotency_key)
-    )
-    return res.scalar_one_or_none()
-
-
-@router.post("/award", response_model=InternalMutationResponse, summary="Начислить SP")
-async def award_points(
-    data: InternalAwardRequest,
-    _: bool = InternalAuth,
-    db: AsyncSession = Depends(get_db_session),
-):
+@router.post("/award", response_model=InternalMutationResponse)
+async def award_points(data: InternalAwardRequest, db: AsyncSession = Depends(get_db_session)):
     if data.amount <= 0:
         raise HTTPException(status_code=400, detail="amount must be > 0")
-
-    existing = await _check_idempotency(db, data.idempotency_key)
-    if existing:
-        bal_res = await db.execute(
-            select(UserPoints.balance).where(UserPoints.user_id == existing.user_id)
-        )
-        balance = bal_res.scalar() or 0
-        return InternalMutationResponse(
-            success=True,
-            balance=balance,
-            transaction=TransactionSchema.model_validate(existing, from_attributes=True),
-        )
-
     async with db.begin():
-        wallet = await _get_locked_wallet(db, data.user_id)
-        wallet.balance = wallet.balance + int(data.amount)
+        await _ensure_wallet(db, data.user_id)
+        try:
+            await db.execute(
+                text("""
+INSERT INTO points_transactions
+(user_id, points_delta, type, reason, source_service, reference_type, reference_id, idempotency_key)
+VALUES (:u, :d, 'award', :r, :ss, :rt, :ri, :ik)
+"""),
+                {"u": data.user_id, "d": data.amount, "r": data.reason, "ss": data.source_service, "rt": data.reference_type, "ri": data.reference_id, "ik": data.idempotency_key},
+            )
+            await db.execute(text("UPDATE user_points SET balance = balance + :d WHERE user_id = :u"), {"u": data.user_id, "d": data.amount})
+        except Exception as e:
+            if "unique" not in str(e).lower() and "duplicate" not in str(e).lower():
+                raise
+    bal = await db.execute(select(UserPoints.balance).where(UserPoints.user_id == data.user_id))
+    balance = int(bal.scalar() or 0)
+    tx = await db.execute(select(PointsTransaction).where(PointsTransaction.idempotency_key == data.idempotency_key))
+    t = tx.scalar_one()
+    return InternalMutationResponse(success=True, balance=balance, transaction=TransactionSchema.model_validate(t, from_attributes=True))
 
-        t = PointsTransaction(
-            user_id=data.user_id,
-            delta=int(data.amount),
-            type="award",
-            reason=data.reason,
-            source_service=data.source_service,
-            reference_type=data.reference_type,
-            reference_id=str(data.reference_id) if data.reference_id is not None else None,
-            idempotency_key=data.idempotency_key,
-        )
-        db.add(t)
-
-    await db.refresh(wallet)
-    await db.refresh(t)
-    return InternalMutationResponse(
-        success=True,
-        balance=wallet.balance,
-        transaction=TransactionSchema.model_validate(t, from_attributes=True),
-    )
-
-
-@router.post("/spend", response_model=InternalMutationResponse, summary="Списать SP")
-async def spend_points(
-    data: InternalSpendRequest,
-    _: bool = InternalAuth,
-    db: AsyncSession = Depends(get_db_session),
-):
+@router.post("/spend", response_model=InternalMutationResponse)
+async def spend_points(data: InternalSpendRequest, db: AsyncSession = Depends(get_db_session)):
     if data.amount <= 0:
         raise HTTPException(status_code=400, detail="amount must be > 0")
-
-    existing = await _check_idempotency(db, data.idempotency_key)
-    if existing:
-        bal_res = await db.execute(
-            select(UserPoints.balance).where(UserPoints.user_id == existing.user_id)
-        )
-        balance = bal_res.scalar() or 0
-        return InternalMutationResponse(
-            success=True,
-            balance=balance,
-            transaction=TransactionSchema.model_validate(existing, from_attributes=True),
-        )
-
     async with db.begin():
-        wallet = await _get_locked_wallet(db, data.user_id)
-        if wallet.balance < int(data.amount):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Insufficient balance")
+        await _ensure_wallet(db, data.user_id)
+        bal = await db.execute(select(UserPoints.balance).where(UserPoints.user_id == data.user_id))
+        balance = int(bal.scalar() or 0)
+        if balance < data.amount:
+            raise HTTPException(status_code=409, detail="insufficient balance")
+        try:
+            await db.execute(
+                text("""
+INSERT INTO points_transactions
+(user_id, points_delta, type, reason, source_service, reference_type, reference_id, idempotency_key)
+VALUES (:u, :d, 'spend', :r, :ss, :rt, :ri, :ik)
+"""),
+                {"u": data.user_id, "d": -data.amount, "r": data.reason, "ss": data.source_service, "rt": data.reference_type, "ri": data.reference_id, "ik": data.idempotency_key},
+            )
+            await db.execute(text("UPDATE user_points SET balance = balance - :d WHERE user_id = :u"), {"u": data.user_id, "d": data.amount})
+        except Exception as e:
+            if "unique" not in str(e).lower() and "duplicate" not in str(e).lower():
+                raise
+    bal2 = await db.execute(select(UserPoints.balance).where(UserPoints.user_id == data.user_id))
+    balance2 = int(bal2.scalar() or 0)
+    tx = await db.execute(select(PointsTransaction).where(PointsTransaction.idempotency_key == data.idempotency_key))
+    t = tx.scalar_one()
+    return InternalMutationResponse(success=True, balance=balance2, transaction=TransactionSchema.model_validate(t, from_attributes=True))
 
-        wallet.balance = wallet.balance - int(data.amount)
-
-        t = PointsTransaction(
-            user_id=data.user_id,
-            delta=-int(data.amount),
-            type="spend",
-            reason=data.reason,
-            source_service=data.source_service,
-            reference_type=data.reference_type,
-            reference_id=str(data.reference_id) if data.reference_id is not None else None,
-            idempotency_key=data.idempotency_key,
-        )
-        db.add(t)
-
-    await db.refresh(wallet)
-    await db.refresh(t)
-    return InternalMutationResponse(
-        success=True,
-        balance=wallet.balance,
-        transaction=TransactionSchema.model_validate(t, from_attributes=True),
-    )
-
-
-@router.post("/refund", response_model=InternalMutationResponse, summary="Рефанд SP")
-async def refund_points(
-    data: InternalRefundRequest,
-    _: bool = InternalAuth,
-    db: AsyncSession = Depends(get_db_session),
-):
+@router.post("/refund", response_model=InternalMutationResponse)
+async def refund_points(data: InternalRefundRequest, db: AsyncSession = Depends(get_db_session)):
     if data.amount <= 0:
         raise HTTPException(status_code=400, detail="amount must be > 0")
-
-    existing = await _check_idempotency(db, data.idempotency_key)
-    if existing:
-        bal_res = await db.execute(
-            select(UserPoints.balance).where(UserPoints.user_id == existing.user_id)
-        )
-        balance = bal_res.scalar() or 0
-        return InternalMutationResponse(
-            success=True,
-            balance=balance,
-            transaction=TransactionSchema.model_validate(existing, from_attributes=True),
-        )
-
     async with db.begin():
-        wallet = await _get_locked_wallet(db, data.user_id)
-        wallet.balance = wallet.balance + int(data.amount)
-
-        t = PointsTransaction(
-            user_id=data.user_id,
-            delta=int(data.amount),
-            type="refund",
-            reason=data.reason,
-            source_service=data.source_service,
-            reference_type=data.reference_type,
-            reference_id=str(data.reference_id) if data.reference_id is not None else None,
-            idempotency_key=data.idempotency_key,
-        )
-        db.add(t)
-
-    await db.refresh(wallet)
-    await db.refresh(t)
-    return InternalMutationResponse(
-        success=True,
-        balance=wallet.balance,
-        transaction=TransactionSchema.model_validate(t, from_attributes=True),
-    )
+        await _ensure_wallet(db, data.user_id)
+        try:
+            await db.execute(
+                text("""
+INSERT INTO points_transactions
+(user_id, points_delta, type, reason, source_service, reference_type, reference_id, idempotency_key)
+VALUES (:u, :d, 'refund', :r, :ss, :rt, :ri, :ik)
+"""),
+                {"u": data.user_id, "d": data.amount, "r": data.reason, "ss": data.source_service, "rt": data.reference_type, "ri": data.reference_id, "ik": data.idempotency_key},
+            )
+            await db.execute(text("UPDATE user_points SET balance = balance + :d WHERE user_id = :u"), {"u": data.user_id, "d": data.amount})
+        except Exception as e:
+            if "unique" not in str(e).lower() and "duplicate" not in str(e).lower():
+                raise
+    bal = await db.execute(select(UserPoints.balance).where(UserPoints.user_id == data.user_id))
+    balance = int(bal.scalar() or 0)
+    tx = await db.execute(select(PointsTransaction).where(PointsTransaction.idempotency_key == data.idempotency_key))
+    t = tx.scalar_one()
+    return InternalMutationResponse(success=True, balance=balance, transaction=TransactionSchema.model_validate(t, from_attributes=True))

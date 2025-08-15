@@ -5,7 +5,7 @@
 Используется: CRUD и ограничения целостности.
 """
 
-from sqlalchemy import Column, Integer, BigInteger, String, DateTime, UniqueConstraint, Index, CheckConstraint, func
+from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Index, CheckConstraint, func
 from points_service.core.base import Base
 
 class UserPoints(Base):

@@ -1,6 +1,6 @@
 # learning_service/models/block.py
 
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from learning_service.core.base import Base
 
@@ -14,10 +14,11 @@ class Block(Base):
     content = Column(Text, nullable=True)
     order = Column(Integer, default=1, nullable=False)
 
-    # Для code-блоков
     language = Column(String(50), nullable=True)
-
-    # Для video-блоков
     video_preview = Column(Text, nullable=True)
 
     module = relationship("Module", back_populates="blocks")
+
+    __table_args__ = (
+        UniqueConstraint("module_id", "order", name="uq_block_order_in_module"),
+    )

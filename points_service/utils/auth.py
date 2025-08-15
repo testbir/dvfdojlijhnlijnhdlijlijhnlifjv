@@ -7,7 +7,7 @@
 Используется: в зависимостях роутов.
 """
 
-from fastapi import Request, HTTPException, status
+from fastapi import Request, HTTPException
 from jose import jwt, JWTError
 from points_service.core.config import settings
 

@@ -9,32 +9,27 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Literal
 from datetime import datetime
 
-
 class BalanceResponse(BaseModel):
     balance: int
-
 
 class TransactionSchema(BaseModel):
     id: int
     user_id: int
-    delta: int
-    type: Literal["award", "spend", "refund", "adjust"]
+    points_delta: int
+    type: Literal["award","spend","refund","adjust"]
     reason: Optional[str] = None
     source_service: Optional[str] = None
     reference_type: Optional[str] = None
     reference_id: Optional[str] = None
     idempotency_key: str
     created_at: datetime
-
     model_config = ConfigDict(from_attributes=True)
-
 
 class TransactionsListResponse(BaseModel):
     items: List[TransactionSchema]
     total: int
     limit: int
     offset: int
-
 
 class InternalAwardRequest(BaseModel):
     user_id: int
@@ -45,7 +40,6 @@ class InternalAwardRequest(BaseModel):
     reference_type: Optional[str] = Field(default="module", max_length=64)
     reference_id: Optional[str] = Field(default=None, max_length=128)
 
-
 class InternalSpendRequest(BaseModel):
     user_id: int
     amount: int = Field(..., gt=0)
@@ -54,7 +48,6 @@ class InternalSpendRequest(BaseModel):
     source_service: str = Field(default="unknown", max_length=64)
     reference_type: Optional[str] = Field(default=None, max_length=64)
     reference_id: Optional[str] = Field(default=None, max_length=128)
-
 
 class InternalRefundRequest(BaseModel):
     user_id: int
@@ -65,15 +58,13 @@ class InternalRefundRequest(BaseModel):
     reference_type: Optional[str] = Field(default=None, max_length=64)
     reference_id: Optional[str] = Field(default=None, max_length=128)
 
-
 class InternalMutationResponse(BaseModel):
     success: bool
     balance: int
     transaction: TransactionSchema
 
-
 class AdminAdjustRequest(BaseModel):
     user_id: int
     delta: int = Field(..., ne=0)
-    reason: Optional[str] = "admin_adjust"
+    reason: Optional[str] = "adjust"
     idempotency_key: str = Field(..., min_length=8, max_length=255)

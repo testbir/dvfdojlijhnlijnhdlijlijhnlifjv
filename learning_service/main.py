@@ -2,11 +2,16 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from learning_service.db.init_db import init_db
 
 from learning_service.api.admin import modules as admin_modules, blocks as admin_blocks
 from learning_service.api.public import courses as public_courses, progress as public_progress
 
 app = FastAPI(title="Learning Service")
+
+@app.on_event("startup")
+async def _startup():
+    await init_db()
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,6 +24,7 @@ app.include_router(admin_modules.router_courses, prefix="/v1/admin", tags=["Admi
 app.include_router(admin_modules.router_modules, prefix="/v1/admin", tags=["Admin - Modules"])
 app.include_router(admin_blocks.router_modules,  prefix="/v1/admin", tags=["Admin - Blocks"])
 app.include_router(admin_blocks.router_blocks,   prefix="/v1/admin", tags=["Admin - Blocks"])
+
 # public
-app.include_router(public_courses.router,  prefix="/v1/public", tags=["Public - Courses/Modules"])
+app.include_router(public_courses.router, prefix="/v1/public", tags=["Public - Courses"])
 app.include_router(public_progress.router, prefix="/v1/public", tags=["Public - Progress"])
