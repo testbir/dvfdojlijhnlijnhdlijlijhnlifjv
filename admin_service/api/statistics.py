@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from datetime import datetime, timedelta, date
 from typing import List, Dict, Optional
 import httpx
-from utils.auth import get_current_admin_user
-from models.admin import AdminUser
-from core.config import settings
+from admin_service.utils.auth import get_current_admin_user
+from admin_service.models.admin import AdminUser
+from admin_service.core.config import settings
 from collections import defaultdict
 import logging
 import os
@@ -14,8 +14,11 @@ import os
 router = APIRouter(prefix="/admin/statistics", tags=["Admin Statistics"])
 logger = logging.getLogger(__name__)
 
-AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://authservice:8000")
+from admin_service.core.config import settings
+
+AUTH_SERVICE_URL = settings.AUTH_SERVICE_URL
 CATALOG_SERVICE_URL = settings.CATALOG_SERVICE_URL
+def _hdr(): return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}
 
 # Настройки для HTTP клиента
 HTTP_TIMEOUT = 30.0

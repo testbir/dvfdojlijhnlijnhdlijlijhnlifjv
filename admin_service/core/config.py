@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     ADMIN_ALLOWED_ROLES: Set[str] = {"admin", "superadmin"}
 
     # External services
+    AUTH_SERVICE_URL: str = "http://auth_service:8000"
     CATALOG_SERVICE_URL: str = "http://catalogservice:8001"
     LEARNING_SERVICE_URL: str = "http://learningservice:8002"
     INTERNAL_TOKEN: str

@@ -1,80 +1,72 @@
-import redis.asyncio as redis
+# admin_service/services/video_status.py
+
+# admin_service/services/video_status.py
 import json
 from typing import Dict, Optional
-from core.config import settings
 
-# Redis key prefix for video statuses
+import redis.asyncio as redis
+from admin_service.core.config import settings
+
 REDIS_STATUS_PREFIX = "video_status:"
-# Default TTL - 24 hours
-DEFAULT_TTL = 60 * 60 * 24
+DEFAULT_TTL = 60 * 60 * 24  # 24h
 
-# Global Redis connection
-_redis_client: Optional[redis.Redis] = None  # 🟢 Исправлено
+_redis_client: Optional[redis.Redis] = None  # type: ignore
 
-async def get_redis() -> redis.Redis:
-    """Get or create Redis connection"""
+
+async def get_redis() -> "redis.Redis":  # type: ignore
+    """Создать или вернуть singleton-подключение к Redis."""
     global _redis_client
-
+    if not settings.REDIS_URL:
+        raise RuntimeError("REDIS_URL is not set")
     if _redis_client is None:
-        _redis_client = redis.from_url(  # 🟢 `redis.from_url`, не `await`
+        _redis_client = redis.from_url(
             settings.REDIS_URL,
             encoding="utf-8",
-            decode_responses=True
+            decode_responses=True,
         )
-
     return _redis_client
 
 
 async def set_video_status(video_id: str, data: dict, ttl: int = DEFAULT_TTL) -> None:
-    redis = await get_redis()
+    r = await get_redis()
     key = f"{REDIS_STATUS_PREFIX}{video_id}"
-    await redis.set(key, json.dumps(data), ex=ttl)
+    await r.set(key, json.dumps(data), ex=ttl)
 
 
 async def get_video_status(video_id: str) -> Optional[Dict]:
-    redis = await get_redis()
+    r = await get_redis()
     key = f"{REDIS_STATUS_PREFIX}{video_id}"
-    data = await redis.get(key)
-
-    if data:
-        return json.loads(data)
-    return None
+    data = await r.get(key)
+    return json.loads(data) if data else None
 
 
 async def update_video_status(video_id: str, update_dict: dict) -> None:
-    current_status = await get_video_status(video_id)
-
-    if current_status is None:
-        await set_video_status(video_id, update_dict)
-    else:
-        current_status.update(update_dict)
-        await set_video_status(video_id, current_status)
+    cur = await get_video_status(video_id)
+    merged = {**(cur or {}), **update_dict}
+    await set_video_status(video_id, merged)
 
 
-async def delete_video_status(video_id: str) -> bool:  # Добавить возвращаемый тип
-    redis = await get_redis()
+async def delete_video_status(video_id: str) -> bool:
+    r = await get_redis()
     key = f"{REDIS_STATUS_PREFIX}{video_id}"
-    result = await redis.delete(key)
-    return result > 0  # Возвращаем True если ключ был удален
+    deleted = await r.delete(key)
+    return deleted > 0
 
 
 async def get_all_statuses() -> Dict[str, Dict]:
-    redis = await get_redis()
-    keys = await redis.keys(f"{REDIS_STATUS_PREFIX}*")
-
-    result = {}
+    r = await get_redis()
+    keys = await r.keys(f"{REDIS_STATUS_PREFIX}*")
+    out: Dict[str, Dict] = {}
     for key in keys:
-        video_id = key.replace(REDIS_STATUS_PREFIX, "")
-        data = await redis.get(key)
+        vid = key.replace(REDIS_STATUS_PREFIX, "")
+        data = await r.get(key)
         if data:
-            result[video_id] = json.loads(data)
-
-    return result
+            out[vid] = json.loads(data)
+    return out
 
 
 async def close_redis() -> None:
     global _redis_client
-
     if _redis_client is not None:
         await _redis_client.close()
         _redis_client = None

@@ -21,15 +21,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - app-network
+    networks: [app-network]
 
   redis:
     image: redis:7-alpine
     container_name: redis_cache
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
-    networks:
-      - app-network
+    networks: [app-network]
 
   authservice:
     build:
@@ -45,15 +43,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - app-network
+    networks: [app-network]
 
   catalogservice:
     build:
       context: ./catalog_service
     container_name: catalogservice_team
     working_dir: /app
-    command: sh -c "./init_db.sh && python -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload"
+    command: sh -c "./init_db.sh && python -m uvicorn catalog_service.main:app --host 0.0.0.0 --port 8001 --reload"
     environment:
       - PYTHONPATH=/app
     volumes:
@@ -65,8 +62,45 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - app-network
+    networks: [app-network]
+
+  learningservice:
+    build:
+      context: ./learning_service
+    container_name: learningservice_team
+    working_dir: /app
+    command: sh -c "./init_db.sh && python -m uvicorn learning_service.main:app --host 0.0.0.0 --port 8002 --reload"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./learning_service:/app
+    ports:
+      - "8004:8002"   # host:container (чтобы не пересекаться с админкой)
+    env_file:
+      - ./learning_service/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [app-network]
+
+  pointsservice:
+    build:
+      context: ./points_service
+    container_name: pointsservice_team
+    working_dir: /app
+    command: sh -c "./init_db.sh && python -m uvicorn points_service.main:app --host 0.0.0.0 --port 8003 --reload"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./points_service:/app
+    ports:
+      - "8003:8003"
+    env_file:
+      - ./points_service/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [app-network]
 
   adminservice:
     build:
@@ -76,18 +110,21 @@ services:
     volumes:
       - ./admin_service:/app
     ports:
-      - "8002:8002"
+      - "8010:8002"   # вынес админку на 8010 с хоста
     env_file:
       - ./admin_service/.env
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - app-network
-
-
-
-
+      redis:
+        condition: service_started
+      authservice:
+        condition: service_started
+      catalogservice:
+        condition: service_started
+      learningservice:
+        condition: service_started
+    networks: [app-network]
 
   celeryworker:
     build:
@@ -101,8 +138,7 @@ services:
     depends_on:
       - authservice
       - redis
-    networks:
-      - app-network
+    networks: [app-network]
 
   adminfrontend:
     build:
@@ -112,8 +148,7 @@ services:
       - "3000:80"
     depends_on:
       - adminservice
-    networks:
-      - app-network
+    networks: [app-network]
 
   frontend:
     build:
@@ -131,8 +166,7 @@ services:
     depends_on:
       - catalogservice
     command: npm run dev -- --host 0.0.0.0 --port 5173
-    networks:
-      - app-network
+    networks: [app-network]
 
   pgadmin:
     image: dpage/pgadmin4
@@ -147,8 +181,7 @@ services:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
       - db
-    networks:
-      - app-network
+    networks: [app-network]
 
 networks:
   app-network:
