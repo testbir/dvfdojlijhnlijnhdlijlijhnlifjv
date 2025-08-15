@@ -10,6 +10,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+
 from points_service.db.dependencies import get_db_session
 from points_service.models.points import UserPoints, PointsTransaction
 from points_service.schemas.points import BalanceResponse, TransactionsListResponse, TransactionSchema
@@ -18,14 +19,14 @@ from points_service.utils.auth import get_current_user_id
 router = APIRouter(prefix="/points")
 
 @router.get("/balance", response_model=BalanceResponse)
-async def get_balance(db: AsyncSession = Depends(get_db_session), user_id: int = Depends(get_current_user_id)):
+async def get_balance(user_id: int = Depends(get_current_user_id), db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(UserPoints.balance).where(UserPoints.user_id == user_id))
     return BalanceResponse(balance=int(res.scalar() or 0))
 
 @router.get("/transactions", response_model=TransactionsListResponse)
 async def list_transactions(
-    db: AsyncSession = Depends(get_db_session),
     user_id: int = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db_session),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):

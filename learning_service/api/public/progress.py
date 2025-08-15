@@ -61,7 +61,7 @@ async def complete_module(module_id: int, request: Request, db: AsyncSession = D
             await db.execute(UserModuleProgress.__table__.insert().values(user_id=user_id, module_id=module_id))
         inserted = True
     except Exception:
-        inserted = False
+        inserted = False  # already completed
 
     awarded = 0
     if inserted and int(getattr(module, "sp_award", 0)) > 0:

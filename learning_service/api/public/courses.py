@@ -1,6 +1,6 @@
 # learning_service/api/public/courses.py
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional, Dict
@@ -9,7 +9,8 @@ from learning_service.db.dependencies import get_db_session
 from learning_service.models.module import Module
 from learning_service.models.block import Block
 from learning_service.models.progress import UserModuleProgress
-from learning_service.schemas.module import ModuleSchema, BlockSchema
+from learning_service.schemas.module import ModuleSchema
+from learning_service.schemas.block import BlockSchema
 from learning_service.utils.auth import get_current_user_id
 
 router = APIRouter(prefix="/courses")
@@ -50,7 +51,6 @@ async def get_module(module_id: int, db: AsyncSession = Depends(get_db_session))
     res = await db.execute(select(Module).where(Module.id == module_id))
     m = res.scalar_one_or_none()
     if not m:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="module not found")
     return ModuleSchema.model_validate(m, from_attributes=True)
 
