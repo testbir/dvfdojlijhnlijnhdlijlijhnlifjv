@@ -14,7 +14,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -27,11 +26,6 @@ services:
     container_name: redis_cache
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     networks: [app-network]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
 
   authservice:
     build:
@@ -44,12 +38,8 @@ services:
       - "8000:8000"
     env_file:
       - ./auth_service/.env
-    environment:
-      - PYTHONPATH=/app
     depends_on:
       db:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks: [app-network]
 
@@ -58,7 +48,7 @@ services:
       context: ./catalog_service
     container_name: catalogservice_team
     working_dir: /app
-    command: sh -c "pip install -e . && sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && alembic upgrade head && python -m uvicorn catalog_service.main:app --host 0.0.0.0 --port 8001 --reload"
+    command: sh -c "sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && python -m uvicorn catalog_service.main:app --host 0.0.0.0 --port 8001 --reload"
     environment:
       - PYTHONPATH=/app
     volumes:
@@ -77,7 +67,7 @@ services:
       context: ./learning_service
     container_name: learningservice_team
     working_dir: /app
-    command: sh -c "pip install -e . && sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && python -m uvicorn learning_service.main:app --host 0.0.0.0 --port 8002 --reload"
+    command: sh -c "sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && python -m uvicorn learning_service.main:app --host 0.0.0.0 --port 8002 --reload"
     environment:
       - PYTHONPATH=/app
     volumes:
@@ -96,7 +86,7 @@ services:
       context: ./points_service
     container_name: pointsservice_team
     working_dir: /app
-    command: sh -c "pip install -e . && sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && python -m uvicorn points_service.main:app --host 0.0.0.0 --port 8003 --reload"
+    command: sh -c "sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && python -m uvicorn points_service.main:app --host 0.0.0.0 --port 8003 --reload"
     environment:
       - PYTHONPATH=/app
     volumes:
@@ -115,7 +105,8 @@ services:
       context: ./admin_service
     container_name: adminservice_team
     working_dir: /app
-    command: sh -c "pip install -e . && sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && alembic upgrade head && python -m uvicorn admin_service.main:app --host 0.0.0.0 --port 8002 --reload"
+    command: sh -c "sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && python -m uvicorn admin_service.main:app --host 0.0.0.0 --port 8002 --reload"
+
     environment:
       - PYTHONPATH=/app
       - ADMIN_DEBUG=true
@@ -129,7 +120,7 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_healthy
+        condition: service_started
       authservice:
         condition: service_started
       catalogservice:
@@ -181,7 +172,7 @@ services:
       - DOCKER_ENV=true
     depends_on:
       - catalogservice
-    command: npm run dev
+    command: npm run dev -- --host 0.0.0.0 --port 5173
     networks: [app-network]
 
   pgadmin:
