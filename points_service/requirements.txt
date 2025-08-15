@@ -1,10 +1,4 @@
 # points_service/requirements.txt
-
-"""
-Назначение: зависимости Python для сервиса.
-Используется: в Dockerfile/pip install.
-"""
-
 fastapi
 uvicorn
 pydantic-settings
