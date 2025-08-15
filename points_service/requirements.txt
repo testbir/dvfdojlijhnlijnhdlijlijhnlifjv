@@ -7,7 +7,9 @@
 
 fastapi
 uvicorn
-sqlalchemy
-asyncpg
-python-jose
 pydantic-settings
+sqlalchemy
+psycopg2-binary
+alembic
+python-jose
+httpx

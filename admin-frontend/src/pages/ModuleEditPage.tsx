@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from '../api/axiosInstance';
 import Layout from '../components/Layout';
 import { Container, Title, TextInput, NumberInput, Button, Loader, Center, Notification } from '@mantine/core';
+import { modulesApi } from '../services/adminApi';
 
 interface Module {
   id: number;
@@ -25,27 +25,27 @@ export default function ModuleEditPage() {
   useEffect(() => {
     const fetchModule = async () => {
       try {
-        const res = await axios.get(`/admin/modules/${moduleId}`);
-        setModule(res.data);
+        const data = await modulesApi.getModule(Number(moduleId));
+        setModule(data);
       } catch (e) {
         setError('Ошибка при загрузке модуля');
       } finally {
         setLoading(false);
       }
     };
-    fetchModule();
+    if (moduleId) fetchModule();
   }, [moduleId]);
 
   const handleSave = async () => {
-    if (!module) return;
+    if (!moduleId || !module) return;
     setSaving(true);
     try {
-      await axios.put(`/admin/modules/${moduleId}`, {
+      await modulesApi.updateModule(Number(moduleId), {
         title: module.title,
         group_title: module.group_title,
         order: module.order,
       });
-      navigate(-1);  // Возвращаемся назад после сохранения
+      navigate(-1);
     } catch (err) {
       setError('Ошибка при сохранении');
     } finally {
@@ -90,8 +90,8 @@ export default function ModuleEditPage() {
 
         <NumberInput
           label="Порядок"
-          value={module?.order || 1}
-          onChange={(val) => setModule({ ...module!, order: val as number })}
+          value={module?.order ?? 1}
+          onChange={(val) => setModule({ ...module!, order: (typeof val === 'number' ? val : 1) as number })}
           mb="md"
         />
 

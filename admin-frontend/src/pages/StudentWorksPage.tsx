@@ -1,4 +1,4 @@
-// src/pages/StudentWorksPage.tsx
+// admin-frontend/src/pages/StudentWorksPage.tsx
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -20,16 +20,24 @@ import {
   Image,
   Text,
   Badge,
+  Card,
   Grid,
 } from '@mantine/core';
-import { IconTrash, IconArrowUp, IconArrowDown, IconPlus } from '@tabler/icons-react';
+import { 
+  IconTrash, 
+  IconArrowUp, 
+  IconArrowDown, 
+  IconPlus,
+  IconUpload,
+  IconBrandTelegram 
+} from '@tabler/icons-react';
 import Layout from '../components/Layout';
-import axios from '../api/axiosInstance';
+import { studentWorksApi, uploadApi } from '../services/adminApi';
 
 interface StudentWork {
   image: string;
   description: string;
-  bot_tag: string;
+  bot_tag?: string;
   order: number;
 }
 
@@ -41,54 +49,60 @@ export default function StudentWorksPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   
-  const [title, setTitle] = useState('Работы учеников нашего курса');
+  const [title, setTitle] = useState('Работы наших учеников');
   const [description, setDescription] = useState('');
   const [works, setWorks] = useState<StudentWork[]>([]);
-  const [hasExistingSection, setHasExistingSection] = useState(false);
+  const [hasExisting, setHasExisting] = useState(false);
 
   useEffect(() => {
-    fetchStudentWorks();
+    fetchData();
   }, [courseId]);
 
-  const fetchStudentWorks = async () => {
+  const fetchData = async () => {
+    if (!courseId) return;
+    
     try {
-      const res = await axios.get(`/admin/course-extras/student-works/${courseId}/`);
-      if (res.data) {
-        setTitle(res.data.title);
-        setDescription(res.data.description);
-        setWorks(res.data.works.sort((a: any, b: any) => a.order - b.order));
-        setHasExistingSection(true);
+      setLoading(true);
+      const data = await studentWorksApi.getWorks(Number(courseId));
+      
+      if (data) {
+        setTitle(data.title || 'Работы наших учеников');
+        setDescription(data.description || '');
+        setWorks(data.works?.sort((a: any, b: any) => a.order - b.order) || []);
+        setHasExisting(true);
       }
-    } catch (err) {
-      console.error('Ошибка загрузки работ учеников:', err);
+    } catch (err: any) {
+      if (err.response?.status !== 404) {
+        setError('Ошибка при загрузке данных');
+        console.error(err);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const addWork = () => {
-    if (works.length >= 4) {
-      setError('Можно добавить максимум 4 работы');
-      return;
-    }
     const maxOrder = works.length > 0 ? Math.max(...works.map(w => w.order)) : -1;
-    setWorks([...works, { 
-      image: '', 
-      description: '', 
-      bot_tag: '', 
-      order: maxOrder + 1 
+    setWorks([...works, {
+      image: '',
+      description: '',
+      bot_tag: '',
+      order: maxOrder + 1
     }]);
   };
 
   const updateWork = (index: number, field: keyof StudentWork, value: string) => {
     const newWorks = [...works];
-    newWorks[index] = { ...newWorks[index], [field]: value };
+    (newWorks[index] as any)[field] = value;
     setWorks(newWorks);
   };
 
   const deleteWork = (index: number) => {
-    setWorks(works.filter((_, i) => i !== index));
+    if (window.confirm('Удалить эту работу?')) {
+      setWorks(works.filter((_, i) => i !== index));
+    }
   };
 
   const moveWork = (index: number, direction: 'up' | 'down') => {
@@ -101,94 +115,107 @@ export default function StudentWorksPage() {
 
     const newWorks = [...works];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
-    // Меняем местами order
-    const tempOrder = newWorks[index].order;
-    newWorks[index].order = newWorks[targetIndex].order;
-    newWorks[targetIndex].order = tempOrder;
-    
-    // Меняем местами элементы
     [newWorks[index], newWorks[targetIndex]] = [newWorks[targetIndex], newWorks[index]];
+    
+    // Обновляем order
+    newWorks.forEach((work, i) => {
+      work.order = i;
+    });
     
     setWorks(newWorks);
   };
 
-  const handleImageUpload = async (file: File, workIndex: number) => {
+  const handleImageUpload = async (index: number, file: File | null) => {
+    if (!file) return;
+
     try {
       setUploading(true);
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await axios.post('/admin/upload/content', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      updateWork(workIndex, 'image', res.data.url);
+      const result = await uploadApi.uploadImage(file, 'student-works');
+      updateWork(index, 'image', result.url);
+      setSuccess('Изображение загружено');
     } catch (err) {
       setError('Ошибка при загрузке изображения');
+      console.error(err);
     } finally {
       setUploading(false);
     }
   };
 
   const handleSave = async () => {
-    if (!title.trim() || !description.trim()) {
-      setError('Заполните название и описание секции');
+    if (!courseId) return;
+
+    if (!title.trim()) {
+      setError('Введите заголовок');
       return;
     }
 
-    // Проверяем, что все работы заполнены
-    const incompleteWorks = works.filter(w => !w.image.trim());
-    if (incompleteWorks.length > 0) {
-      setError('Загрузите изображения для всех работ или удалите пустые');
+    if (works.length === 0) {
+      setError('Добавьте хотя бы одну работу');
       return;
     }
 
-    setSaving(true);
+    // Проверяем, что все работы имеют изображения
+    const invalidWorks = works.filter(w => !w.image);
+    if (invalidWorks.length > 0) {
+      setError('Загрузите изображения для всех работ');
+      return;
+    }
+
     try {
-      const worksData = works.map((work, index) => ({
-        image: work.image,
-        description: work.description || '',
-        bot_tag: work.bot_tag || '',
-        order: index
-      }));
+      setSaving(true);
+      setError(null);
 
-      if (hasExistingSection) {
-        await axios.put(`/admin/course-extras/student-works/${courseId}/`, {
-          title,
-          description,
-          works: worksData
-        });
+      const data = {
+        title,
+        description,
+        works: works.map((w, i) => ({ ...w, order: i }))
+      };
+
+      if (hasExisting) {
+        await studentWorksApi.updateWorks(Number(courseId), data);
       } else {
-        await axios.post(`/admin/course-extras/student-works/${courseId}/`, {
-          title,
-          description,
-          works: worksData
-        });
+        await studentWorksApi.createWorks(Number(courseId), data);
+        setHasExisting(true);
       }
-      
-      navigate(`/courses/${courseId}/structure`);
+
+      setSuccess('Работы учеников сохранены');
+      setTimeout(() => {
+        navigate(`/courses/${courseId}/structure`);
+      }, 1500);
     } catch (err) {
-      console.error('Ошибка сохранения:', err);
-      setError('Ошибка при сохранении работ учеников');
+      setError('Ошибка при сохранении');
+      console.error(err);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Вы уверены, что хотите удалить секцию работ учеников?')) return;
+    if (!courseId || !hasExisting) return;
     
+    if (!window.confirm('Удалить секцию работ учеников? Это действие необратимо.')) {
+      return;
+    }
+
     try {
-      await axios.delete(`/admin/course-extras/student-works/${courseId}/`);
-      navigate(`/courses/${courseId}/structure`);
+      setSaving(true);
+      await studentWorksApi.deleteWorks(Number(courseId));
+      setSuccess('Секция работ удалена');
+      setTimeout(() => {
+        navigate(`/courses/${courseId}/structure`);
+      }, 1500);
     } catch (err) {
       setError('Ошибка при удалении');
+      console.error(err);
+    } finally {
+      setSaving(false);
     }
   };
 
   if (loading) {
     return (
       <Layout>
-        <Center h={400}>
+        <Center h="100vh">
           <Loader size="lg" />
         </Center>
       </Layout>
@@ -198,155 +225,163 @@ export default function StudentWorksPage() {
   return (
     <Layout>
       <Container size="lg">
-        <Title order={2} ta="center" mb="lg">
-          {hasExistingSection ? 'Редактирование' : 'Создание'} секции работ учеников
-        </Title>
+        <Group justify="space-between" mb="xl">
+          <Title order={2}>Работы учеников</Title>
+          {hasExisting && (
+            <Button color="red" variant="outline" onClick={handleDelete}>
+              Удалить секцию
+            </Button>
+          )}
+        </Group>
 
         {error && (
-          <Notification color="red" mb="lg" onClose={() => setError(null)}>
+          <Notification color="red" onClose={() => setError(null)} mb="md">
             {error}
           </Notification>
         )}
 
-        <Alert color="blue" mb="lg">
-          Добавьте примеры работ учеников вашего курса. Можно добавить до 4 работ с описанием и тегом бота.
-        </Alert>
+        {success && (
+          <Notification color="green" onClose={() => setSuccess(null)} mb="md">
+            {success}
+          </Notification>
+        )}
 
-        <Stack gap="md" mb="xl">
+        <Stack gap="lg">
           <TextInput
-            label="Название секции"
+            label="Заголовок секции"
             value={title}
             onChange={(e) => setTitle(e.currentTarget.value)}
-            placeholder="Например: Работы учеников нашего курса"
+            placeholder="Работы наших учеников"
             required
           />
 
           <Textarea
-            label="Описание секции"
+            label="Описание"
             value={description}
             onChange={(e) => setDescription(e.currentTarget.value)}
-            placeholder="Например: Уже в процессе обучения наши студенты создают настоящие Telegram-боты..."
-            required
+            placeholder="Посмотрите, какие проекты создают наши ученики"
             minRows={2}
-            autosize
           />
-        </Stack>
 
-        <Stack gap="md">
-          <Group justify="space-between" mb="sm">
-            <Title order={4}>Примеры работ</Title>
-            <Button
-              leftSection={<IconPlus size={16} />}
-              onClick={addWork}
-              variant="light"
-              disabled={works.length >= 4}
-            >
-              Добавить работу
-            </Button>
-          </Group>
-
-          {works.length === 0 && (
-            <Paper p="xl" withBorder style={{ borderStyle: 'dashed' }}>
-              <Text ta="center" c="dimmed">
-                Нажмите кнопку выше, чтобы добавить примеры работ учеников
-              </Text>
-            </Paper>
-          )}
-
-          <Grid>
-            {works.map((work, index) => (
-              <Grid.Col key={index} span={{ base: 12, md: 6 }}>
-                <Paper p="md" withBorder h="100%">
-                  <Group justify="space-between" mb="sm">
-                    <Badge>Работа #{index + 1}</Badge>
-                    <Group gap="xs">
-                      <ActionIcon
-                        variant="light"
-                        onClick={() => moveWork(index, 'up')}
-                        disabled={index === 0}
-                      >
-                        <IconArrowUp size={16} />
-                      </ActionIcon>
-                      <ActionIcon
-                        variant="light"
-                        onClick={() => moveWork(index, 'down')}
-                        disabled={index === works.length - 1}
-                      >
-                        <IconArrowDown size={16} />
-                      </ActionIcon>
-                      <ActionIcon
-                        color="red"
-                        variant="light"
-                        onClick={() => deleteWork(index)}
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Group>
-                  </Group>
-
-                  <Stack gap="sm">
-                    <div>
-                      <FileInput
-                        label="Изображение работы"
-                        accept="image/*"
-                        onChange={(file) => file && handleImageUpload(file, index)}
-                        placeholder="Загрузить скриншот"
-                        disabled={uploading}
-                        required
-                      />
-                      {work.image && (
-                        <Image 
-                          src={work.image} 
-                          height={200} 
-                          radius="sm" 
-                          mt="sm"
-                          fit="contain"
-                        />
-                      )}
-                    </div>
-
-                    <Textarea
-                      label="Описание работы"
-                      value={work.description}
-                      onChange={(e) => updateWork(index, 'description', e.currentTarget.value)}
-                      placeholder="Например: Бот для учета личных финансов"
-                      minRows={2}
-                      autosize
-                    />
-
-                    <TextInput
-                      label="Тег бота"
-                      value={work.bot_tag}
-                      onChange={(e) => updateWork(index, 'bot_tag', e.currentTarget.value)}
-                      placeholder="@example_bot"
-                      leftSection={<Text size="sm" c="dimmed">@</Text>}
-                    />
-                  </Stack>
-                </Paper>
-              </Grid.Col>
-            ))}
-          </Grid>
-        </Stack>
-
-        <Group justify="space-between" mt="xl">
-          <Button variant="light" onClick={() => navigate(-1)}>
-            Отмена
-          </Button>
-          <Group>
-            {hasExistingSection && (
-              <Button color="red" variant="light" onClick={handleDelete}>
-                Удалить секцию
+          <Paper p="md" withBorder>
+            <Group justify="space-between" mb="md">
+              <Text fw={500}>Работы учеников</Text>
+              <Button
+                leftSection={<IconPlus size={16} />}
+                onClick={addWork}
+                variant="light"
+              >
+                Добавить работу
               </Button>
+            </Group>
+
+            {works.length === 0 ? (
+              <Alert color="blue">
+                Нажмите "Добавить работу", чтобы начать добавлять примеры работ учеников
+              </Alert>
+            ) : (
+              <Stack gap="md">
+                {works.map((work, index) => (
+                  <Card key={index} shadow="sm" padding="lg" withBorder>
+                    <Grid>
+                      <Grid.Col span={{ base: 12, md: 4 }}>
+                        {work.image ? (
+                          <div>
+                            <Image
+                              src={work.image}
+                              height={150}
+                              alt={`Работа ${index + 1}`}
+                              radius="md"
+                              mb="xs"
+                            />
+                            <FileInput
+                              accept="image/*"
+                              onChange={(file) => handleImageUpload(index, file)}
+                              placeholder="Изменить изображение"
+                              leftSection={<IconUpload size={14} />}
+                              size="xs"
+                              disabled={uploading}
+                            />
+                          </div>
+                        ) : (
+                          <FileInput
+                            accept="image/*"
+                            onChange={(file) => handleImageUpload(index, file)}
+                            placeholder="Загрузить изображение"
+                            leftSection={<IconUpload size={14} />}
+                            required
+                            disabled={uploading}
+                          />
+                        )}
+                      </Grid.Col>
+
+                      <Grid.Col span={{ base: 12, md: 8 }}>
+                        <Stack gap="sm">
+                          <Textarea
+                            placeholder="Описание работы"
+                            value={work.description}
+                            onChange={(e) => updateWork(index, 'description', e.currentTarget.value)}
+                            minRows={2}
+                          />
+
+                          <TextInput
+                            placeholder="@telegram_bot (опционально)"
+                            value={work.bot_tag || ''}
+                            onChange={(e) => updateWork(index, 'bot_tag', e.currentTarget.value)}
+                            leftSection={<IconBrandTelegram size={16} />}
+                          />
+
+                          <Group justify="space-between">
+                            <Badge>Позиция: {index + 1}</Badge>
+                            <Group gap="xs">
+                              <ActionIcon
+                                onClick={() => moveWork(index, 'up')}
+                                disabled={index === 0}
+                                variant="light"
+                              >
+                                <IconArrowUp size={16} />
+                              </ActionIcon>
+                              <ActionIcon
+                                onClick={() => moveWork(index, 'down')}
+                                disabled={index === works.length - 1}
+                                variant="light"
+                              >
+                                <IconArrowDown size={16} />
+                              </ActionIcon>
+                              <ActionIcon
+                                onClick={() => deleteWork(index)}
+                                color="red"
+                                variant="light"
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            </Group>
+                          </Group>
+                        </Stack>
+                      </Grid.Col>
+                    </Grid>
+                  </Card>
+                ))}
+              </Stack>
             )}
+          </Paper>
+
+          <Group justify="space-between" mt="xl">
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/courses/${courseId}/structure`)}
+            >
+              Отмена
+            </Button>
             <Button
               onClick={handleSave}
               loading={saving}
-              disabled={!title.trim() || !description.trim() || works.length === 0}
+              disabled={uploading}
             >
-              {hasExistingSection ? 'Сохранить изменения' : 'Создать секцию'}
+              {hasExisting ? 'Сохранить изменения' : 'Создать секцию'}
             </Button>
           </Group>
-        </Group>
+        </Stack>
       </Container>
     </Layout>
   );

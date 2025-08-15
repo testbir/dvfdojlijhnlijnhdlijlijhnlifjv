@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from '../api/axiosInstance';
 import Layout from '../components/Layout';
 import { Container, Title, Table, Button, Group, Loader, Center, Notification } from '@mantine/core';
+import { blocksApi } from '../services/adminApi';
 
 interface Block {
   id: number;
@@ -21,8 +21,8 @@ export default function ModuleBlocksPage() {
   useEffect(() => {
     const fetchBlocks = async () => {
       try {
-        const res = await axios.get(`/admin/modules/${moduleId}/blocks/`);
-        setBlocks(res.data);
+        const data = await blocksApi.getModuleBlocks(Number(moduleId));
+        setBlocks(data);
       } catch (error) {
         console.error('Ошибка при загрузке блоков', error);
         setError('Ошибка при загрузке блоков');
@@ -30,18 +30,18 @@ export default function ModuleBlocksPage() {
         setLoading(false);
       }
     };
-    fetchBlocks();
+    if (moduleId) fetchBlocks();
   }, [moduleId]);
 
   const handleDeleteBlock = async (blockId: number) => {
-    if (!window.confirm("Вы уверены, что хотите удалить блок?")) return;
+    if (!window.confirm('Вы уверены, что хотите удалить блок?')) return;
 
     try {
-      await axios.delete(`/admin/blocks/${blockId}`);
-      setBlocks(blocks.filter(b => b.id !== blockId));
+      await blocksApi.deleteBlock(blockId);
+      setBlocks((prev) => prev.filter((b) => b.id !== blockId));
     } catch (error) {
-      console.error("Ошибка при удалении блока:", error);
-      setError("Ошибка при удалении блока");
+      console.error('Ошибка при удалении блока:', error);
+      setError('Ошибка при удалении блока');
     }
   };
 

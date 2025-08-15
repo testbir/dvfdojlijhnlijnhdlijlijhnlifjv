@@ -143,9 +143,13 @@ services:
   adminfrontend:
     build:
       context: ./admin-frontend
-    container_name: adminfrontend_team
+      args:
+        - REACT_APP_API_URL=http://adminservice:8002
+    container_name: admin_frontend_team
     ports:
-      - "3000:80"
+      - "3001:3000"
+    environment:
+      - REACT_APP_API_URL=http://adminservice:8002
     depends_on:
       - adminservice
     networks: [app-network]
