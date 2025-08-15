@@ -1,41 +1,32 @@
 # admin_service/main.py
 
-from fastapi import FastAPI, Request
-from api import (courses, modules, blocks, auth, homepage, upload, 
-                 users, statistics, bulk_operations, promocodes, course_extras)  # Добавляем course_extras
-from db import Base, engine
-from models import admin
+import logging
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Admin Panel")
+from admin_service.db import Base, engine
+from admin_service.api import health as health_api
+from admin_service.api import auth as auth_api
+from admin_service.api import courses as courses_api
+from admin_service.api import modules as modules_api
+from admin_service.api import blocks as blocks_api
 
-@app.middleware("http")
-async def debug_path_logger(request: Request, call_next):
-    print("📥 PATH:", request.url.path)
-    return await call_next(request)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+app = FastAPI(title="Admin Service")
+
+@app.on_event("startup")
+def _startup():
+    Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"], allow_credentials=False,
+    allow_methods=["*"], allow_headers=["*"],
 )
 
-@app.on_event("startup")
-def on_startup():
-    print("🔧 Создание таблиц...")
-    Base.metadata.create_all(bind=engine)
-
-# Включаем роутеры
-app.include_router(upload.router)
-app.include_router(auth.router)
-app.include_router(courses.router)
-app.include_router(modules.router)
-app.include_router(blocks.router)
-app.include_router(homepage.router)
-app.include_router(users.router)          
-app.include_router(statistics.router)      
-app.include_router(bulk_operations.router) 
-app.include_router(promocodes.router)
-app.include_router(course_extras.router)  # Добавляем новый роутер
+app.include_router(health_api.router)
+app.include_router(auth_api.router)
+app.include_router(courses_api.router)
+app.include_router(modules_api.router)
+app.include_router(blocks_api.router)
