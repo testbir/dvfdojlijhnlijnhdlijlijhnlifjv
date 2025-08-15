@@ -1,32 +1,18 @@
 # catalog_service/Dockerfile
 
 FROM python:3.11-slim
-
 WORKDIR /app
+ENV PYTHONPATH=/app PYTHONUNBUFFERED=1
 
-# Устанавливаем postgresql-client для pg_isready
-ARG DEBIAN_FRONTEND=noninteractive
-RUN set -eux; \
-    if [ -f /etc/apt/sources.list ]; then \
-        sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list; \
-    fi; \
-    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-        sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
-    fi; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends ca-certificates; \
-    update-ca-certificates; \
-    apt-get install -y --no-install-recommends postgresql-client curl; \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates postgresql-client curl \
+  && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем все файлы (включая init_db.sh)
 COPY . .
+RUN sed -i 's/\r$//' /app/init_db.sh && chmod +x /app/init_db.sh
+# если есть pyproject.toml или setup.py — ставим пакет
+RUN if [ -f pyproject.toml ] || [ -f setup.py ]; then pip install -e .; fi
 
-# Делаем скрипт исполняемым
-RUN chmod +x /app/init_db.sh
-
-# Команда по умолчанию
-CMD ["sh", "-c", "./init_db.sh && python -m uvicorn catalog_service.main:app --host 0.0.0.0 --port 8001 --reload"]
+CMD ["sh","-lc","set -e; ./init_db.sh; python -m uvicorn catalog_service.main:app --host 0.0.0.0 --port 8001"]

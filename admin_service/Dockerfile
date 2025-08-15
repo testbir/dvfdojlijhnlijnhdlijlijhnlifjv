@@ -1,29 +1,16 @@
 # admin_service/Dockerfile
 
 FROM python:3.11-slim
-
 WORKDIR /app
+ENV PYTHONPATH=/app PYTHONUNBUFFERED=1
 
-# 🎬 Устанавливаем FFmpeg для обработки видео + PostgreSQL клиент
-ARG DEBIAN_FRONTEND=noninteractive
-RUN set -eux; \
-    if [ -f /etc/apt/sources.list ]; then \
-        sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list; \
-    fi; \
-    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-        sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
-    fi; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends ca-certificates; \
-    update-ca-certificates; \
-    apt-get install -y --no-install-recommends ffmpeg postgresql-client; \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates ffmpeg postgresql-client \
+  && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
 COPY . .
+RUN sed -i 's/\r$//' /app/init_db.sh && chmod +x /app/init_db.sh
+RUN if [ -f pyproject.toml ] || [ -f setup.py ]; then pip install -e .; fi
 
-RUN chmod +x init_db.sh
-
-CMD ["sh", "-c", "./init_db.sh && uvicorn main:app --host 0.0.0.0 --port 8002"]
+CMD ["sh","-lc","set -e; ./init_db.sh; uvicorn admin_service.main:app --host 0.0.0.0 --port 8002"]

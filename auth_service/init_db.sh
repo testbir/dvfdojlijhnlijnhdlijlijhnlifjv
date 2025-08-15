@@ -1,14 +1,23 @@
-#!/bin/sh
-echo "Waiting for PostgreSQL..."
-while ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" > /dev/null 2>&1; do
-    sleep 1
+#!/usr/bin/env sh
+set -euo pipefail
+export PYTHONPATH="${PYTHONPATH:-/app}"
+
+: "${POSTGRES_USER:=postgres}"
+: "${POSTGRES_DB:=team_platform}"
+: "${POSTGRES_HOST:=db}"
+: "${POSTGRES_PORT:=5432}"
+
+# ожидание БД
+until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" >/dev/null 2>&1; do
+  echo "Waiting for PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}..."
+  sleep 1
 done
 
-export PGPASSWORD="$POSTGRES_PASSWORD"
+# миграции
+if [ -f manage.py ]; then
+  python manage.py migrate
+fi
 
-if psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -lqt | cut -d \| -f 1 | grep -qw "$POSTGRES_DB"; then
-    echo "Database $POSTGRES_DB exists"
-else
-    echo "Creating database $POSTGRES_DB..."
-    createdb -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" "$POSTGRES_DB"
+if command -v alembic >/dev/null 2>&1 && [ -f alembic.ini ]; then
+  alembic upgrade head
 fi
