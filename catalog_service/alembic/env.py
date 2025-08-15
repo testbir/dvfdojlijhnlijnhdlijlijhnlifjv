@@ -1,5 +1,16 @@
 # catalog_service/ale
 
+
+import os, sys
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from catalog_service.core.base import Base  # путь к вашему Base
+target_metadata = Base.metadata
+
+from catalog_service.core.base import Base  # аналогично для других сервисов
+
 import os
 import sys
 from logging.config import fileConfig

@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
-set -euo pipefail
+set -e
+export PYTHONPATH=/app
 
 : "${POSTGRES_USER:=postgres}"
 : "${POSTGRES_DB:=learning_db}"

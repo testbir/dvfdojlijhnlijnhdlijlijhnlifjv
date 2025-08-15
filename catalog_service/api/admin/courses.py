@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import timezone
+from typing import List
 
 from catalog_service.db.dependencies import get_db_session
 from catalog_service.models.course import Course
@@ -17,6 +18,11 @@ def _norm_aware(dt):
         return dt.replace(tzinfo=timezone.utc)
     return dt
 
+
+@router.get("/", response_model=List[CourseCreate], summary="Список курсов (админ)")
+async def admin_list_courses(db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(Course).order_by(Course.order.asc()))
+    return res.scalars().all()
 
 @router.post("/", summary="Создать курс")
 async def admin_create_course(data: CourseCreate, db: AsyncSession = Depends(get_db_session)):

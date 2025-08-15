@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-set -euo pipefail
-export PYTHONPATH="${PYTHONPATH:-/app}"
+set -e
+export PYTHONPATH=/app
 
 : "${POSTGRES_USER:=postgres}"
 : "${POSTGRES_DB:=team_platform}"
