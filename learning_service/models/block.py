@@ -1,6 +1,6 @@
 # learning_service/models/block.py
 
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from learning_service.core.base import Base
 

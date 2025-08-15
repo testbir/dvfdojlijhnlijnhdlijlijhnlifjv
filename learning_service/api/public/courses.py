@@ -1,17 +1,19 @@
 # learning_service/api/public/courses.py
 
-from fastapi import APIRouter, Depends, Request, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
-from typing import List, Optional, Dict
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from learning_service.db.dependencies import get_db_session
-from learning_service.models.module import Module
 from learning_service.models.block import Block
+from learning_service.models.module import Module
 from learning_service.models.progress import UserModuleProgress
-from learning_service.schemas.module import ModuleSchema
 from learning_service.schemas.block import BlockSchema
+from learning_service.schemas.module import ModuleSchema
 from learning_service.utils.auth import get_current_user_id
+
 
 router = APIRouter(prefix="/courses")
 

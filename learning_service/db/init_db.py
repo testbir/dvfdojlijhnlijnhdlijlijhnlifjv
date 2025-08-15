@@ -17,7 +17,4 @@ DATABASE_URL = get_async_pg_url(settings.DATABASE_URL)
 engine = create_async_engine(DATABASE_URL, echo=settings.DEBUG)
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    print("✅ [DB] Таблицы созданы")
+# Миграции выполняет Alembic через init_db.sh. Здесь без create_all.

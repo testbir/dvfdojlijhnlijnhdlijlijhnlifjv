@@ -2,18 +2,27 @@
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from learning_service.db.init_db import init_db
+from learning_service.core.errors import setup_error_handlers
 
 from learning_service.api.admin import modules as admin_modules, blocks as admin_blocks
 from learning_service.api.public import courses as public_courses, progress as public_progress
 from learning_service.api import health as health_api
 from learning_service.utils.admin_auth import AdminAuth
 
+# ⬇️ добавьте
+import os
+from learning_service.core.base import Base
+from learning_service.db.init_db import engine
+
 app = FastAPI(title="Learning Service")
 
 @app.on_event("startup")
 async def _startup():
-    await init_db()
+    setup_error_handlers(app)
+    # ⬇️ fallback: если нет миграций — создаём таблицы
+    if not os.path.exists("alembic.ini"):
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,14 +30,12 @@ app.add_middleware(
     allow_methods=["*"], allow_headers=["*"],
 )
 
-# admin (защита INTERNAL_TOKEN)
 deps = [Depends(AdminAuth())]
 app.include_router(admin_modules.router_courses, prefix="/v1/admin", tags=["Admin - Modules"], dependencies=deps)
 app.include_router(admin_modules.router_modules, prefix="/v1/admin", tags=["Admin - Modules"], dependencies=deps)
 app.include_router(admin_blocks.router_modules,  prefix="/v1/admin", tags=["Admin - Blocks"],  dependencies=deps)
 app.include_router(admin_blocks.router_blocks,   prefix="/v1/admin", tags=["Admin - Blocks"],  dependencies=deps)
 
-# public
 app.include_router(public_courses.router,  prefix="/v1/public", tags=["Public - Courses/Modules"])
 app.include_router(public_progress.router, prefix="/v1/public", tags=["Public - Progress"])
 app.include_router(health_api.router, tags=["Health"])

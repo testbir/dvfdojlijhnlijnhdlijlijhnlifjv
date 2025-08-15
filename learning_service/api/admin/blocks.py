@@ -1,14 +1,16 @@
 # learning_service/api/admin/blocks.py
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from typing import List
 
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from learning_service.db.dependencies import get_db_session
+from learning_service.db.tx import commit_or_rollback
 from learning_service.models.block import Block
 from learning_service.models.module import Module
-from learning_service.schemas.block import BlockCreate, BlockUpdate, BlockSchema
+from learning_service.schemas.block import BlockCreate, BlockSchema, BlockUpdate
 
 router_modules = APIRouter(prefix="/modules")
 router_blocks = APIRouter(prefix="/blocks")
@@ -16,21 +18,26 @@ router_blocks = APIRouter(prefix="/blocks")
 
 @router_modules.get("/{module_id}/blocks/", response_model=List[BlockSchema])
 async def list_blocks(module_id: int, db: AsyncSession = Depends(get_db_session)):
+    m = await db.execute(select(Module.id).where(Module.id == module_id))
+    if not m.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Модуль не найден")
     res = await db.execute(select(Block).where(Block.module_id == module_id).order_by(Block.order.asc()))
     return res.scalars().all()
 
-@router_modules.post("/{module_id}/blocks/", response_model=BlockSchema)
-async def create_block(module_id: int, data: BlockCreate, db: AsyncSession = Depends(get_db_session)):
-    # проверим модуль
+@router_modules.post("/{module_id}/blocks/", response_model=BlockSchema, status_code=status.HTTP_201_CREATED)
+async def create_block(module_id: int, data: BlockCreate, response: Response, db: AsyncSession = Depends(get_db_session)):
+    # проверка модуля
     m = await db.execute(select(Module).where(Module.id == module_id))
     if not m.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Модуль не найден")
 
     order = data.order
     if order is None:
+        # лочим сам модуль, чтобы сериализовать вычисление порядка даже при пустой таблице блоков
+        await db.execute(select(Module.id).where(Module.id == module_id).with_for_update())
         q = await db.execute(select(func.coalesce(func.max(Block.order), 0)).where(Block.module_id == module_id))
         order = (q.scalar() or 0) + 1
-
+         
     obj = Block(
         module_id=module_id,
         type=data.type,
@@ -38,11 +45,12 @@ async def create_block(module_id: int, data: BlockCreate, db: AsyncSession = Dep
         content=data.content,
         order=order,
         language=data.language,
-        video_preview=data.video_preview
+        video_preview=data.video_preview,
     )
     db.add(obj)
-    await db.commit()
+    await commit_or_rollback(db)
     await db.refresh(obj)
+    response.headers["Location"] = f"/v1/admin/blocks/{obj.id}"
     return obj
 
 @router_blocks.get("/{block_id}", response_model=BlockSchema)
@@ -63,16 +71,16 @@ async def update_block(block_id: int, data: BlockUpdate, db: AsyncSession = Depe
     for k, v in data.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)
 
-    await db.commit()
+    await commit_or_rollback(db)
     await db.refresh(obj)
     return obj
 
-@router_blocks.delete("/{block_id}")
+@router_blocks.delete("/{block_id}", status_code=204)
 async def delete_block(block_id: int, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Block).where(Block.id == block_id))
     obj = res.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Блок не найден")
     await db.delete(obj)
-    await db.commit()
-    return {"success": True}
+    await commit_or_rollback(db)
+    return  # 204 No Content

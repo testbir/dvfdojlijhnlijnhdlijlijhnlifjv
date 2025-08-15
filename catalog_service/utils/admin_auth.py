@@ -1,4 +1,4 @@
-# catalog_service/admin_auth.py
+# catalog_service/utils/admin_auth.py
 
 from fastapi import Request, HTTPException, status
 import os

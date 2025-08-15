@@ -1,23 +1,33 @@
 #!/usr/bin/env sh
 set -euo pipefail
-export PYTHONPATH="${PYTHONPATH:-/app}"
 
-: "${POSTGRES_USER:=postgres}"
-: "${POSTGRES_DB:=team_platform}"
-: "${POSTGRES_HOST:=db}"
-: "${POSTGRES_PORT:=5432}"
+# Стандартизируем PG-переменные
+: "${PGHOST:=db}"
+: "${PGPORT:=5432}"
+: "${PGUSER:=postgres}"
+: "${PGDATABASE:=points_db}"
 
-# ожидание БД
-until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" >/dev/null 2>&1; do
-  echo "Waiting for PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}..."
+# Ждем Postgres
+until pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" >/dev/null 2>&1; do
+  echo "waiting for postgres at ${PGHOST}:${PGPORT}..."
   sleep 1
 done
 
-# миграции
-if [ -f manage.py ]; then
-  python manage.py migrate
-fi
-
-if command -v alembic >/dev/null 2>&1 && [ -f alembic.ini ]; then
+# Если есть Alembic — мигрируем. Иначе — create_all как фолбэк.
+if [ -f alembic.ini ] && [ -d migrations ]; then
+  # Сконструируем DATABASE_URL, если не задан
+  if [ -z "${DATABASE_URL:-}" ]; then
+    if [ -n "${POSTGRES_PASSWORD:-}" ]; then
+      export DATABASE_URL="postgresql+psycopg2://${PGUSER}:${POSTGRES_PASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}"
+    else
+      export DATABASE_URL="postgresql+psycopg2://${PGUSER}@${PGHOST}:${PGPORT}/${PGDATABASE}"
+    fi
+  fi
   alembic upgrade head
+else
+  python - <<'PY'
+import asyncio
+from points_service.db.init_db import init_db
+asyncio.run(init_db())
+PY
 fi

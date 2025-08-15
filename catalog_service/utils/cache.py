@@ -1,6 +1,5 @@
 # catalog_service/utils/cache.py
 
-# catalog_service/utils/cache.py
 import json
 import hashlib
 from functools import wraps

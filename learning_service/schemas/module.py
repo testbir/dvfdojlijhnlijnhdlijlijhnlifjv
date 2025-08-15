@@ -1,22 +1,24 @@
-# learning_service/shemas/module.py
+# learning_service/schemas/module.py
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 
 class ModuleCreate(BaseModel):
-    title: str
-    group_title: Optional[str] = None
-    order: Optional[int] = None
-    sp_award: int = 0
+    title: str = Field(min_length=1, max_length=255)
+    group_title: Optional[str] = Field(default=None, max_length=255)
+    order: Optional[int] = Field(default=None, ge=1)
+    sp_award: int = Field(default=0, ge=0)
     completion_message: Optional[str] = None
-
+    model_config = ConfigDict(extra="forbid")
+    
 class ModuleUpdate(BaseModel):
-    title: Optional[str] = None
-    group_title: Optional[str] = None
-    order: Optional[int] = None
-    sp_award: Optional[int] = None
+    title: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    group_title: Optional[str] = Field(default=None, max_length=255)
+    order: Optional[int] = Field(default=None, ge=1)
+    sp_award: Optional[int] = Field(default=None, ge=0)
     completion_message: Optional[str] = None
-
+    model_config = ConfigDict(extra="forbid")
+    
 class ModuleSchema(BaseModel):
     id: int
     course_id: int

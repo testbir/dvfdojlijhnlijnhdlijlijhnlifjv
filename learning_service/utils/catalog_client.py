@@ -1,4 +1,4 @@
-# learning_service/utils//auth.py
+# learning_service/utils/catalog_client.py
 
 
 from jose import JWTError, jwt

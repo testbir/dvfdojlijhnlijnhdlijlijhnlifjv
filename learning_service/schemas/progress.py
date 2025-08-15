@@ -1,4 +1,4 @@
-# learning_service/shemas/progress.py
+# learning_service/schemas/progress.py
 
 from pydantic import BaseModel
 from typing import List, Optional

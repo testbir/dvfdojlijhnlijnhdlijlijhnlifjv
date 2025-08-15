@@ -11,12 +11,20 @@ from catalog_service.api.internal import access as internal_access, users as int
 from catalog_service.api import health as health_api
 from catalog_service.utils.admin_auth import AdminAuth
 
+# ⬇️ подключаем лимитер
+from slowapi.errors import RateLimitExceeded
+from catalog_service.utils.rate_limit import limiter, custom_rate_limit_handler
+
 load_dotenv()
 app = FastAPI(title="Catalog Service")
 
 @app.on_event("startup")
 async def _startup():
     await init_db()
+
+# ⬇️ wiring для slowapi
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,6 +33,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ... остальное без изменений
+
 
 # public
 app.include_router(public_courses.router,   prefix="/v1/public", tags=["Public - Courses"])

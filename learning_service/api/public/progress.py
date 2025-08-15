@@ -1,18 +1,20 @@
 # learning_service/api/public/progress.py
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-import httpx
 
+from learning_service.api.internal.points import award_points
 from learning_service.db.dependencies import get_db_session
 from learning_service.models.module import Module
 from learning_service.models.progress import UserModuleProgress
-from learning_service.schemas.progress import CourseProgressResponse, CompleteModuleResponse
+from learning_service.schemas.progress import CompleteModuleResponse, CourseProgressResponse
 from learning_service.utils.auth import get_current_user_id
 from learning_service.core.config import settings
+import httpx
 
 router = APIRouter(prefix="/progress")
+
 
 @router.get("/courses/{course_id}", response_model=CourseProgressResponse)
 async def get_course_progress(course_id: int, request: Request, db: AsyncSession = Depends(get_db_session)):
@@ -46,48 +48,35 @@ async def get_course_progress(course_id: int, request: Request, db: AsyncSession
         current_position=current_pos,
     )
 
-@router.post("/complete/{module_id}", response_model=CompleteModuleResponse)
-async def complete_module(module_id: int, request: Request, db: AsyncSession = Depends(get_db_session)):
-    user_id = get_current_user_id(request)
 
-    res = await db.execute(select(Module).where(Module.id == module_id))
-    module = res.scalar_one_or_none()
-    if not module:
-        raise HTTPException(status_code=404, detail="module not found")
+@router.post("/modules/{module_id}/complete", response_model=CompleteModuleResponse)
+async def complete_module(module_id: int, db: AsyncSession = Depends(get_db_session), user_id: int = Depends(get_current_user_id)):
+    m = (await db.execute(select(Module).where(Module.id == module_id))).scalar_one_or_none()
+    if not m:
+        raise HTTPException(status_code=404, detail="Модуль не найден")
 
-    inserted = False
+    # пробуем создать прогресс
+    prog = UserModuleProgress(user_id=user_id, module_id=module_id)
+    db.add(prog)
     try:
-        async with db.begin():
-            await db.execute(UserModuleProgress.__table__.insert().values(user_id=user_id, module_id=module_id))
-        inserted = True
+        await db.commit()
+        already = False
     except Exception:
-        inserted = False  # already completed
+        await db.rollback()
+        # возможно уже завершён
+        exists = await db.execute(select(UserModuleProgress.id).where(
+            UserModuleProgress.user_id == user_id, UserModuleProgress.module_id == module_id))
+        if not exists.scalar_one_or_none():
+            raise
+        already = True
 
     awarded = 0
-    if inserted and int(getattr(module, "sp_award", 0)) > 0:
-        idem = f"module_complete:{user_id}:{module_id}"
+    if not already and m.sp_award > 0:
         try:
-            async with httpx.AsyncClient(base_url=settings.POINTS_SERVICE_URL, timeout=5.0) as client:
-                await client.post(
-                    "/v1/internal/points/award",
-                    headers={"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"},
-                    json={
-                        "user_id": user_id,
-                        "amount": int(module.sp_award),
-                        "reason": "module_complete",
-                        "idempotency_key": idem,
-                        "source_service": "learning_service",
-                        "reference_type": "module",
-                        "reference_id": str(module_id),
-                    },
-                )
-            awarded = int(module.sp_award)
+            await award_points(user_id, m.sp_award, f"complete_module:{module_id}", f"{user_id}:{module_id}")
+            awarded = m.sp_award
         except Exception:
-            awarded = 0
+            # логируем, но не падаем
+            pass
 
-    return CompleteModuleResponse(
-        success=True,
-        awarded_sp=awarded,
-        already_completed=not inserted,
-        completion_message=getattr(module, "completion_message", None),
-    )
+    return CompleteModuleResponse(success=True, awarded_sp=awarded, already_completed=already, completion_message=m.completion_message)

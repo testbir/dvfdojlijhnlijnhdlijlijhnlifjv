@@ -11,6 +11,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 RUN sed -i 's/\r$//' /app/init_db.sh && chmod +x /app/init_db.sh
-RUN if [ -f pyproject.toml ] || [ -f setup.py ]; then pip install -e .; fi
+
 
 CMD ["sh","-lc","set -e; ./init_db.sh; python -m uvicorn learning_service.main:app --host 0.0.0.0 --port 8002"]

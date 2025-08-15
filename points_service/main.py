@@ -8,6 +8,13 @@
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi import Request, HTTPException
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
+from points_service.schemas.errors import ErrorResponse, ErrorBody
+
+
 
 from points_service.core.config import settings
 from points_service.db.init_db import init_db
@@ -19,6 +26,30 @@ from points_service.api.internal import awards as internal_awards
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(title="Points Service")
+
+log = logging.getLogger(__name__)
+
+def _json_error(status: int, code: str, message: str, meta=None):
+    return JSONResponse(status_code=status, content=ErrorResponse(
+        error=ErrorBody(code=code, message=message, meta=meta)
+    ).model_dump())
+
+@app.exception_handler(RequestValidationError)
+async def _handle_422(request: Request, exc: RequestValidationError):
+    return _json_error(422, "validation_error", "Invalid request", exc.errors())
+
+@app.exception_handler(HTTPException)
+async def _handle_http_exc(request: Request, exc: HTTPException):
+    detail = exc.detail if isinstance(exc.detail, dict) else {"message": str(exc.detail)}
+    msg = detail.get("message") or detail.get("detail") or str(exc.detail)
+    meta = {k: v for k, v in detail.items() if k not in {"message", "detail"}}
+    return _json_error(exc.status_code, "http_error", msg, meta or None)
+
+@app.exception_handler(IntegrityError)
+async def _handle_integrity(request: Request, exc: IntegrityError):
+    log.exception("DB integrity error")
+    return _json_error(409, "integrity_error", "Integrity constraint violated")
+
 
 @app.on_event("startup")
 async def _startup():
