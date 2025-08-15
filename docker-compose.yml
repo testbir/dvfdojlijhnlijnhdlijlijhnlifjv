@@ -75,7 +75,7 @@ services:
     volumes:
       - ./learning_service:/app
     ports:
-      - "8004:8002"   # host:container (чтобы не пересекаться с админкой)
+      - "8004:8002"
     env_file:
       - ./learning_service/.env
     depends_on:
@@ -106,11 +106,15 @@ services:
     build:
       context: ./admin_service
     container_name: adminservice_team
-    command: sh -c "./init_db.sh && uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
+    working_dir: /app
+    command: sh -c "./init_db.sh && python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
+    environment:
+      - PYTHONPATH=/app
+      - ADMIN_DEBUG=true
     volumes:
       - ./admin_service:/app
     ports:
-      - "8010:8002"   # вынес админку на 8010 с хоста
+      - "8010:8002"
     env_file:
       - ./admin_service/.env
     depends_on:
@@ -144,12 +148,12 @@ services:
     build:
       context: ./admin-frontend
       args:
-        - REACT_APP_API_URL=http://adminservice:8002
+        - REACT_APP_API_URL=http://localhost:8010
     container_name: admin_frontend_team
     ports:
-      - "3001:3000"
+      - "3001:80"
     environment:
-      - REACT_APP_API_URL=http://adminservice:8002
+      - REACT_APP_API_URL=http://localhost:8010
     depends_on:
       - adminservice
     networks: [app-network]

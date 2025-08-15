@@ -6,7 +6,7 @@ import api from '../api/axiosInstance';
 export const coursesApi = {
   // Получить список курсов
   getCourses: async () => {
-    const response = await api.get('/admin/courses/');
+    const response = await api.get('/admin/courses');
     return response.data;
   },
 
@@ -24,7 +24,7 @@ export const coursesApi = {
 
   // Обновить курс
   updateCourse: async (id: number, data: any) => {
-    const response = await api.put(`/admin/courses/${id}`, data);
+    const response = await api.patch(`/admin/courses/${id}`, data);
     return response.data;
   },
 
@@ -62,7 +62,7 @@ export const modulesApi = {
 
   // Обновить модуль
   updateModule: async (moduleId: number, data: any) => {
-    const response = await api.put(`/admin/modules/${moduleId}`, data);
+    const response = await api.patch(`/admin/modules/${moduleId}`, data);
     return response.data;
   },
 
@@ -102,7 +102,7 @@ export const blocksApi = {
 
   // Обновить блок
   updateBlock: async (blockId: number, data: any) => {
-    const response = await api.put(`/admin/blocks/${blockId}`, data);
+    const response = await api.patch(`/admin/blocks/${blockId}`, data);
     return response.data;
   },
 

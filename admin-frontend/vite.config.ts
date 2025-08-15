@@ -12,7 +12,7 @@ export default defineConfig({
     },
     proxy: {
       "/admin-api": {
-        target: "http://localhost:8002",
+        target: "http://localhost:8010", // ← ИЗМЕНИТЬ НА 8010!
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/admin-api/, ""),
       },

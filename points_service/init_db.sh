@@ -1,3 +1,4 @@
+```bash
 #!/bin/sh
 set -e
 
@@ -21,9 +22,13 @@ fi
 
 # 2) Применить модельные таблицы
 python - <<'PYCODE'
+import sys
+sys.path.append('/app')
 import asyncio
 from points_service.db.init_db import init_db
 asyncio.run(init_db())
+print("DB init done")
 PYCODE
 
 echo "DB ready. Starting app..."
+```
