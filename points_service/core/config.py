@@ -6,28 +6,26 @@
 """
 
 from pydantic_settings import BaseSettings
-
+from typing import List
 
 class Settings(BaseSettings):
     FASTAPI_ENV: str = "development"
-
     DATABASE_URL: str
 
-    # JWT для публичных запросов (декодируем user_id)
     JWT_SECRET_KEY: str = "dev-secret"
     JWT_ALGORITHM: str = "HS256"
 
-    # Токен для внутренних/админских запросов (Bearer)
     INTERNAL_TOKEN: str = "change-me"
 
-    # Логи SQL
     DEBUG: bool = False
-
-    # CORS
-    CORS_ALLOW_ORIGINS: str = "*"  # через запятую если нужно ограничить
+    CORS_ALLOW_ORIGINS: str = "*"  # comma-separated
 
     class Config:
         env_file = "points_service/.env"
 
+    @property
+    def cors_origins(self) -> List[str]:
+        raw = (self.CORS_ALLOW_ORIGINS or "").strip()
+        return ["*"] if raw in {"", "*"} else [o.strip() for o in raw.split(",")]
 
 settings = Settings()
