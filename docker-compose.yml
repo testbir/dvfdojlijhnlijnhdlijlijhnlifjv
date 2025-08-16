@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: siperup44rQVr8
-      POSTGRES_DB: team_platform
+      POSTGRES_DB: postgres  # Изменено на postgres для начальной БД
     command: ["postgres", "-c", "password_encryption=md5"]
     ports:
       - "5432:5432"
@@ -21,6 +21,22 @@ services:
       retries: 5
     networks: [app-network]
 
+  db-creator:
+    image: postgres:15
+    container_name: db_creator_team
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./create-databases.sh:/create-databases.sh
+    environment:
+      POSTGRES_PASSWORD: siperup44rQVr8
+      POSTGRES_USER: postgres
+      PGPASSWORD: siperup44rQVr8
+    command: bash /create-databases.sh
+    restart: "no"
+    networks: [app-network]
+
   redis:
     image: redis:7-alpine
     container_name: redis_cache
@@ -31,7 +47,7 @@ services:
     build:
       context: ./auth_service
     container_name: authservice_team
-    command: sh -c "./init_db.sh && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./auth_service:/app
     ports:
@@ -41,18 +57,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db-creator:
+        condition: service_completed_successfully
     networks: [app-network]
 
   catalogservice:
     build:
       context: ./catalog_service
     container_name: catalogservice_team
-    working_dir: /app
-    command: sh -c "sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && python -m uvicorn catalog_service.main:app --host 0.0.0.0 --port 8001 --reload"
-    environment:
-      - PYTHONPATH=/app
+    command: sh -c "alembic upgrade head && python -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload"
     volumes:
-      - ./catalog_service:/app
+      - ./catalog_service:/catalog_service
+    working_dir: /catalog_service
     ports:
       - "8001:8001"
     env_file:
@@ -60,18 +76,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db-creator:
+        condition: service_completed_successfully
     networks: [app-network]
 
   learningservice:
     build:
       context: ./learning_service
     container_name: learningservice_team
-    working_dir: /app
-    command: sh -c "sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && python -m uvicorn learning_service.main:app --host 0.0.0.0 --port 8002 --reload"
+    command: sh -lc "alembic upgrade head && python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
     environment:
-      - PYTHONPATH=/app
+    - DATABASE_URL=postgresql://postgres:siperup44rQVr8@db:5432/team_platform_learning
     volumes:
-      - ./learning_service:/app
+      - ./learning_service:/learning_service
+    working_dir: /learning_service
     ports:
       - "8004:8002"
     env_file:
@@ -79,18 +97,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db-creator:
+        condition: service_completed_successfully
     networks: [app-network]
 
   pointsservice:
     build:
       context: ./points_service
     container_name: pointsservice_team
-    working_dir: /app
-    command: sh -c "sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && python -m uvicorn points_service.main:app --host 0.0.0.0 --port 8003 --reload"
-    environment:
-      - PYTHONPATH=/app
+    command: sh -lc "./init_db.sh; alembic upgrade head; python -m uvicorn main:app --host 0.0.0.0 --port 8003 --reload"
     volumes:
-      - ./points_service:/app
+      - ./points_service:/points_service
+    working_dir: /points_service
     ports:
       - "8003:8003"
     env_file:
@@ -98,20 +116,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db-creator:
+        condition: service_completed_successfully
     networks: [app-network]
 
   adminservice:
     build:
       context: ./admin_service
     container_name: adminservice_team
-    working_dir: /app
-    command: sh -c "sed -i 's/\r$//' /app/init_db.sh && ./init_db.sh && python -m uvicorn admin_service.main:app --host 0.0.0.0 --port 8002 --reload"
-
-    environment:
-      - PYTHONPATH=/app
-      - ADMIN_DEBUG=true
+    working_dir: /admin_service
+    command: sh -c "alembic upgrade head && python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
     volumes:
-      - ./admin_service:/app
+      - ./admin_service:/admin_service
     ports:
       - "8010:8002"
     env_file:
@@ -119,6 +135,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db-creator:
+        condition: service_completed_successfully
       redis:
         condition: service_started
       authservice:
@@ -147,12 +165,12 @@ services:
     build:
       context: ./admin-frontend
       args:
-        - REACT_APP_API_URL=http://localhost:8010
+        - REACT_APP_API_URL=http://adminservice:8002
     container_name: admin_frontend_team
     ports:
       - "3001:80"
     environment:
-      - REACT_APP_API_URL=http://localhost:8010
+      - REACT_APP_API_URL=http://adminservice:8002
     depends_on:
       - adminservice
     networks: [app-network]

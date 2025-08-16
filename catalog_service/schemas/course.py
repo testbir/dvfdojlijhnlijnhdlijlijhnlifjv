@@ -1,7 +1,7 @@
 
 # catalog_service/schemas/course.py
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -103,19 +103,25 @@ class CourseCreate(BaseModel):
     banner_text: Optional[str] = None
     banner_color_left: Optional[str] = None
     banner_color_right: Optional[str] = None
-    order: int = 0 
-    
-    
+    order: int = 0
     group_title: Optional[str] = None
 
     discount_start: Optional[datetime] = None
     discount_until: Optional[datetime] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
 
-    @model_validator(mode="after")
-    def validate_discount_range(self) -> "CourseCreate":
-        if self.discount_start and self.discount_until:
-            if self.discount_until <= self.discount_start:
-                raise ValueError("Окончание скидки не может быть раньше начала скидки")
-        return self
+    @field_validator("price")
+    @classmethod
+    def validate_price(cls, v, values):
+        if not values.get("is_free") and v is None:
+            raise ValueError("Цена обязательна для платного курса")
+        return v
+
+    @field_validator("discount_until")
+    @classmethod
+    def validate_discount_range(cls, v, values):
+        discount_start = values.get("discount_start")
+        if discount_start and v and v <= discount_start:
+            raise ValueError("Окончание скидки не может быть раньше начала")
+        return v

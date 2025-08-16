@@ -6,7 +6,7 @@
 """
 
 from sqlalchemy import UniqueConstraint, Column, Integer, BigInteger, String, DateTime, Index, CheckConstraint, func
-from points_service.core.base import Base
+from core.base import Base
 
 class UserPoints(Base):
     __tablename__ = "user_points"

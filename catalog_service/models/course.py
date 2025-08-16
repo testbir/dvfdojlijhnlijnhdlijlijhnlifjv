@@ -3,7 +3,7 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean, DECIMAL
 from sqlalchemy import DateTime
 
-from catalog_service.core.base import Base
+from core.base import Base
 
 class Course(Base):
     __tablename__ = "courses_course"

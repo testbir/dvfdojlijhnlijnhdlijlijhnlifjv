@@ -2,17 +2,17 @@
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from learning_service.core.errors import setup_error_handlers
+from core.errors import setup_error_handlers
 
-from learning_service.api.admin import modules as admin_modules, blocks as admin_blocks
-from learning_service.api.public import courses as public_courses, progress as public_progress
-from learning_service.api import health as health_api
-from learning_service.utils.admin_auth import AdminAuth
+from api.admin import modules as admin_modules, blocks as admin_blocks
+from api.public import courses as public_courses, progress as public_progress
+from api import health as health_api
+from utils.admin_auth import AdminAuth
 
 # ⬇️ добавьте
 import os
-from learning_service.core.base import Base
-from learning_service.db.init_db import engine
+from core.base import Base
+from db.init_db import engine
 
 app = FastAPI(title="Learning Service")
 

@@ -3,7 +3,7 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 
-from catalog_service.core.base import Base
+from core.base import Base
 
 class StudentWorksSection(Base):
     __tablename__ = "student_works_sections"

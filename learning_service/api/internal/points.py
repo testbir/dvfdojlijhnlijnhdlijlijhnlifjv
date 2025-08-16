@@ -1,6 +1,6 @@
 # learning_service/api/internal/points.py
 import httpx
-from learning_service.core.config import settings
+from core.config import settings
 
 async def award_points(user_id: int, amount: int, reason: str, idem_key: str) -> None:
     url = f"{settings.POINTS_SERVICE_URL}/v1/internal/points/award"

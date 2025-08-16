@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 set -e
-export PYTHONPATH=/app
+export PYTHONPATH=/learning_service
 
 : "${POSTGRES_USER:=postgres}"
 : "${POSTGRES_DB:=learning_db}"

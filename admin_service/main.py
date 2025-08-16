@@ -1,7 +1,5 @@
 # admin_service/main.py
 
-# admin_service/main.py
-
 import os
 import logging
 from fastapi import FastAPI
@@ -52,17 +50,17 @@ except Exception:
 
 # --- Остальной код из вашего текущего main.py без изменений ---
 
-from admin_service.api import health as health_api
-from admin_service.api import auth as auth_api
-from admin_service.api import courses as courses_api
-from admin_service.api import modules as modules_api
-from admin_service.api import blocks as blocks_api
-from admin_service.api import homepage as homepage_api
-from admin_service.api import banners as banners_api
-from admin_service.api import course_extras as course_extras_api
-from admin_service.api import statistics as statistics_api
-from admin_service.api import users as users_api
-from admin_service.api import bulk_operations as bulk_operations_api
+from api import health as health_api
+from api import auth as auth_api
+from api import courses as courses_api
+from api import modules as modules_api
+from api import blocks as blocks_api
+from api import homepage as homepage_api
+from api import banners as banners_api
+from api import course_extras as course_extras_api
+from api import statistics as statistics_api
+from api import users as users_api
+from api import bulk_operations as bulk_operations_api
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 

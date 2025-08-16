@@ -6,10 +6,10 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from catalog_service.core.base import Base  # путь к вашему Base
+from core.base import Base  # путь к вашему Base
 target_metadata = Base.metadata
 
-from catalog_service.core.base import Base  # аналогично для других сервисов
+from core.base import Base  # аналогично для других сервисов
 
 import os
 import sys
@@ -37,7 +37,7 @@ if config.config_file_name:
     fileConfig(config.config_file_name)
 
 # Импортируем Base из пакета сервиса
-from catalog_service.core.base import Base
+from core.base import Base
 target_metadata = Base.metadata
 
 

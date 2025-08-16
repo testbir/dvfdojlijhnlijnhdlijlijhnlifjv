@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from catalog_service.db.dependencies import get_db_session
-from catalog_service.models.promo import PromoImage
-from catalog_service.schemas.promo import PromoSchema, PromoCreateSchema
+from db.dependencies import get_db_session
+from models.promo import PromoImage
+from schemas.promo import PromoSchema, PromoCreateSchema
 
 from typing import List
 

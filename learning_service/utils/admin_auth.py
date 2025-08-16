@@ -2,7 +2,7 @@
 
 from fastapi import Request, HTTPException, status
 
-from learning_service.core.config import settings
+from core.config import settings
 ADMIN_TOKEN = settings.INTERNAL_TOKEN
 
 class AdminAuth:

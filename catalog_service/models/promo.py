@@ -2,7 +2,7 @@
 
 from sqlalchemy import Column, Integer, String, ForeignKey
 
-from catalog_service.core.base import Base
+from core.base import Base
 
 class PromoImage(Base):
     __tablename__ = "homepage_promo_images"

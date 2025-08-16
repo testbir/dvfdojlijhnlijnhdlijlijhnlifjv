@@ -19,6 +19,6 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     class Config:
-        env_file = "learning_service/.env"
+        env_file = ".env"
 
 settings = Settings()

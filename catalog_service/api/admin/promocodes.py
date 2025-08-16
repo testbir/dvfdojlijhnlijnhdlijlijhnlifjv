@@ -7,8 +7,8 @@ from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
-from catalog_service.db.dependencies import get_db_session
-from catalog_service.models.promocode import PromoCode
+from db.dependencies import get_db_session
+from models.promocode import PromoCode
 
 
 router = APIRouter(prefix="/promocodes")

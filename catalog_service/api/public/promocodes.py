@@ -6,8 +6,8 @@ from sqlalchemy import select
 from typing import Optional
 from datetime import datetime
 
-from catalog_service.db.dependencies import get_db_session
-from catalog_service.models.promocode import PromoCode
+from db.dependencies import get_db_session
+from models.promocode import PromoCode
 
 router = APIRouter(prefix="/promocodes")
 

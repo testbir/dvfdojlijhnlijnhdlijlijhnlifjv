@@ -3,9 +3,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from typing import List, Dict, Any
 import httpx
-from admin_service.core.config import settings
-from admin_service.utils.auth import get_current_admin_user
-from admin_service.models.admin import AdminUser
+from core.config import settings
+from utils.auth import get_current_admin_user
+from models.admin import AdminUser
 
 router = APIRouter(prefix="/admin/bulk-operations", tags=["Bulk Operations"])
 

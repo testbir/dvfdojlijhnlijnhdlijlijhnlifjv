@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learning_service.db.dependencies import get_db_session
-from learning_service.db.tx import commit_or_rollback
-from learning_service.models.module import Module
-from learning_service.schemas.module import ModuleCreate, ModuleSchema, ModuleUpdate
+from db.dependencies import get_db_session
+from db.tx import commit_or_rollback
+from models.module import Module
+from schemas.module import ModuleCreate, ModuleSchema, ModuleUpdate
 
 
 router_courses = APIRouter(prefix="/courses")

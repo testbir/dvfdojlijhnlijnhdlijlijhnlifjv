@@ -1,12 +1,12 @@
 #!/usr/bin/env sh
 set -e
-export PYTHONPATH=/app
+export PYTHONPATH=/points_service
 
 # Стандартизируем PG-переменные
 : "${PGHOST:=db}"
 : "${PGPORT:=5432}"
 : "${PGUSER:=postgres}"
-: "${PGDATABASE:=points_db}"
+: "${PGDATABASE:=team_platform_points}"
 
 # Ждем Postgres
 until pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" >/dev/null 2>&1; do
@@ -28,7 +28,7 @@ if [ -f alembic.ini ] && [ -d migrations ]; then
 else
   python - <<'PY'
 import asyncio
-from points_service.db.init_db import init_db
+from db.init_db import init_db
 asyncio.run(init_db())
 PY
 fi

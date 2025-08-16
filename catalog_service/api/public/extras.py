@@ -6,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
 
-from catalog_service.db.dependencies import get_db_session
-from catalog_service.models.course_modal import CourseModal, CourseModalBlock
-from catalog_service.models.student_works import StudentWorksSection, StudentWork
-from catalog_service.models.course import Course
+from db.dependencies import get_db_session
+from models.course_modal import CourseModal, CourseModalBlock
+from models.student_works import StudentWorksSection, StudentWork
+from models.course import Course
 
 router = APIRouter(prefix="/courses", tags=["Public Course Extras"])
 

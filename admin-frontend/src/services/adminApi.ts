@@ -18,7 +18,7 @@ export const coursesApi = {
 
   // Создать курс
   createCourse: async (data: any) => {
-    const response = await api.post('/admin/courses/', data);
+    const response = await api.post('/admin/courses', data);
     return response.data;
   },
 

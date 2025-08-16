@@ -2,9 +2,9 @@
 
 from fastapi import Request, HTTPException, status
 from jose import jwt, JWTError
-from admin_service.core.config import settings
-from admin_service.db import SessionLocal
-from admin_service.models.admin import AdminUser  # ожидается таблица админов
+from core.config import settings
+from db import SessionLocal
+from models.admin import AdminUser  # ожидается таблица админов
 
 def get_current_admin_user(request: Request) -> AdminUser:
     auth = request.headers.get("Authorization", "")

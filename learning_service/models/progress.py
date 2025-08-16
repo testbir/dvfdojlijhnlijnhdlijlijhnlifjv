@@ -2,7 +2,7 @@
 
 
 from sqlalchemy import Column, Integer, DateTime, UniqueConstraint, ForeignKey, func
-from learning_service.core.base import Base
+from core.base import Base
 
 class UserModuleProgress(Base):
     __tablename__ = "learning_user_module_progress"

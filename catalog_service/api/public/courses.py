@@ -6,13 +6,13 @@ from sqlalchemy import select
 from typing import List
 from datetime import datetime, timezone
 
-from catalog_service.core.config import settings
-from catalog_service.db.dependencies import get_db_session
-from catalog_service.models.course import Course
-from catalog_service.models.access import CourseAccess
-from catalog_service.utils.auth import get_current_user_id
-from catalog_service.utils.rate_limit import limiter
-from catalog_service.schemas.course import (
+from core.config import settings
+from db.dependencies import get_db_session
+from models.course import Course
+from models.access import CourseAccess
+from utils.auth import get_current_user_id
+from utils.rate_limit import limiter
+from schemas.course import (
     CourseListSchema, CourseDetailSchema, 
     BuyCourseRequest, BuyCourseResponse,
 )

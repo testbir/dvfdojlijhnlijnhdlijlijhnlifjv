@@ -2,10 +2,10 @@
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from catalog_service.utils.auth import get_current_user_id
+from utils.auth import get_current_user_id
 from fastapi.responses import JSONResponse
 
-from catalog_service.core.config import settings
+from core.config import settings
 
 def user_id_or_ip(request):
     try:

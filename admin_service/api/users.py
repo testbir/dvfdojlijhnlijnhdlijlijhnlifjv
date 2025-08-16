@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta
-from admin_service.db import get_db
+from db import get_db
 import httpx
-from admin_service.core.config import settings
-from admin_service.utils.auth import get_current_admin_user
-from admin_service.models.admin import AdminUser
+from core.config import settings
+from utils.auth import get_current_admin_user
+from models.admin import AdminUser
 import logging
 import os
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/admin/users", tags=["Admin Users"])
 logger = logging.getLogger(__name__)
 
 # Используем переменные окружения для URL сервисов
-from admin_service.core.config import settings
+from core.config import settings
 AUTH_SERVICE_URL = settings.AUTH_SERVICE_URL
 CATALOG_SERVICE_URL = settings.CATALOG_SERVICE_URL
 def _hdr(): return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}

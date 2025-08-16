@@ -6,7 +6,7 @@ from fastapi import UploadFile, HTTPException
 import uuid
 import logging
 from typing import Optional
-from admin_service.core.config import settings
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 

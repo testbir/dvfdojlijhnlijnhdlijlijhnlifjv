@@ -5,10 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
 
-from catalog_service.db.dependencies import get_db_session
-from catalog_service.models.student_works import StudentWorksSection, StudentWork
-from catalog_service.models.course import Course
-from catalog_service.schemas.student_works import (
+from db.dependencies import get_db_session
+from models.student_works import StudentWorksSection, StudentWork
+from models.course import Course
+from schemas.student_works import (
     StudentWorksSectionCreate,
     StudentWorksSectionUpdate,
     StudentWorksSectionSchema,

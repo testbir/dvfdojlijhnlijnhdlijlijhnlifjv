@@ -3,9 +3,9 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from admin_service.db import SessionLocal
-from admin_service.models.admin import AdminUser
-from admin_service.utils.security import verify_password, create_access_token
+from db import SessionLocal
+from models.admin import AdminUser
+from utils.security import verify_password, create_access_token
 from datetime import timedelta
 
 router = APIRouter(prefix="/auth", tags=["Auth"])

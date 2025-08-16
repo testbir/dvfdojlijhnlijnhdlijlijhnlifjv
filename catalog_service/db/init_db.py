@@ -3,8 +3,8 @@
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
-from catalog_service.core.base import Base
-from catalog_service.core.config import settings
+from core.base import Base
+from core.config import settings
 
 from urllib.parse import urlparse, urlunparse
 

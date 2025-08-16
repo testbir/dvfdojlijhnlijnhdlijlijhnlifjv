@@ -3,7 +3,7 @@
 from sqlalchemy import UniqueConstraint, Column, Integer, ForeignKey, DateTime
 from datetime import datetime
 
-from catalog_service.core.base import Base
+from core.base import Base
 
 class CourseAccess(Base):
     __tablename__ = "courses_courseaccess"

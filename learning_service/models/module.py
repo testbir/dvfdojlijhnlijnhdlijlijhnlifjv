@@ -2,7 +2,7 @@
 
 from sqlalchemy import Column, Integer, String, Text, BigInteger, UniqueConstraint
 from sqlalchemy.orm import relationship
-from learning_service.core.base import Base
+from core.base import Base
 
 class Module(Base):
     __tablename__ = "learning_modules"

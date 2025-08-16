@@ -5,10 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
 
-from catalog_service.db.dependencies import get_db_session
-from catalog_service.models.course_modal import CourseModal, CourseModalBlock
-from catalog_service.models.course import Course
-from catalog_service.schemas.course_modal import (
+from db.dependencies import get_db_session
+from models.course_modal import CourseModal, CourseModalBlock
+from models.course import Course
+from schemas.course_modal import (
     CourseModalCreate, 
     CourseModalUpdate, 
     CourseModalSchema,

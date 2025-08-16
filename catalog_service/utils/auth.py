@@ -5,7 +5,7 @@ from fastapi import Request, HTTPException
 from starlette.status import HTTP_401_UNAUTHORIZED
 from typing import Optional
 
-from catalog_service.core.config import settings
+from core.config import settings
 
 JWT_SECRET_KEY = settings.JWT_SECRET_KEY
 ALGORITHM = "HS256"

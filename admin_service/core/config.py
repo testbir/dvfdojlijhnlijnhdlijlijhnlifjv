@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:siperup44rQVr8@db:5432/admin_db"
 
     # Services
-    AUTH_SERVICE_URL: str = "http://authservice:8002"
+    AUTH_SERVICE_URL: str = "http://authservice:8000"
     CATALOG_SERVICE_URL: str = "http://catalogservice:8001"
     LEARNING_SERVICE_URL: str = "http://learningservice:8002"
     POINTS_SERVICE_URL: str = "http://pointsservice:8003"

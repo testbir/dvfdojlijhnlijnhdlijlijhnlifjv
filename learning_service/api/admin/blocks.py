@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learning_service.db.dependencies import get_db_session
-from learning_service.db.tx import commit_or_rollback
-from learning_service.models.block import Block
-from learning_service.models.module import Module
-from learning_service.schemas.block import BlockCreate, BlockSchema, BlockUpdate
+from db.dependencies import get_db_session
+from db.tx import commit_or_rollback
+from models.block import Block
+from models.module import Module
+from schemas.block import BlockCreate, BlockSchema, BlockUpdate
 
 router_modules = APIRouter(prefix="/modules")
 router_blocks = APIRouter(prefix="/blocks")

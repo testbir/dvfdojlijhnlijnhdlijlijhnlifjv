@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter, HTTPException, Request
 
-from catalog_service.utils.auth import get_current_user_id
-from catalog_service.utils.auth_client import get_user_data_from_auth
+from utils.auth import get_current_user_id
+from utils.auth_client import get_user_data_from_auth
 
 router = APIRouter()
 

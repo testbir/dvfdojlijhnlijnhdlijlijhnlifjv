@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learning_service.db.dependencies import get_db_session
-from learning_service.models.block import Block
-from learning_service.models.module import Module
-from learning_service.models.progress import UserModuleProgress
-from learning_service.schemas.block import BlockSchema
-from learning_service.schemas.module import ModuleSchema
-from learning_service.utils.auth import get_current_user_id
+from db.dependencies import get_db_session
+from models.block import Block
+from models.module import Module
+from models.progress import UserModuleProgress
+from schemas.block import BlockSchema
+from schemas.module import ModuleSchema
+from utils.auth import get_current_user_id
 
 
 router = APIRouter(prefix="/courses")

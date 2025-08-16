@@ -9,7 +9,7 @@
 
 from fastapi import Request, HTTPException
 from jose import jwt, JWTError
-from points_service.core.config import settings
+from core.config import settings
 
 def get_current_user_id(request: Request) -> int:
     auth = request.headers.get("Authorization", "")

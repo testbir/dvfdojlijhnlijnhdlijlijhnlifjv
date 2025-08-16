@@ -3,8 +3,8 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from urllib.parse import urlparse, urlunparse
 
-from learning_service.core.base import Base
-from learning_service.core.config import settings
+from core.base import Base
+from core.config import settings
 
 def get_async_pg_url(url: str) -> str:
     parsed = urlparse(url)

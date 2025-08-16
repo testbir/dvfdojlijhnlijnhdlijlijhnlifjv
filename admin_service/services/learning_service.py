@@ -1,7 +1,7 @@
 # admin_service/services/learning_service.py
 
 import httpx
-from admin_service.core.config import settings
+from core.config import settings
 
 def _headers():
     return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}

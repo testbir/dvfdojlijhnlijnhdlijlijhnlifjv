@@ -1,3 +1,5 @@
+// admin-frontend/vite.config.ts
+
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -12,7 +14,7 @@ export default defineConfig({
     },
     proxy: {
       "/admin-api": {
-        target: "http://localhost:8010", // ← ИЗМЕНИТЬ НА 8010!
+        target: "http://localhost:8010",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/admin-api/, ""),
       },

@@ -1,6 +1,7 @@
 # points_service/Dockerfile
 FROM python:3.11-slim
-WORKDIR /app
+
+WORKDIR /points_service
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN set -eux; \
@@ -10,18 +11,13 @@ RUN set -eux; \
   apt-get install -y --no-install-recommends ca-certificates postgresql-client; \
   rm -rf /var/lib/apt/lists/*
 
-ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/points_service
 
-COPY requirements.txt ./requirements.txt
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Починить переносы строк, дать права
-RUN sed -i 's/\r$//' /app/init_db.sh && chmod +x /app/init_db.sh
+RUN sed -i 's/\r$//' ./init_db.sh && chmod +x ./init_db.sh
 
-# Если есть pyproject.toml или setup.py — установить пакет
-RUN if [ -f pyproject.toml ] || [ -f setup.py ]; then pip install -e .; fi
-
-CMD ["sh","-lc","set -e; ./init_db.sh; python -m uvicorn points_service.main:app --host 0.0.0.0 --port 8003"]
-
+CMD ["sh","-lc","set -e; ./init_db.sh; python -m uvicorn main:app --host 0.0.0.0 --port 8003"]

@@ -2,7 +2,7 @@
 
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
-from learning_service.core.base import Base
+from core.base import Base
 
 class Block(Base):
     __tablename__ = "learning_blocks"

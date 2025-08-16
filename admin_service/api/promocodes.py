@@ -5,9 +5,9 @@ from typing import List, Optional
 from datetime import datetime
 import httpx
 from pydantic import BaseModel
-from admin_service.core.config import settings
-from admin_service.utils.auth import get_current_admin_user
-from admin_service.models.admin import AdminUser
+from core.config import settings
+from utils.auth import get_current_admin_user
+from models.admin import AdminUser
 
 router = APIRouter(prefix="/admin/promocodes", tags=["Admin Promocodes"])
 

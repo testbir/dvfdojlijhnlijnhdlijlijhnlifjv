@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 
-from catalog_service.schemas.banner import BannerSchema, BannerCreateSchema, BannerUpdateSchema
-from catalog_service.db.dependencies import get_db_session
-from catalog_service.models.banner import Banner
+from schemas.banner import BannerSchema, BannerCreateSchema, BannerUpdateSchema
+from db.dependencies import get_db_session
+from models.banner import Banner
 
 router = APIRouter(prefix="/banners")
 

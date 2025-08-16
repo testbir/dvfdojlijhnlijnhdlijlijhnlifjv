@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learning_service.api.internal.points import award_points
-from learning_service.db.dependencies import get_db_session
-from learning_service.models.module import Module
-from learning_service.models.progress import UserModuleProgress
-from learning_service.schemas.progress import CompleteModuleResponse, CourseProgressResponse
-from learning_service.utils.auth import get_current_user_id
-from learning_service.core.config import settings
+from api.internal.points import award_points
+from db.dependencies import get_db_session
+from models.module import Module
+from models.progress import UserModuleProgress
+from schemas.progress import CompleteModuleResponse, CourseProgressResponse
+from utils.auth import get_current_user_id
+from core.config import settings
 import httpx
 
 router = APIRouter(prefix="/progress")

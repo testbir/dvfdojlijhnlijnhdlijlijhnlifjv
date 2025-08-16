@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, extract
 from datetime import datetime, timedelta
 
-from catalog_service.db.dependencies import get_db_session
-from catalog_service.models.course import Course
-from catalog_service.models.access import CourseAccess
+from db.dependencies import get_db_session
+from models.course import Course
+from models.access import CourseAccess
 
 router = APIRouter(prefix="/statistics")
 

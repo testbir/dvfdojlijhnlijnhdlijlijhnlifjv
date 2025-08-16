@@ -2,7 +2,7 @@
 
 from sqlalchemy import Column, Integer, String
 
-from catalog_service.core.base import Base
+from core.base import Base
 
 class Banner(Base):
     __tablename__ = "homepage_banners"

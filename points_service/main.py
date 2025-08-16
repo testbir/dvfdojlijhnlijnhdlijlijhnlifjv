@@ -1,7 +1,7 @@
 # points_service/main.py
 
 """
-Главная точка входа points_service.
+Главная точка входа 
 Регистрирует маршруты, CORS, middleware логирования и health-check.
 """
 
@@ -12,16 +12,16 @@ from fastapi.exceptions import RequestValidationError
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
-from points_service.schemas.errors import ErrorResponse, ErrorBody
+from schemas.errors import ErrorResponse, ErrorBody
 
 
 
-from points_service.core.config import settings
-from points_service.db.init_db import init_db
-from points_service.utils.monitoring import log_requests
-from points_service.api import health as health_api
-from points_service.api.public import balance as public_balance
-from points_service.api.internal import awards as internal_awards
+from core.config import settings
+from db.init_db import init_db
+from utils.monitoring import log_requests
+from api import health as health_api
+from api.public import balance as public_balance
+from api.internal import awards as internal_awards
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 

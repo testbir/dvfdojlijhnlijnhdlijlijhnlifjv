@@ -3,9 +3,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from typing import Optional, List
 import httpx
-from admin_service.core.config import settings
-from admin_service.utils.auth import get_current_admin_user
-from admin_service.models.admin import AdminUser
+from core.config import settings
+from utils.auth import get_current_admin_user
+from models.admin import AdminUser
 import logging
 
 router = APIRouter(tags=["Admin - Modules"])
@@ -136,9 +136,9 @@ async def delete_module(
 from fastapi import APIRouter, Depends, HTTPException, Body
 from typing import Optional, List
 import httpx
-from admin_service.core.config import settings
-from admin_service.utils.auth import get_current_admin_user
-from admin_service.models.admin import AdminUser
+from core.config import settings
+from utils.auth import get_current_admin_user
+from models.admin import AdminUser
 import logging
 
 router = APIRouter(tags=["Admin - Blocks"])

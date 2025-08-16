@@ -5,7 +5,7 @@ import json
 from typing import Dict, Optional
 
 import redis.asyncio as redis
-from admin_service.core.config import settings
+from core.config import settings
 
 REDIS_STATUS_PREFIX = "video_status:"
 DEFAULT_TTL = 60 * 60 * 24  # 24h

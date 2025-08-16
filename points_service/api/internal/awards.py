@@ -10,13 +10,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select
 
-from points_service.db.dependencies import get_db_session
-from points_service.models.points import UserPoints, PointsTransaction
-from points_service.schemas.points import (
+from db.dependencies import get_db_session
+from models.points import UserPoints, PointsTransaction
+from schemas.points import (
     InternalAwardRequest, InternalSpendRequest, InternalRefundRequest,
     InternalMutationResponse, TransactionSchema
 )
-from points_service.utils.auth import InternalAuth
+from utils.auth import InternalAuth
 
 router = APIRouter(prefix="/points", dependencies=[Depends(InternalAuth())])
 

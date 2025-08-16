@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from points_service.db.dependencies import get_db_session
+from db.dependencies import get_db_session
 
 log = logging.getLogger(__name__)
 router = APIRouter()

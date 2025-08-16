@@ -6,9 +6,9 @@ from sqlalchemy import select
 from datetime import timezone
 from typing import List
 
-from catalog_service.db.dependencies import get_db_session
-from catalog_service.models.course import Course
-from catalog_service.schemas.course import CourseCreate
+from db.dependencies import get_db_session
+from models.course import Course
+from schemas.course import CourseCreate
 
 router = APIRouter(prefix="/courses")
 

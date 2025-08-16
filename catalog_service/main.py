@@ -4,16 +4,16 @@ from fastapi import FastAPI, Depends
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 
-from catalog_service.db.init_db import init_db
-from catalog_service.api.public import courses as public_courses, accounts as public_accounts, promocodes as public_promocodes, extras as public_extras
-from catalog_service.api.admin import courses as admin_courses, lead_magnets as admin_lead_magnets, banner as admin_banner, promo as admin_promo, promocodes as admin_promocodes, course_modal as admin_course_modal, student_works as admin_student_works
-from catalog_service.api.internal import access as internal_access, users as internal_users, statistics as internal_statistics
-from catalog_service.api import health as health_api
-from catalog_service.utils.admin_auth import AdminAuth
+from db.init_db import init_db
+from api.public import courses as public_courses, accounts as public_accounts, promocodes as public_promocodes, extras as public_extras
+from api.admin import courses as admin_courses, lead_magnets as admin_lead_magnets, banner as admin_banner, promo as admin_promo, promocodes as admin_promocodes, course_modal as admin_course_modal, student_works as admin_student_works
+from api.internal import access as internal_access, users as internal_users, statistics as internal_statistics
+from api import health as health_api
+from utils.admin_auth import AdminAuth
 
 # ⬇️ подключаем лимитер
 from slowapi.errors import RateLimitExceeded
-from catalog_service.utils.rate_limit import limiter, custom_rate_limit_handler
+from utils.rate_limit import limiter, custom_rate_limit_handler
 
 load_dotenv()
 app = FastAPI(title="Catalog Service")

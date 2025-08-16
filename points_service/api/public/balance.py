@@ -11,10 +11,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from points_service.db.dependencies import get_db_session
-from points_service.models.points import UserPoints, PointsTransaction
-from points_service.schemas.points import BalanceResponse, TransactionsListResponse, TransactionSchema
-from points_service.utils.auth import get_current_user_id
+from db.dependencies import get_db_session
+from models.points import UserPoints, PointsTransaction
+from schemas.points import BalanceResponse, TransactionsListResponse, TransactionSchema
+from utils.auth import get_current_user_id
 
 router = APIRouter(prefix="/points")
 

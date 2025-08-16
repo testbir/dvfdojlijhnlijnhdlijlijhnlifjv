@@ -3,7 +3,7 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, JSON
 from datetime import datetime
 
-from catalog_service.core.base import Base
+from core.base import Base
 
 class PromoCode(Base):
     __tablename__ = "promocodes"

@@ -4,10 +4,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from catalog_service.db.dependencies import get_db_session
-from catalog_service.models.lead_magnet import LeadMagnet
-from catalog_service.models.course import Course
-from catalog_service.schemas.lead_magnet import LeadMagnetCreate, LeadMagnetRead
+from db.dependencies import get_db_session
+from models.lead_magnet import LeadMagnet
+from models.course import Course
+from schemas.lead_magnet import LeadMagnetCreate, LeadMagnetRead
 
 router = APIRouter(prefix="/lead-magnets")
 

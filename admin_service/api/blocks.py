@@ -2,8 +2,8 @@
 
 
 from fastapi import APIRouter, Depends
-from admin_service.utils.auth import get_current_admin_user
-from admin_service.services import learning_service as learning_api
+from utils.auth import get_current_admin_user
+from services import learning_service as learning_api
 
 router = APIRouter(tags=["Admin - Blocks"])
 
