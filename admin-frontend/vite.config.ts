@@ -16,7 +16,13 @@ export default defineConfig({
       "/admin-api": {
         target: "http://localhost:8010",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/admin-api/, ""),
+        // Исправленная функция rewrite, которая сохраняет trailing slash
+        rewrite: (path) => {
+          // Удаляем префикс /admin-api
+          const newPath = path.replace(/^\/admin-api/, "");
+          // Если путь пустой, возвращаем /
+          return newPath || '/';
+        },
       },
     },
   },
