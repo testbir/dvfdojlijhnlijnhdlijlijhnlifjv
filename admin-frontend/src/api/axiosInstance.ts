@@ -24,6 +24,15 @@ api.interceptors.request.use(
   }
 );
 
+api.interceptors.request.use((config) => {
+  const t = localStorage.getItem('token');
+  if (t && config.headers && !config.url?.includes('/auth/login')) {
+    config.headers.Authorization = `Bearer ${t}`;
+  }
+  console.log('[API]', config.method?.toUpperCase(), config.url); // ← кто зовёт /admin/courses
+  return config;
+});
+
 // Response interceptor
 api.interceptors.response.use(
   (response) => response,

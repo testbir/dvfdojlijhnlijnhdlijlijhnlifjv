@@ -1,5 +1,7 @@
 # admin_service/services/catalog_api.py
 
+# admin_service/services/catalog_api.py
+
 import httpx
 from core.config import settings
 
@@ -166,3 +168,21 @@ async def get_lead_magnet_stats(magnet_id: int):
         # БЕЗ СЛЕША - правильно (ID в конце)
         r = await c.get(f"/v1/admin/lead-magnets/{magnet_id}/stats", headers=_headers())
         r.raise_for_status(); return r.json()
+        
+        
+# --- Промо-изображения ---
+async def get_promos():
+    async with httpx.AsyncClient(base_url=settings.CATALOG_SERVICE_URL, timeout=10.0) as c:
+        r = await c.get("/v1/admin/promos/", headers=_headers())
+        r.raise_for_status(); return r.json()
+
+async def create_promo(payload: dict):
+    data = {k: payload.get(k) for k in ("image", "title", "description", "course_id", "order", "is_active")}
+    async with httpx.AsyncClient(base_url=settings.CATALOG_SERVICE_URL, timeout=10.0) as c:
+        r = await c.post("/v1/admin/promos/", headers=_headers(), json=data)
+        r.raise_for_status(); return r.json()
+
+async def delete_promo(promo_id: int):
+    async with httpx.AsyncClient(base_url=settings.CATALOG_SERVICE_URL, timeout=10.0) as c:
+        r = await c.delete(f"/v1/admin/promos/{promo_id}", headers=_headers())
+        r.raise_for_status(); return {"success": True}

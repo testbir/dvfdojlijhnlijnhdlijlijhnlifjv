@@ -29,7 +29,7 @@ export default function CoursesPage() {
   const fetchCourses = async () => {
     try {
       const data = await getCourses();
-      setCourses(data.courses);
+      setCourses(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Ошибка при получении курсов:', error);
     } finally {

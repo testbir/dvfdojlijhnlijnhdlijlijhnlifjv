@@ -18,31 +18,39 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createCourse } from '../api/coursesApi';
+import { coursesApi } from '../services/adminApi';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../api/axiosInstance';
 import { DateTimePicker } from '@mantine/dates';
 
 /* ------------------ схема формы ------------------ */
+const numberOpt = (schema: z.ZodTypeAny) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema);
+
 const schema = z.object({
   title: z.string().min(1, 'Введите название курса'),
-  short_description: z.string().optional(),
+  short_description: z.string().min(1, 'Введите краткое описание'),
   full_description: z.string().optional(),
   image: z.string().optional(),
   is_free: z.boolean(),
-  price: z.number().optional(),
-  discount: z.number().optional(),
-  video: z.string().optional(),       // теперь это прямой URL .mp4 /.webm
+  price: numberOpt(z.number().nonnegative()).optional(),
+  discount: numberOpt(z.number().min(0).max(100)).optional(),
+  video: z.string().optional(),
   video_preview: z.string().optional(),
   banner_text: z.string().optional(),
   banner_color_left: z.string().optional(),
   banner_color_right: z.string().optional(),
   group_title: z.string().optional(),
-  order: z.number().min(0, 'Порядок должен быть ≥ 0').optional(),
+  order: numberOpt(z.number().min(0)).optional(),
   discount_start: z.date().optional(),
-  discount_until: z.date().optional()
+  discount_until: z.date().optional(),
+}).superRefine((v, ctx) => {
+  if (!v.is_free && (v.price === undefined || v.price === null)) {
+    ctx.addIssue({ path: ['price'], code: z.ZodIssueCode.custom, message: 'Цена обязательна для платного курса' });
+  }
 });
+
 type FormData = z.infer<typeof schema>;
 
 /* ================================================= */
@@ -132,9 +140,11 @@ export default function CourseCreatePage() {
   /* ---------- submit ---------- */
   const onSubmit = async (data: FormData) => {
     try {
-      await createCourse({
+      await coursesApi.createCourse({
         ...data,
-        short_description : data.short_description?.trim()  || undefined,
+        discount_start: data.discount_start?.toISOString(),
+        discount_until: data.discount_until?.toISOString(),
+        short_description : data.short_description.trim(),
         full_description  : data.full_description?.trim()   || undefined,
         image             : data.image?.trim()              || undefined,
         video             : data.video?.trim()              || undefined,

@@ -6,7 +6,7 @@ import api from '../api/axiosInstance';
 export const coursesApi = {
   // Получить список курсов
   getCourses: async () => {
-    const response = await api.get('/admin/courses');
+    const response = await api.get('/admin/courses/');
     return response.data;
   },
 
@@ -18,7 +18,7 @@ export const coursesApi = {
 
   // Создать курс
   createCourse: async (data: any) => {
-    const response = await api.post('/admin/courses', data);
+    const response = await api.post('/admin/courses/', data);
     return response.data;
   },
 
