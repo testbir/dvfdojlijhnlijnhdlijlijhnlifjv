@@ -138,28 +138,32 @@ export default function CourseCreatePage() {
   };
 
   /* ---------- submit ---------- */
-  const onSubmit = async (data: FormData) => {
-    try {
-      const createdCourse = await coursesApi.createCourse({
-        ...data,
-        discount_start: data.discount_start?.toISOString(),
-        discount_until: data.discount_until?.toISOString(),
-        short_description : data.short_description.trim(),
-        full_description  : data.full_description?.trim()   || undefined,
-        image             : data.image?.trim()              || undefined,
-        video             : data.video?.trim()              || undefined,
-        video_preview     : data.video_preview?.trim()      || undefined,
-        banner_text       : data.banner_text?.trim()        || undefined,
-        banner_color_left : data.banner_color_left?.trim()  || undefined,
-        banner_color_right: data.banner_color_right?.trim() || undefined,
-        group_title       : data.group_title?.trim()        || undefined
-      });
-      navigate(`/courses/${createdCourse.id}/structure`);
-    } catch (err) {
-      console.error(err);
-      setError('Ошибка при создании курса');
-    }
-  };
+const onSubmit = async (data: FormData) => {
+  try {
+    const createdCourse = await coursesApi.createCourse({
+      ...data,
+      discount_start: data.discount_start?.toISOString(),
+      discount_until: data.discount_until?.toISOString(),
+      short_description : data.short_description.trim(),
+      full_description  : data.full_description?.trim()   || undefined,
+      image             : data.image?.trim()              || undefined,
+      video             : data.video?.trim()              || undefined,
+      video_preview     : data.video_preview?.trim()      || undefined,
+      banner_text       : data.banner_text?.trim()        || undefined,
+      banner_color_left : data.banner_color_left?.trim()  || undefined,
+      banner_color_right: data.banner_color_right?.trim() || undefined,
+      group_title       : data.group_title?.trim()        || undefined
+    });
+    
+    // Добавьте логирование
+    console.log('Created course:', createdCourse);
+    
+    navigate(`/courses/${createdCourse.id}/structure`);
+  } catch (err) {
+    console.error(err);
+    setError('Ошибка при создании курса');
+  }
+};
 
   /* ========================================================== */
   return (

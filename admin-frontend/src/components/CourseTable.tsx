@@ -107,37 +107,41 @@ export default function CourseTable({ courses }: { courses: Course[] }) {
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {[...courses].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((course) => (
-            <Table.Tr key={`course-${course.id}`}>
-              <Table.Td>{course.id}</Table.Td>
-              <Table.Td>{course.title}</Table.Td>
-              <Table.Td>{course.price} ₽</Table.Td>
-              <Table.Td>{course.order ?? 0}</Table.Td>
-              <Table.Td>
-                <Group gap="xs">
-                  <Button component={Link} to={`/courses/${course.id}/structure`} size="xs" variant="light">
-                    Структура
-                  </Button>
-                  <Button component={Link} to={`/courses/${course.id}/edit`} size="xs" variant="light">
-                    Редактировать
-                  </Button>
-                  <Button
-                    color="red"
-                    size="xs"
-                    variant="light"
-                    onClick={async () => {
-                      if (window.confirm("Удалить курс?")) {
-                        await api.delete(`/admin/courses/${course.id}`);
-                        window.location.reload();
-                      }
-                    }}
-                  >
-                    Удалить
-                  </Button>
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
+{courses.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((course) => {
+  console.log('Course in table:', course); // <-- Добавьте эту строку
+  return (
+    <Table.Tr key={`course-${course.id}`}>
+      <Table.Td>{course.id}</Table.Td>
+      <Table.Td>{course.title}</Table.Td>
+      <Table.Td>{course.price} ₽</Table.Td>
+      <Table.Td>{course.order ?? 0}</Table.Td>
+      <Table.Td>
+        <Group gap="xs">
+          <Button component={Link} to={`/courses/${course.id}/structure`} size="xs" variant="light">
+            Структура
+          </Button>
+          <Button component={Link} to={`/courses/${course.id}/edit`} size="xs" variant="light">
+            Редактировать
+          </Button>
+          <Button
+            color="red"
+            size="xs"
+            variant="light"
+            onClick={async () => {
+              if (window.confirm("Удалить курс?")) {
+                await api.delete(`/admin/courses/${course.id}`);
+                window.location.reload();
+              }
+            }}
+          >
+            Удалить
+          </Button>
+        </Group>
+      </Table.Td>
+    </Table.Tr>
+  );
+})}
+
         </Table.Tbody>
       </Table>
     </>
