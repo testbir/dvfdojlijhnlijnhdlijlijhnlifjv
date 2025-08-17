@@ -36,7 +36,9 @@ async def admin_create_course(data: CourseCreate, db: AsyncSession = Depends(get
     db.add(course)
     await db.commit()
     await db.refresh(course)
-    return {"id": course.id, "message": "Курс создан"}
+    
+    # Возвращаем полный объект курса вместо только {id, message}
+    return course
 
 @router.put("/{course_id}", summary="Обновить курс")
 async def admin_update_course(course_id: int, data: CourseCreate, db: AsyncSession = Depends(get_db_session)):

@@ -140,7 +140,7 @@ export default function CourseCreatePage() {
   /* ---------- submit ---------- */
   const onSubmit = async (data: FormData) => {
     try {
-      await coursesApi.createCourse({
+      const createdCourse = await coursesApi.createCourse({
         ...data,
         discount_start: data.discount_start?.toISOString(),
         discount_until: data.discount_until?.toISOString(),
@@ -154,7 +154,7 @@ export default function CourseCreatePage() {
         banner_color_right: data.banner_color_right?.trim() || undefined,
         group_title       : data.group_title?.trim()        || undefined
       });
-      navigate('/');
+      navigate(`/courses/${createdCourse.id}/structure`);
     } catch (err) {
       console.error(err);
       setError('Ошибка при создании курса');
