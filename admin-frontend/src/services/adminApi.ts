@@ -339,7 +339,7 @@ export const uploadApi = {
     formData.append('file', file);
     formData.append('folder', folder);
 
-    const response = await api.post('/admin/upload/image', formData, {
+    const response = await api.post('/admin/upload/public', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -352,7 +352,7 @@ export const uploadApi = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await api.post('/admin/upload/video', formData, {
+    const response = await api.post('/admin/upload/video-public', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }

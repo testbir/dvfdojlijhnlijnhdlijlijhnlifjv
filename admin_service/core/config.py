@@ -21,11 +21,12 @@ class Settings(BaseSettings):
     INTERNAL_TOKEN: str = "4B2pFXFcX33DKQEVofEuv-Wk5SzM0GTWcYTP8PfE4kOVa4oDIwq32gS63VXRvrpm"
 
     # S3
+    S3_ENDPOINT_HOST: Optional[str] = None
     S3_ACCESS_KEY: Optional[str] = None
     S3_SECRET_KEY: Optional[str] = None
     S3_ENDPOINT_URL: str = "https://s3.storage.selcloud.ru"
-    S3_BUCKET_NAME: str = "course-public"
-    S3_PUBLIC_URL: str = "https://79340a29-0019-4283-b338-388e7f5c1822.selstorage.ru"
+    S3_PUBLIC_BUCKET: str = "course-public"
+    S3_PUBLIC_CDN_URL: str = "https://79340a29-0019-4283-b338-388e7f5c1822.selstorage.ru"
 
     # App
     DEBUG: bool = False

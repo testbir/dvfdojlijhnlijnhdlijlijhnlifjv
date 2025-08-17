@@ -1,7 +1,6 @@
-
 # catalog_service/schemas/course.py
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, ValidationInfo
 from typing import Optional
 from datetime import datetime
 
@@ -113,15 +112,16 @@ class CourseCreate(BaseModel):
 
     @field_validator("price")
     @classmethod
-    def validate_price(cls, v, values):
-        if not values.get("is_free") and v is None:
+    def validate_price(cls, v, info: ValidationInfo):
+        # В Pydantic v2 используем info.data для получения других полей
+        if info.data.get("is_free") is False and v is None:
             raise ValueError("Цена обязательна для платного курса")
         return v
 
     @field_validator("discount_until")
     @classmethod
-    def validate_discount_range(cls, v, values):
-        discount_start = values.get("discount_start")
+    def validate_discount_range(cls, v, info: ValidationInfo):
+        discount_start = info.data.get("discount_start")
         if discount_start and v and v <= discount_start:
             raise ValueError("Окончание скидки не может быть раньше начала")
         return v
