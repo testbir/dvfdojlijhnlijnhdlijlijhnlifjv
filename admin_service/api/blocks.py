@@ -7,7 +7,7 @@ from services import learning_service as learning_api
 
 router = APIRouter(tags=["Admin - Blocks"])
 
-@router.post("/admin/modules/{module_id}/blocks/", dependencies=[Depends(get_current_admin_user)])
+@router.post("/admin/modules/{module_id}/blocks", dependencies=[Depends(get_current_admin_user)])
 async def create_block(module_id: int, payload: dict):
     return await learning_api.create_block(module_id, payload)
 

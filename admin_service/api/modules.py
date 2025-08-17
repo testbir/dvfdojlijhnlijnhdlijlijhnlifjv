@@ -149,7 +149,7 @@ LEARNING_SERVICE_URL = settings.LEARNING_SERVICE_URL
 def _hdr():
     return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}
 
-@router.get("/admin/modules/{module_id}/blocks/")
+@router.get("/admin/modules/{module_id}/blocks")
 async def get_module_blocks(
     module_id: int,
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -165,7 +165,7 @@ async def get_module_blocks(
         response.raise_for_status()
         return response.json()
 
-@router.post("/admin/modules/{module_id}/blocks/")
+@router.post("/admin/modules/{module_id}/blocks")
 async def create_block(
     module_id: int,
     type: str = Body(...),  # text, video, code, image
