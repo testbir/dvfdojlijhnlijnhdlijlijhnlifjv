@@ -38,14 +38,14 @@ export const coursesApi = {
 
   // Обновить курс
   updateCourse: async (id: number, data: any) => {
-    const response = await api.patch(`/admin/courses/${id}`, data);
+    const response = await api.put(`/admin/courses/${id}`, data);
     return response.data;
   },
 
   // Удалить курс
   deleteCourse: async (id: number) => {
-    const response = await api.delete(`/admin/courses/${id}`);
-    return response.data;
+    await api.delete(`/admin/courses/${id}`);
+    return { success: true };
   }
 };
 
@@ -53,7 +53,7 @@ export const coursesApi = {
 export const modulesApi = {
   // Получить модули курса
   getCourseModules: async (courseId: number) => {
-    const response = await api.get(`/admin/courses/${courseId}/modules`);
+    const response = await api.get(`/admin/courses/${courseId}/modules/`);
     return response.data;
   },
 
@@ -64,7 +64,7 @@ export const modulesApi = {
     order?: number;
     sp_award?: number;
   }) => {
-    const response = await api.post(`/admin/courses/${courseId}/modules`, data);
+    const response = await api.post(`/admin/courses/${courseId}/modules/`, data);
     return response.data;
   },
 
@@ -76,7 +76,7 @@ export const modulesApi = {
 
   // Обновить модуль
   updateModule: async (moduleId: number, data: any) => {
-    const response = await api.patch(`/admin/modules/${moduleId}`, data);
+    const response = await api.put(`/admin/modules/${moduleId}`, data);
     return response.data;
   },
 
@@ -91,7 +91,7 @@ export const modulesApi = {
 export const blocksApi = {
   // Получить блоки модуля
   getModuleBlocks: async (moduleId: number) => {
-    const response = await api.get(`/admin/modules/${moduleId}/blocks`);
+    const response = await api.get(`/admin/modules/${moduleId}/blocks/`);
     return response.data;
   },
 
@@ -104,7 +104,7 @@ export const blocksApi = {
     language?: string;
     video_preview?: string;
   }) => {
-    const response = await api.post(`/admin/modules/${moduleId}/blocks`, data);
+    const response = await api.post(`/admin/modules/${moduleId}/blocks/`, data);
     return response.data;
   },
 
@@ -116,7 +116,7 @@ export const blocksApi = {
 
   // Обновить блок
   updateBlock: async (blockId: number, data: any) => {
-    const response = await api.patch(`/admin/blocks/${blockId}`, data);
+    const response = await api.put(`/admin/blocks/${blockId}`, data);
     return response.data;
   },
 
@@ -128,7 +128,7 @@ export const blocksApi = {
 
   // Изменить порядок блоков
   reorderBlocks: async (moduleId: number, blocksOrder: Array<{id: number, order: number}>) => {
-    const response = await api.post('/admin/blocks/reorder', {
+    const response = await api.post('/admin/blocks/reorder/', {
       module_id: moduleId,
       blocks_order: blocksOrder
     });
@@ -174,7 +174,7 @@ export const bannersApi = {
 
   // Изменить порядок баннеров
   reorderBanners: async (orderMap: Record<number, number>) => {
-    const response = await api.post('/admin/banners/reorder', {
+    const response = await api.post('/admin/banners/reorder/', {
       order_map: orderMap
     });
     return response.data;
@@ -185,7 +185,7 @@ export const bannersApi = {
 export const courseModalApi = {
   // Получить модальное окно курса
   getModal: async (courseId: number) => {
-    const response = await api.get(`/admin/course-extras/modal/${courseId}/`);
+    const response = await api.get(`/admin/course-extras/modal/${courseId}`);
     return response.data;
   },
 
@@ -198,7 +198,7 @@ export const courseModalApi = {
       order: number;
     }>;
   }) => {
-    const response = await api.post(`/admin/course-extras/modal/${courseId}/`, data);
+    const response = await api.post(`/admin/course-extras/modal/${courseId}`, data);
     return response.data;
   },
 
@@ -211,13 +211,13 @@ export const courseModalApi = {
       order: number;
     }>;
   }) => {
-    const response = await api.put(`/admin/course-extras/modal/${courseId}/`, data);
+    const response = await api.put(`/admin/course-extras/modal/${courseId}`, data);
     return response.data;
   },
 
   // Удалить модальное окно
   deleteModal: async (courseId: number) => {
-    const response = await api.delete(`/admin/course-extras/modal/${courseId}/`);
+    const response = await api.delete(`/admin/course-extras/modal/${courseId}`);
     return response.data;
   }
 };
@@ -226,7 +226,7 @@ export const courseModalApi = {
 export const studentWorksApi = {
   // Получить работы учеников
   getWorks: async (courseId: number) => {
-    const response = await api.get(`/admin/course-extras/student-works/${courseId}/`);
+    const response = await api.get(`/admin/course-extras/student-works/${courseId}`);
     return response.data;
   },
 
@@ -241,7 +241,7 @@ export const studentWorksApi = {
       order: number;
     }>;
   }) => {
-    const response = await api.post(`/admin/course-extras/student-works/${courseId}/`, data);
+    const response = await api.post(`/admin/course-extras/student-works/${courseId}`, data);
     return response.data;
   },
 
@@ -256,13 +256,13 @@ export const studentWorksApi = {
       order: number;
     }>;
   }) => {
-    const response = await api.put(`/admin/course-extras/student-works/${courseId}/`, data);
+    const response = await api.put(`/admin/course-extras/student-works/${courseId}`, data);
     return response.data;
   },
 
   // Удалить секцию работ
   deleteWorks: async (courseId: number) => {
-    const response = await api.delete(`/admin/course-extras/student-works/${courseId}/`);
+    const response = await api.delete(`/admin/course-extras/student-works/${courseId}`);
     return response.data;
   }
 };
@@ -330,7 +330,7 @@ export const usersApi = {
 
   // Предоставить доступ к курсу
   grantCourseAccess: async (userId: number, courseId: number) => {
-    const response = await api.post(`/admin/users/${userId}/grant-course`, {
+    const response = await api.post(`/admin/users/${userId}/grant-course/`, {
       course_id: courseId
     });
     return response.data;
@@ -338,7 +338,7 @@ export const usersApi = {
 
   // Отозвать доступ к курсу
   revokeCourseAccess: async (userId: number, courseId: number) => {
-    const response = await api.post(`/admin/users/${userId}/revoke-course`, {
+    const response = await api.post(`/admin/users/${userId}/revoke-course/`, {
       course_id: courseId
     });
     return response.data;
@@ -353,7 +353,7 @@ export const uploadApi = {
     formData.append('file', file);
     formData.append('folder', folder);
 
-    const response = await api.post('/admin/upload/public', formData, {
+    const response = await api.post('/admin/upload/public/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -366,7 +366,7 @@ export const uploadApi = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await api.post('/admin/upload/video-public', formData, {
+    const response = await api.post('/admin/upload/video-public/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }

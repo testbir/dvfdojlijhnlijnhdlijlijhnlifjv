@@ -16,7 +16,7 @@ LEARNING_SERVICE_URL = settings.LEARNING_SERVICE_URL
 def _hdr():
     return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}
 
-@router.get("/admin/courses/{course_id}/modules")
+@router.get("/admin/courses/{course_id}/modules/")
 async def get_course_modules(
     course_id: int,
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -32,7 +32,7 @@ async def get_course_modules(
         response.raise_for_status()
         return response.json()
 
-@router.post("/admin/courses/{course_id}/modules")
+@router.post("/admin/courses/{course_id}/modules/")
 async def create_module(
     course_id: int,
     title: str = Body(...),
@@ -149,7 +149,7 @@ LEARNING_SERVICE_URL = settings.LEARNING_SERVICE_URL
 def _hdr():
     return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}
 
-@router.get("/admin/modules/{module_id}/blocks")
+@router.get("/admin/modules/{module_id}/blocks/")
 async def get_module_blocks(
     module_id: int,
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -165,7 +165,7 @@ async def get_module_blocks(
         response.raise_for_status()
         return response.json()
 
-@router.post("/admin/modules/{module_id}/blocks")
+@router.post("/admin/modules/{module_id}/blocks/")
 async def create_block(
     module_id: int,
     type: str = Body(...),  # text, video, code, image
@@ -272,7 +272,7 @@ async def delete_block(
         response.raise_for_status()
         return {"success": True, "message": "Блок удален"}
 
-@router.post("/admin/blocks/reorder")
+@router.post("/admin/blocks/reorder/")
 async def reorder_blocks(
     module_id: int = Body(...),
     blocks_order: List[dict] = Body(...),  # [{"id": block_id, "order": new_order}]

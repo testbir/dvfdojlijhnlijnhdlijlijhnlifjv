@@ -16,7 +16,7 @@ def _hdr():
     return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}
 
 # === МОДАЛЬНЫЕ ОКНА ===
-@router.get("/modal/{course_id}/")
+@router.get("/modal/{course_id}")
 async def get_course_modal(
     course_id: int, 
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -34,7 +34,7 @@ async def get_course_modal(
         response.raise_for_status()
         return response.json()
 
-@router.post("/modal/{course_id}/")
+@router.post("/modal/{course_id}")
 async def create_course_modal(
     course_id: int, 
     title: str = Body(...), 
@@ -55,7 +55,7 @@ async def create_course_modal(
         response.raise_for_status()
         return response.json()
 
-@router.put("/modal/{course_id}/")
+@router.put("/modal/{course_id}")
 async def update_course_modal(
     course_id: int, 
     title: Optional[str] = Body(None),
@@ -80,7 +80,7 @@ async def update_course_modal(
         response.raise_for_status()
         return response.json()
 
-@router.delete("/modal/{course_id}/")
+@router.delete("/modal/{course_id}")
 async def delete_course_modal(
     course_id: int, 
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -97,7 +97,7 @@ async def delete_course_modal(
         return {"message": "Модальное окно удалено"}
 
 # === РАБОТЫ УЧЕНИКОВ ===
-@router.get("/student-works/{course_id}/")
+@router.get("/student-works/{course_id}")
 async def get_student_works(
     course_id: int, 
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -115,7 +115,7 @@ async def get_student_works(
         response.raise_for_status()
         return response.json()
 
-@router.post("/student-works/{course_id}/")
+@router.post("/student-works/{course_id}")
 async def create_student_works(
     course_id: int, 
     title: str = Body(...), 
@@ -137,7 +137,7 @@ async def create_student_works(
         response.raise_for_status()
         return response.json()
 
-@router.put("/student-works/{course_id}/")
+@router.put("/student-works/{course_id}")
 async def update_student_works(
     course_id: int,
     title: Optional[str] = Body(None),
@@ -165,7 +165,7 @@ async def update_student_works(
         response.raise_for_status()
         return response.json()
 
-@router.delete("/student-works/{course_id}/")
+@router.delete("/student-works/{course_id}")
 async def delete_student_works(
     course_id: int,
     current_admin: AdminUser = Depends(get_current_admin_user)

@@ -17,7 +17,7 @@ from utils.auth import get_current_user_id
 
 router = APIRouter(prefix="/courses")
 
-@router.get("/{course_id}/groups")
+@router.get("/{course_id}/groups/")
 async def get_course_outline_grouped(course_id: int, request: Request, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Module).where(Module.course_id == course_id).order_by(Module.order.asc(), Module.id.asc()))
     modules = res.scalars().all()
@@ -56,7 +56,7 @@ async def get_module(module_id: int, db: AsyncSession = Depends(get_db_session))
         raise HTTPException(status_code=404, detail="module not found")
     return ModuleSchema.model_validate(m, from_attributes=True)
 
-@router.get("/modules/{module_id}/blocks", response_model=List[BlockSchema])
+@router.get("/modules/{module_id}/blocks/", response_model=List[BlockSchema])
 async def get_module_blocks(module_id: int, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Block).where(Block.module_id == module_id).order_by(Block.order.asc(), Block.id.asc()))
     blocks = res.scalars().all()

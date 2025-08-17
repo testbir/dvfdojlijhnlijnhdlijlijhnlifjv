@@ -19,7 +19,7 @@ def _norm_aware(dt):
     return dt
 
 
-@router.get("/", response_model=List[CourseCreate], summary="Список курсов (админ)")
+@router.get("/", summary="Список курсов (админ)")
 async def admin_list_courses(db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Course).order_by(Course.order.asc()))
     return res.scalars().all()
@@ -84,7 +84,7 @@ async def admin_get_course(course_id: int, db: AsyncSession = Depends(get_db_ses
         raise HTTPException(status_code=404, detail="Курс не найден")
     return course
 
-@router.patch("/{course_id}/discount", summary="Применить скидку")
+@router.patch("/{course_id}/discount/", summary="Применить скидку")
 async def apply_course_discount(course_id: int, discount: float = Body(..., embed=True), db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Course).where(Course.id == course_id))
     course = res.scalar_one_or_none()
@@ -96,7 +96,7 @@ async def apply_course_discount(course_id: int, discount: float = Body(..., embe
     await db.commit()
     return {"success": True, "discount": discount}
 
-@router.patch("/{course_id}/order", summary="Изменить порядок курса")
+@router.patch("/{course_id}/order/", summary="Изменить порядок курса")
 async def update_course_order(course_id: int, order: int = Body(..., embed=True), db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Course).where(Course.id == course_id))
     course = res.scalar_one_or_none()
@@ -106,7 +106,7 @@ async def update_course_order(course_id: int, order: int = Body(..., embed=True)
     await db.commit()
     return {"success": True, "order": order}
 
-@router.post("/{course_id}/duplicate", summary="Дублировать курс (метаданные)")
+@router.post("/{course_id}/duplicate/", summary="Дублировать курс (метаданные)")
 async def duplicate_course(course_id: int, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Course).where(Course.id == course_id))
     original = res.scalar_one_or_none()

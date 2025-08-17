@@ -7,7 +7,7 @@ from services import learning_service as learning_api
 
 router = APIRouter(tags=["Admin - Blocks"])
 
-@router.post("/admin/modules/{module_id}/blocks", dependencies=[Depends(get_current_admin_user)])
+@router.post("/admin/modules/{module_id}/blocks/", dependencies=[Depends(get_current_admin_user)])
 async def create_block(module_id: int, payload: dict):
     return await learning_api.create_block(module_id, payload)
 
@@ -20,7 +20,7 @@ async def delete_block(block_id: int):
     return await learning_api.delete_block(block_id)
 
 
-@router.post("/admin/blocks/reorder", dependencies=[Depends(get_current_admin_user)])
+@router.post("/admin/blocks/reorder/", dependencies=[Depends(get_current_admin_user)])
 async def reorder_blocks(payload: dict):
     """Изменить порядок блоков"""
     module_id = payload.get("module_id")

@@ -1,6 +1,5 @@
 # admin_service/services/catalog_api.py
 
-# admin_service/services/catalog_api.py
 
 import httpx
 from core.config import settings

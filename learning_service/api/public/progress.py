@@ -49,7 +49,7 @@ async def get_course_progress(course_id: int, request: Request, db: AsyncSession
     )
 
 
-@router.post("/modules/{module_id}/complete", response_model=CompleteModuleResponse)
+@router.post("/modules/{module_id}/complete/", response_model=CompleteModuleResponse)
 async def complete_module(module_id: int, db: AsyncSession = Depends(get_db_session), user_id: int = Depends(get_current_user_id)):
     m = (await db.execute(select(Module).where(Module.id == module_id))).scalar_one_or_none()
     if not m:
