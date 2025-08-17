@@ -1,30 +1,163 @@
 # admin_service/api/blocks.py
 
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Body
+from typing import Optional, List
+import httpx
+from core.config import settings
 from utils.auth import get_current_admin_user
-from services import learning_service as learning_api
+from models.admin import AdminUser
+import logging
 
 router = APIRouter(tags=["Admin - Blocks"])
+logger = logging.getLogger(__name__)
 
-@router.post("/admin/modules/{module_id}/blocks", dependencies=[Depends(get_current_admin_user)])
-async def create_block(module_id: int, payload: dict):
-    return await learning_api.create_block(module_id, payload)
+LEARNING_SERVICE_URL = settings.LEARNING_SERVICE_URL
 
-@router.patch("/admin/blocks/{block_id}", dependencies=[Depends(get_current_admin_user)])
-async def update_block(block_id: int, payload: dict):
-    return await learning_api.update_block(block_id, payload)
+def _hdr():
+    return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}
 
-@router.delete("/admin/blocks/{block_id}", dependencies=[Depends(get_current_admin_user)])
-async def delete_block(block_id: int):
-    return await learning_api.delete_block(block_id)
-
-
-@router.post("/admin/blocks/reorder/", dependencies=[Depends(get_current_admin_user)])
-async def reorder_blocks(payload: dict):
-    """Изменить порядок блоков"""
-    module_id = payload.get("module_id")
-    blocks_order = payload.get("blocks_order", [])
+# ИСПРАВЛЕНО: убрали слеш в конце URL
+@router.get("/admin/modules/{module_id}/blocks")
+async def get_module_blocks(
+    module_id: int,
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """Получить все блоки модуля"""
+    logger.info(f"Admin {current_admin.username} fetching blocks for module {module_id}")
     
-    # Прокси запрос к learning_service
-    return await learning_api.reorder_blocks(module_id, blocks_order)
+    async with httpx.AsyncClient(base_url=LEARNING_SERVICE_URL, timeout=15.0) as client:
+        response = await client.get(
+            f"/v1/admin/modules/{module_id}/blocks/",  # оставляем слеш для learning_service
+            headers=_hdr()
+        )
+        response.raise_for_status()
+        return response.json()
+
+# ИСПРАВЛЕНО: убрали слеш в конце URL
+@router.post("/admin/modules/{module_id}/blocks")
+async def create_block(
+    module_id: int,
+    type: str = Body(...),  # text, video, code, image
+    title: str = Body(...),
+    content: str = Body(...),
+    order: Optional[int] = Body(None),
+    language: Optional[str] = Body(None),  # для блоков кода
+    video_preview: Optional[str] = Body(None),  # для видео
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """Создать новый блок в модуле"""
+    logger.info(f"Admin {current_admin.username} creating block in module {module_id}")
+    
+    payload = {
+        "type": type,
+        "title": title,
+        "content": content,
+        "order": order,
+        "language": language,
+        "video_preview": video_preview
+    }
+    
+    async with httpx.AsyncClient(base_url=LEARNING_SERVICE_URL, timeout=15.0) as client:
+        response = await client.post(
+            f"/v1/admin/modules/{module_id}/blocks/",  # оставляем слеш для learning_service
+            headers=_hdr(),
+            json=payload
+        )
+        response.raise_for_status()
+        return response.json()
+
+@router.get("/admin/blocks/{block_id}")
+async def get_block(
+    block_id: int,
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """Получить информацию о блоке"""
+    logger.info(f"Admin {current_admin.username} fetching block {block_id}")
+    
+    async with httpx.AsyncClient(base_url=LEARNING_SERVICE_URL, timeout=15.0) as client:
+        response = await client.get(
+            f"/v1/admin/blocks/{block_id}",
+            headers=_hdr()
+        )
+        if response.status_code == 404:
+            raise HTTPException(status_code=404, detail="Блок не найден")
+        response.raise_for_status()
+        return response.json()
+
+@router.put("/admin/blocks/{block_id}")
+async def update_block(
+    block_id: int,
+    type: Optional[str] = Body(None),
+    title: Optional[str] = Body(None),
+    content: Optional[str] = Body(None),
+    order: Optional[int] = Body(None),
+    language: Optional[str] = Body(None),
+    video_preview: Optional[str] = Body(None),
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """Обновить блок"""
+    logger.info(f"Admin {current_admin.username} updating block {block_id}")
+    
+    payload = {}
+    if type is not None:
+        payload["type"] = type
+    if title is not None:
+        payload["title"] = title
+    if content is not None:
+        payload["content"] = content
+    if order is not None:
+        payload["order"] = order
+    if language is not None:
+        payload["language"] = language
+    if video_preview is not None:
+        payload["video_preview"] = video_preview
+    
+    async with httpx.AsyncClient(base_url=LEARNING_SERVICE_URL, timeout=15.0) as client:
+        response = await client.put(
+            f"/v1/admin/blocks/{block_id}",
+            headers=_hdr(),
+            json=payload
+        )
+        if response.status_code == 404:
+            raise HTTPException(status_code=404, detail="Блок не найден")
+        response.raise_for_status()
+        return response.json()
+
+@router.delete("/admin/blocks/{block_id}")
+async def delete_block(
+    block_id: int,
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """Удалить блок"""
+    logger.warning(f"Admin {current_admin.username} deleting block {block_id}")
+    
+    async with httpx.AsyncClient(base_url=LEARNING_SERVICE_URL, timeout=15.0) as client:
+        response = await client.delete(
+            f"/v1/admin/blocks/{block_id}",
+            headers=_hdr()
+        )
+        if response.status_code == 404:
+            raise HTTPException(status_code=404, detail="Блок не найден")
+        response.raise_for_status()
+        return {"success": True, "message": "Блок удален"}
+
+@router.post("/admin/blocks/reorder")
+async def reorder_blocks(
+    module_id: int = Body(...),
+    blocks_order: List[dict] = Body(...),  # [{"id": block_id, "order": new_order}]
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """Изменить порядок блоков в модуле"""
+    logger.info(f"Admin {current_admin.username} reordering blocks in module {module_id}")
+    
+    async with httpx.AsyncClient(base_url=LEARNING_SERVICE_URL, timeout=15.0) as client:
+        # Обновляем порядок для каждого блока
+        for block_info in blocks_order:
+            response = await client.put(
+                f"/v1/admin/blocks/{block_info['id']}",
+                headers=_hdr(),
+                json={"order": block_info['order']}
+            )
+            response.raise_for_status()
+        
+        return {"success": True, "message": "Порядок блоков обновлен"}

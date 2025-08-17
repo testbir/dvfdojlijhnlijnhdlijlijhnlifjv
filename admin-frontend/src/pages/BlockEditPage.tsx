@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from '../api/axiosInstance';
+import { blocksApi, uploadApi } from '../services/adminApi';
 import Layout from '../components/Layout';
 import {
   Container,
@@ -57,6 +57,11 @@ const SUPPORTED_LANGUAGES = [
   { value: 'plaintext', label: 'Plain Text' },
 ];
 
+
+type BlockType = 'text' | 'video' | 'code' | 'image';
+type Lang = typeof SUPPORTED_LANGUAGES[number]['value'];
+
+
 export default function BlockEditPage() {
   const { blockId } = useParams<{ blockId: string }>();
   const navigate = useNavigate();
@@ -72,12 +77,9 @@ export default function BlockEditPage() {
   useEffect(() => {
     const fetchBlock = async () => {
       try {
-        const res = await axios.get(`/admin/blocks/${blockId}`);
-        // Если язык не указан для блока кода, устанавливаем по умолчанию
-        if (res.data.type === 'code' && !res.data.language) {
-          res.data.language = 'plaintext';
-        }
-        setBlock(res.data);
+        const res = await blocksApi.getBlock(Number(blockId));
+          if (res.type === 'code' && !res.language) res.language = 'plaintext';
+          setBlock(res);
       } catch {
         setError('Ошибка при загрузке блока');
       } finally {
@@ -90,15 +92,12 @@ export default function BlockEditPage() {
   const handleFileUpload = async (file: File) => {
     try {
       setUploading(true);
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await axios.post('/admin/upload/content', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setBlock((prev: any) => ({
-        ...prev,
-        content: res.data.url,
-      }));
+    const res = await uploadApi.uploadImage(file);
+
+    setBlock((prev: any) => (
+      { ...prev, content: res?.url || res?.image }
+    ));
+
     } catch {
       setError('Ошибка при загрузке файла');
     } finally {
@@ -111,35 +110,19 @@ export default function BlockEditPage() {
       setVideoProcessing(true);
       setVideoProcessingProgress(0);
       setError(null);
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const response = await axios.post('/admin/upload/video-direct', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const uploadProgress = Math.round((progressEvent.loaded * 50) / progressEvent.total);
-            setVideoProcessingProgress(uploadProgress);
-          }
-        }
-      });
 
-      // Симулируем прогресс обработки
+      const res = await uploadApi.uploadVideo(file);
+
+      // имитация прогресса обработки
       for (let i = 50; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(r => setTimeout(r, 500));
         setVideoProcessingProgress(i);
       }
 
-      if (response.data.master_playlist_url) {
-        setBlock((prev: any) => ({
-          ...prev,
-          content: response.data.master_playlist_url,
-        }));
-      } else {
-        throw new Error('Сервер не вернул URL мастер-плейлиста');
-      }
-      
+      const url = res?.master_playlist_url || res?.url;
+      if (!url) throw new Error('Сервер не вернул URL мастер-плейлиста');
+
+      setBlock((prev: any) => ({ ...prev, content: url }));
     } catch (err) {
       console.error('Ошибка при загрузке видео:', err);
       setError('Ошибка при загрузке и обработке видео');
@@ -149,18 +132,16 @@ export default function BlockEditPage() {
     }
   };
 
+
   const handleVideoPreviewUpload = async (file: File) => {
     try {
-      setUploading(true);
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await axios.post('/admin/upload/content', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setBlock((prev: any) => ({
-        ...prev,
-        video_preview: res.data.url,
-      }));
+      setUploading(true);        
+      const res = await uploadApi.uploadImage(file, 'video-previews');
+        
+      setBlock((prev: any) => (
+        { ...prev, video_preview: res?.url || res?.image }
+      ));
+    
     } catch {
       setError('Ошибка при загрузке превью');
     } finally {
@@ -169,17 +150,22 @@ export default function BlockEditPage() {
   };
 
   const handleSave = async () => {
+    const id = Number(blockId);
+    if (!id) {
+      setError('Некорректный ID блока');
+      return;
+    }
     setSaving(true);
     try {
-      await axios.put(`/admin/blocks/${blockId}`, {
-        type: block.type,
-        title: block.title,
-        content: block.content?.trim(),
-        order: block.order,
-        language: block.type === 'code' ? block.language : undefined, // Добавляем язык
+      await blocksApi.updateBlock(id, {
+        type: block.type as BlockType,
+        title: String(block.title || ''),
+        content: String(block.content || '').trim(),
+        order: Number(block.order || 1),
+        language: block.type === 'code' ? block.language : undefined,
         video_preview:
-          block.type === 'video' && block.video_preview?.trim()
-            ? block.video_preview.trim()
+          block.type === 'video'
+            ? (String(block.video_preview || '').trim() || undefined)
             : undefined,
       });
       navigate(-1);
@@ -189,6 +175,7 @@ export default function BlockEditPage() {
       setSaving(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -225,9 +212,18 @@ export default function BlockEditPage() {
           label="Тип блока"
           data={blockTypes}
           value={block.type}
-          onChange={(val) => setBlock({ ...block, type: val! })}
+          onChange={(val) => {
+            const t = (val as BlockType) || 'text';
+            setBlock({
+              ...block,
+              type: t,
+              language: t === 'code' ? (block.language || 'plaintext') : undefined,
+            });
+          }}
           mb="md"
         />
+
+
 
         <TextInput
           label="Заголовок"
@@ -249,16 +245,18 @@ export default function BlockEditPage() {
 
         {block.type === 'code' && (
           <>
+
             <Select
               label="Язык программирования"
               data={SUPPORTED_LANGUAGES}
               value={block.language || 'plaintext'}
-              onChange={(val) => setBlock({ ...block, language: val! })}
+              onChange={(val) => setBlock({ ...block, language: (val as Lang) || 'plaintext' })}
               mb="md"
               searchable
-              nothingFoundMessage="Язык не найден" 
+              nothingFoundMessage="Язык не найден"
               description="Выберите язык для правильной подсветки синтаксиса"
             />
+
             
             <Textarea
               label="Код"
@@ -325,7 +323,7 @@ export default function BlockEditPage() {
               label="Новое видео"
               description="Будет создан HLS-поток с разными качествами"
               onChange={(file) => file && handleVideoUpload(file)}
-              accept="video/*"
+              accept="video/mp4,video/webm,video/quicktime"
               mb="md"
               disabled={uploading || videoProcessing}
             />
@@ -384,10 +382,11 @@ export default function BlockEditPage() {
         <NumberInput
           label="Порядок"
           value={block.order}
-          onChange={(val) => setBlock({ ...block, order: val as number })}
+          onChange={(v) => setBlock({ ...block, order: Number(v) || 1 })}
           min={1}
           mb="md"
         />
+
 
         <Button fullWidth mt="lg" onClick={handleSave} loading={saving}>
           Сохранить

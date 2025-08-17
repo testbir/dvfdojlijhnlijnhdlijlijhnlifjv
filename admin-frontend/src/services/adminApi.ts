@@ -64,7 +64,7 @@ export const modulesApi = {
     order?: number;
     sp_award?: number;
   }) => {
-    const response = await api.post(`/admin/courses/${courseId}/modules/`, data);
+    const response = await api.post(`/admin/courses/${courseId}/module`, data);
     return response.data;
   },
 
@@ -91,20 +91,20 @@ export const modulesApi = {
 export const blocksApi = {
   // Получить блоки модуля
   getModuleBlocks: async (moduleId: number) => {
-    const response = await api.get(`/admin/modules/${moduleId}/blocks/`);
+    const response = await api.get(`/admin/modules/${moduleId}/blocks`);
     return response.data;
   },
 
   // Создать блок
   createBlock: async (moduleId: number, data: {
-    type: 'text' | 'video' | 'code' | 'image';
+    type: 'text' | 'video' | 'code' | 'image'
     title: string;
     content: string;
     order?: number;
     language?: string;
     video_preview?: string;
   }) => {
-    const response = await api.post(`/admin/modules/${moduleId}/blocks/`, data);
+    const response = await api.post(`/admin/modules/${moduleId}/blocks`, data);
     return response.data;
   },
 
@@ -346,6 +346,7 @@ export const usersApi = {
 };
 
 // ==================== ЗАГРУЗКА ФАЙЛОВ ====================
+// ==================== ЗАГРУЗКА ФАЙЛОВ ====================
 export const uploadApi = {
   // Загрузить изображение
   uploadImage: async (file: File, folder: string = 'images') => {
@@ -361,19 +362,34 @@ export const uploadApi = {
     return response.data;
   },
 
-  // Загрузить видео
+  // Загрузить и обработать видео (HLS)
   uploadVideo: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await api.post('/admin/upload/video-public/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+    // загружаем
+    const { data } = await api.post('/admin/upload/video-public/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 0
     });
-    return response.data;
+
+    const videoId = data.video_id;
+
+    // ждём обработки
+    let status;
+    do {
+      await new Promise(r => setTimeout(r, 5000));
+      status = (await api.get(`/admin/video-status/${videoId}`)).data;
+    } while (status.status !== 'completed' && status.status !== 'failed');
+
+    if (status.status === 'completed') {
+      return status.result.master_playlist_url; // вернём HLS URL
+    } else {
+      throw new Error(status.error || 'Ошибка обработки видео');
+    }
   }
 };
+
 
 // ==================== МАССОВЫЕ ОПЕРАЦИИ ====================
 export const bulkOperationsApi = {
