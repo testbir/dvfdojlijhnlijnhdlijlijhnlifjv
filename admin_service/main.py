@@ -61,6 +61,7 @@ from api import course_extras as course_extras_api
 from api import statistics as statistics_api
 from api import users as users_api
 from api import bulk_operations as bulk_operations_api
+from api import upload as upload_api
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -94,7 +95,7 @@ app.include_router(course_extras_api.router)
 app.include_router(statistics_api.router)
 app.include_router(users_api.router)
 app.include_router(bulk_operations_api.router)
-
+app.include_router(upload_api.router) 
 
 # Базовый эндпоинт для проверки
 @app.get("/")

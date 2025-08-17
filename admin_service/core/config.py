@@ -27,7 +27,8 @@ class Settings(BaseSettings):
     S3_ENDPOINT_URL: str = "https://s3.storage.selcloud.ru"
     S3_PUBLIC_BUCKET: str = "course-public"
     S3_PUBLIC_CDN_URL: str = "https://79340a29-0019-4283-b338-388e7f5c1822.selstorage.ru"
-
+    S3_CONTENT_BUCKET: str = "course-content"
+    S3_CONTENT_CDN_URL: str = "https://content-cdn-url.selstorage.ru"
     # App
     DEBUG: bool = False
     CORS_ALLOW_ORIGINS: str = "*"

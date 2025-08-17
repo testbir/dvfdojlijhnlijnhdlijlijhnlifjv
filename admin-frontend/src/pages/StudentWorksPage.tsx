@@ -42,10 +42,9 @@ interface StudentWork {
 }
 
 export default function StudentWorksPage() {
-  const { courseId: courseIdParam } = useParams<{ courseId: string }>();
+  const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const cid = Number(courseIdParam);
-
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -57,20 +56,16 @@ export default function StudentWorksPage() {
   const [works, setWorks] = useState<StudentWork[]>([]);
   const [hasExisting, setHasExisting] = useState(false);
 
- useEffect(() => {
-   if (!Number.isInteger(cid) || cid <= 0) {
-     setError('Некорректный идентификатор курса');
-     setLoading(false);
-     return;
-   }
-   fetchData(cid);
- }, [cid]);
+  useEffect(() => {
+    fetchData();
+  }, [courseId]);
 
-  const fetchData = async (id: number) => {
+  const fetchData = async () => {
+    if (!courseId) return;
     
     try {
       setLoading(true);
-      const data = await studentWorksApi.getWorks(id);
+      const data = await studentWorksApi.getWorks(Number(courseId));
       
       if (data) {
         setTitle(data.title || 'Работы наших учеников');
@@ -146,8 +141,8 @@ export default function StudentWorksPage() {
     }
   };
 
-   const handleSave = async () => {
-     if (!Number.isInteger(cid) || cid <= 0) return;
+  const handleSave = async () => {
+    if (!courseId) return;
 
     if (!title.trim()) {
       setError('Введите заголовок');
@@ -176,16 +171,16 @@ export default function StudentWorksPage() {
         works: works.map((w, i) => ({ ...w, order: i }))
       };
 
-      if (hasExisting) { 
-        await studentWorksApi.updateWorks(cid, data); 
-      } else { 
-        await studentWorksApi.createWorks(cid, data); 
+      if (hasExisting) {
+        await studentWorksApi.updateWorks(Number(courseId), data);
+      } else {
+        await studentWorksApi.createWorks(Number(courseId), data);
         setHasExisting(true);
       }
 
       setSuccess('Работы учеников сохранены');
       setTimeout(() => {
-        navigate(`/courses/${cid}/structure`);
+        navigate(`/courses/${courseId}/structure`);
       }, 1500);
     } catch (err) {
       setError('Ошибка при сохранении');
@@ -195,8 +190,8 @@ export default function StudentWorksPage() {
     }
   };
 
- const handleDelete = async () => {
-   if (!Number.isInteger(cid) || cid <= 0 || !hasExisting) return;
+  const handleDelete = async () => {
+    if (!courseId || !hasExisting) return;
     
     if (!window.confirm('Удалить секцию работ учеников? Это действие необратимо.')) {
       return;
@@ -204,10 +199,10 @@ export default function StudentWorksPage() {
 
     try {
       setSaving(true);
-      await studentWorksApi.deleteWorks(cid);
+      await studentWorksApi.deleteWorks(Number(courseId));
       setSuccess('Секция работ удалена');
       setTimeout(() => {
-        navigate(`/courses/${cid}/structure`);
+        navigate(`/courses/${courseId}/structure`);
       }, 1500);
     } catch (err) {
       setError('Ошибка при удалении');
@@ -374,7 +369,7 @@ export default function StudentWorksPage() {
           <Group justify="space-between" mt="xl">
             <Button
               variant="outline"
-              onClick={() => navigate(`/courses/${cid}/structure`)}
+              onClick={() => navigate(`/courses/${courseId}/structure`)}
             >
               Отмена
             </Button>

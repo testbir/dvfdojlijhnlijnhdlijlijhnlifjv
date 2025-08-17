@@ -52,8 +52,7 @@ interface GroupedModules {
 }
 
 export default function CourseStructurePage() {
-  const { courseId: courseIdParam } = useParams<{ courseId: string }>();
-  const cid = Number(courseIdParam);
+  const { courseId } = useParams<{ courseId: string }>();
   const [modules, setModules] = useState<Module[]>([]);
   const [groupedModules, setGroupedModules] = useState<GroupedModules>({});
   const [loading, setLoading] = useState(true);
@@ -61,21 +60,17 @@ export default function CourseStructurePage() {
   const [extras, setExtras] = useState<CourseExtras>({ hasModal: false, hasStudentWorks: false });
 
   useEffect(() => {
-   if (!Number.isInteger(cid) || cid <= 0) {
-     setError('Некорректный идентификатор курса');
-     setLoading(false);
-     return;
-   }
-   fetchData(cid);
- }, [cid]);
+    fetchData();
+  }, [courseId]);
 
-  const fetchData = async (id: number) => {    
-  
+  const fetchData = async () => {
+    if (!courseId) return;
+    
     try {
       setLoading(true);
       
       // Загружаем модули
-      const modulesData = await modulesApi.getCourseModules(id);
+      const modulesData = await modulesApi.getCourseModules(Number(courseId));
       setModules(modulesData);
       
       // Группируем модули
@@ -98,8 +93,8 @@ export default function CourseStructurePage() {
       // Проверяем наличие модального окна и работ учеников
       try {
         const [modalData, worksData] = await Promise.all([
-          courseModalApi.getModal(id).catch(() => null),
-          studentWorksApi.getWorks(id).catch(() => null)
+          courseModalApi.getModal(Number(courseId)).catch(() => null),
+          studentWorksApi.getWorks(Number(courseId)).catch(() => null)
         ]);
         
         setExtras({
@@ -184,7 +179,7 @@ export default function CourseStructurePage() {
                       </Badge>
                       <Button 
                         component={Link} 
-                        to={`/courses/${cid}/modal`}
+                        to={`/courses/${courseId}/modal`}
                         size="sm"
                         variant="light"
                         leftSection={<IconEdit size={16} />}
@@ -199,7 +194,7 @@ export default function CourseStructurePage() {
                       </Badge>
                       <Button 
                         component={Link} 
-                        to={`/courses/${cid}/modal`}
+                        to={`/courses/${courseId}/modal`}
                         size="sm"
                         leftSection={<IconPlus size={16} />}
                       >
@@ -230,7 +225,7 @@ export default function CourseStructurePage() {
                       </Badge>
                       <Button 
                         component={Link} 
-                        to={`/courses/${cid}/student-works`}
+                        to={`/courses/${courseId}/student-works`}
                         size="sm"
                         variant="light"
                         leftSection={<IconEdit size={16} />}
@@ -245,7 +240,7 @@ export default function CourseStructurePage() {
                       </Badge>
                       <Button 
                         component={Link} 
-                        to={`/courses/${cid}/student-works`}
+                        to={`/courses/${courseId}/student-works`}
                         size="sm"
                         leftSection={<IconPlus size={16} />}
                       >
@@ -265,7 +260,7 @@ export default function CourseStructurePage() {
             <Title order={4}>Модули курса</Title>
             <Button 
               component={Link} 
-              to={`/courses/${cid}/modules/create`}
+              to={`/courses/${courseId}/modules/create`}
               leftSection={<IconPlus size={16} />}
             >
               Добавить модуль

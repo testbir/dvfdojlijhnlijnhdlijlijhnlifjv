@@ -1,13 +1,27 @@
 // admin-frontend/src/services/adminApi.ts
 
 import api from '../api/axiosInstance';
+import { z } from 'zod';
+
+const CourseSchema = z.object({
+  id: z.number().int().positive(),
+  title: z.string(),
+}).passthrough();
+
+export type AdminCourse = z.infer<typeof CourseSchema>;
+
+export const getCoursesSafe = async (): Promise<AdminCourse[]> => {
+  const { data } = await api.get('/admin/courses/');
+  return z.array(CourseSchema).parse(data);
+};
+
 
 // ==================== КУРСЫ ====================
 export const coursesApi = {
   // Получить список курсов
   getCourses: async () => {
-    const response = await api.get('/admin/courses/');
-    return response.data;
+    const { data } = await api.get('/admin/courses/');
+    return z.array(CourseSchema).parse(data);
   },
 
   // Получить курс по ID
