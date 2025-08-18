@@ -1,103 +1,143 @@
-// arc/services/authService.tsx
+// frontend/src/services/authService.ts
 
+import { authApi } from "../api/authApi";
 
-import authApi from "../api/authApi";
-import type {
-  AuthTokens,
-  LoginData,
-  RegisterData,
-  VerifyCodeData,
-  RequestResetData,
-  VerifyResetCodeData,
-  SetNewPasswordData,
-} from "../types/auth.types";
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
 
-const TOKEN_KEY = "auth_tokens";
+export interface AuthTokens {
+  access: string;
+  refresh: string;
+}
+
+export interface RegisterData {
+  username: string;
+  email: string;
+  password: string;
+}
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+}
 
 class AuthService {
-  // Сохранение токенов
-  setTokens(tokens: AuthTokens) {
-    localStorage.setItem(TOKEN_KEY, JSON.stringify(tokens));
-  }
-
-  // Получение токенов
-  getTokens(): AuthTokens | null {
-    const tokens = localStorage.getItem(TOKEN_KEY);
-    return tokens ? JSON.parse(tokens) : null;
-  }
-
-  // Удаление токенов
-  removeTokens() {
-    localStorage.removeItem(TOKEN_KEY);
-  }
-
-  // Вход
-  async login(data: LoginData): Promise<AuthTokens> {
-    const response = await authApi.post("/api/token/", data);
-    const tokens = response.data;
-    this.setTokens(tokens);
-    return tokens;
+  // Вход с новым форматом токенов
+  async login(credentials: LoginCredentials): Promise<AuthTokens> {
+    try {
+      const response = await authApi.post("/api/token/", credentials);
+      const tokens: AuthTokens = {
+        access: response.data.access,
+        refresh: response.data.refresh
+      };
+      
+      localStorage.setItem("auth_tokens", JSON.stringify(tokens));
+      return tokens;
+    } catch (error: any) {
+      // Обработка специфичных ошибок
+      if (error.response?.data?.error === 'account_not_activated') {
+        throw {
+          type: 'NOT_ACTIVATED',
+          message: error.response.data.message,
+          userId: error.response.data.user_id,
+          email: error.response.data.email
+        };
+      }
+      throw error;
+    }
   }
 
   // Регистрация
-  async register(data: RegisterData) {
+  async register(data: RegisterData): Promise<{ user_id: number; message: string }> {
     const response = await authApi.post("/api/register/", data);
     return response.data;
   }
 
   // Подтверждение email
-  async verifyCode(data: VerifyCodeData) {
-    const response = await authApi.post("/api/verify-code/", data);
-    return response.data;
+  async verifyCode(userId: number, code: string): Promise<AuthTokens> {
+    const response = await authApi.post("/api/verify-code/", {
+      user_id: userId,
+      code: code
+    });
+    
+    const tokens: AuthTokens = {
+      access: response.data.access,
+      refresh: response.data.refresh
+    };
+    
+    localStorage.setItem("auth_tokens", JSON.stringify(tokens));
+    return tokens;
   }
 
-  // Запрос на сброс пароля
-  async requestPasswordReset(data: RequestResetData) {
-    const response = await authApi.post("/api/request-reset/", data);
-    return response.data;
+  // Повторная отправка кода
+  async resendCode(userId: number, purpose: string = 'register'): Promise<void> {
+    await authApi.post("/api/resend-code/", {
+      user_id: userId,
+      purpose: purpose
+    });
   }
 
-  // Проверка кода сброса
-  async verifyResetCode(data: VerifyResetCodeData) {
-    const response = await authApi.post("/api/verify-reset-code/", data);
+  // Запрос сброса пароля
+  async requestPasswordReset(email: string): Promise<void> {
+    await authApi.post("/api/request-reset/", { email });
+  }
+
+  // Подтверждение кода сброса
+  async verifyResetCode(email: string, code: string): Promise<{ user_id: number }> {
+    const response = await authApi.post("/api/verify-reset-code/", {
+      email,
+      code
+    });
     return response.data;
   }
 
   // Установка нового пароля
-  async setNewPassword(data: SetNewPasswordData) {
-    const response = await authApi.post("/api/set-new-password/", data);
-    return response.data;
+  async setNewPassword(userId: number, password: string): Promise<void> {
+    await authApi.post("/api/set-new-password/", {
+      user_id: userId,
+      password: password
+    });
   }
 
   // Выход
-  async logout() {
-    const tokens = this.getTokens();
-    if (tokens?.refresh) {
-      try {
-        await authApi.post("/api/logout/", { refresh: tokens.refresh });
-      } catch (error) {
-        console.error("Ошибка при выходе:", error);
+  async logout(): Promise<void> {
+    try {
+      const raw = localStorage.getItem("auth_tokens");
+      const tokens: AuthTokens | null = raw ? JSON.parse(raw) : null;
+      
+      if (tokens?.refresh) {
+        await authApi.post("/api/logout/", {
+          refresh: tokens.refresh
+        });
       }
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      localStorage.removeItem("auth_tokens");
+      window.location.href = "/login";
     }
-    this.removeTokens();
   }
 
-  // Обновление access токена
-  async refreshToken(): Promise<string | null> {
-    const tokens = this.getTokens();
-    if (!tokens?.refresh) return null;
+  // Получение данных пользователя
+  async getCurrentUser(): Promise<User> {
+    const response = await authApi.get("/api/user/");
+    return response.data;
+  }
 
-    try {
-      const response = await authApi.post("/api/token/refresh/", {
-        refresh: tokens.refresh,
-      });
-      const newAccess = response.data.access;
-      this.setTokens({ ...tokens, access: newAccess });
-      return newAccess;
-    } catch (error) {
-      this.removeTokens();
-      return null;
-    }
+  // Проверка авторизации
+  isAuthenticated(): boolean {
+    const raw = localStorage.getItem("auth_tokens");
+    const tokens: AuthTokens | null = raw ? JSON.parse(raw) : null;
+    return !!tokens?.access;
+  }
+
+  // Получение токенов
+  getTokens(): AuthTokens | null {
+    const raw = localStorage.getItem("auth_tokens");
+    return raw ? JSON.parse(raw) : null;
   }
 }
 

@@ -3,4 +3,4 @@
 
 // API-клиент для auth_service (порт 8000)
 import { createApi } from "./axiosInstance";
-export default createApi("/auth-api");
+export const authApi = createApi("/auth-api");

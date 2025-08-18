@@ -1,120 +1,61 @@
 // frontend/src/services/learningService.ts
 
-import learningApi from "../api/learningApi"; 
+import { learningApi } from "../api/learningApi";
 
-interface Module {
-  id: string;
-  title: string;
-  groupId: string;
-  order: number;
-}
-
-interface Group {
-  id: string;
-  title: string;
-  order: number;
-}
-
-interface ContentBlock {
-  id: string;
+export interface ContentBlock {
+  id: number;
   type: 'text' | 'code' | 'video' | 'image';
   title: string;
   content: string;
   order: number;
-  language?: string; // Добавляем поддержку языка
+  language?: string;
 }
 
-interface CourseData {
-  id: string;
+export interface ModuleWithBlocks {
+  id: number;
   title: string;
-  groups: Group[];
-  modules: Module[];
-  progress: number;
+  blocks: ContentBlock[];
 }
 
-interface ModuleProgress {
-  moduleId: string;
-  isCompleted: boolean;
-  completedAt?: string;
+export interface CourseProgress {
+  course_id: number;
+  total_modules: number;
+  completed_modules: number;
+  progress_percent: number;
+  completed_module_ids: number[];
 }
 
 class LearningService {
-  private api = learningApi;
-
-  // Получить данные курса
-  async getCourseData(courseId: string): Promise<CourseData> {
-    const { data } = await this.api.get<CourseData>(
-      `/learning/courses/${courseId}`
-    );
-    return data;
+  // Получение модулей курса с прогрессом
+  async getCourseModules(courseId: number): Promise<{
+    modules: ModuleWithBlocks[];
+    progress: CourseProgress;
+  }> {
+    const response = await catalogApi.get(`/v1/public/courses/${courseId}/modules`);
+    return response.data;
   }
 
-  // Получить контент модуля (теперь включает language для блоков кода)
-  async getModuleContent(
-    courseId: string,
-    moduleId: string
-  ): Promise<ContentBlock[]> {
-    const { data } = await this.api.get<ContentBlock[]>(
-      `/learning/courses/${courseId}/modules/${moduleId}/content`
-    );
-    return data;
+  // Получение блоков модуля
+  async getModuleBlocks(moduleId: number): Promise<ContentBlock[]> {
+    const response = await learningApi.get(`/v1/public/modules/${moduleId}/blocks`);
+    return response.data;
   }
-  
+
   // Отметить модуль как завершенный
-  async markModuleCompleted(courseId: string, moduleId: string): Promise<void> {
-    try {
-      await this.api.post(`/learning/courses/${courseId}/modules/${moduleId}/complete`);
-    } catch (error) {
-      console.error('Error marking module as completed:', error);
-      throw error;
-    }
+  async completeModule(moduleId: number): Promise<{
+    success: boolean;
+    sp_awarded: number;
+    new_balance: number;
+  }> {
+    const response = await learningApi.post(`/v1/public/progress/module/${moduleId}/complete`);
+    return response.data;
   }
 
-  // Получить прогресс пользователя по курсу
-  async getUserProgress(courseId: string): Promise<ModuleProgress[]> {
-    try {
-      const response = await this.api.get(`/learning/courses/${courseId}/progress`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching user progress:', error);
-      throw error;
-    }
-  }
-
-  // Обновить позицию пользователя в курсе
-  async updateUserPosition(courseId: string, moduleId: string, position: number): Promise<void> {
-    try {
-      await this.api.put(`/learning/courses/${courseId}/position`, {
-        moduleId,
-        position,
-      });
-    } catch (error) {
-      console.error('Error updating user position:', error);
-      throw error;
-    }
-  }
-
-  // Получить список всех курсов пользователя
-  async getUserCourses(): Promise<CourseData[]> {
-    try {
-      const response = await this.api.get('/user/courses');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching user courses:', error);
-      throw error;
-    }
-  }
-
-  // Проверить доступ к курсу
-  async checkCourseAccess(courseId: string): Promise<boolean> {
-    try {
-      const response = await this.api.get(`/learning/courses/${courseId}/access`);
-      return response.data.hasAccess;
-    } catch (error) {
-      console.error('Error checking course access:', error);
-      return false;
-    }
+  // Получение прогресса по курсу
+  async getCourseProgress(courseId: number): Promise<CourseProgress> {
+    const response = await learningApi.get(`/v1/public/progress/course/${courseId}`);
+    return response.data;
   }
 }
 
-export const learningService = new LearningService();
+export default new LearningService();
