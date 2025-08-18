@@ -1,53 +1,57 @@
-// src/pages/HomePage.tsx
+// frontend/src/pages/HomePage.tsx
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import catalogService, { type Course, type Banner } from "../services/catalogService";
+import courseService from "../services/courseService";
+import catalogService from "../services/catalogService"; // для баннеров и CDN
 import { Link } from "react-router-dom";
 import Layout from "../components/Layout";
 import HomePageSkeleton from "../components/skeletons/HomePageSkeleton";
 import "../styles/HomePage.scss";
 
 export default function HomePage() {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [banners, setBanners] = useState<Banner[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [banners, setBanners] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const [showActivationToast, setShowActivationToast] = useState(false);
-  const [loading, setLoading] = useState(true); // ✅ Добавил состояние загрузки
-  
-  const filteredCourses = catalogService.filterCourses(courses, searchQuery);
+  const [loading, setLoading] = useState(true);
+
+  // Фильтрация курсов
+  const filteredCourses = courses.filter(course => 
+    searchQuery.trim() === "" ||
+    course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    course.short_description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
-    setLoading(true); // ✅ Начинаем загрузку
-    
-    catalogService.getHomePageData()
-      .then((data) => {
-        setCourses(data.courses);
-        setBanners(data.banners);
-      })
-      .catch((err) => console.error("Ошибка загрузки данных:", err))
-      .finally(() => {
-        // ✅ Минимальная задержка для плавного перехода от skeleton
-        setTimeout(() => {
-          setLoading(false);
-        }, 300);
-      });
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        // Загружаем курсы через новый API
+        const coursesResponse = await courseService.getCourses();
+        setCourses(coursesResponse.courses || []);
+        
+        // Загружаем баннеры через старый catalogService
+        const bannersData = await catalogService.getBanners(2);
+        setBanners(bannersData);
+      } catch (error) {
+        console.error("Ошибка загрузки данных:", error);
+      } finally {
+        setTimeout(() => setLoading(false), 300);
+      }
+    };
+
+    loadData();
   }, []);
 
+  // Обработка уведомления об активации
   useEffect(() => {
-    // Проверяем параметр активации
     if (searchParams.get('message') === 'activated') {
       setShowActivationToast(true);
-      
-      // Убираем параметр из URL
       searchParams.delete('message');
       setSearchParams(searchParams, { replace: true });
-      
-      // Автоматически скрываем через 5 секунд
-      setTimeout(() => {
-        setShowActivationToast(false);
-      }, 8000);
+      setTimeout(() => setShowActivationToast(false), 8000);
     }
   }, [searchParams, setSearchParams]);
 
@@ -60,94 +64,84 @@ export default function HomePage() {
             <span className="toast-icon">✅</span>
             <div className="toast-text">
               <div className="toast-title">Аккаунт активирован!</div>
-              <div className="toast-subtitle">Войдите для продолжения</div>
+              <div className="toast-subtitle">Теперь вы можете использовать все возможности</div>
             </div>
             <button className="toast-close" onClick={() => setShowActivationToast(false)}>×</button>
           </div>
         </div>
       )}
 
-      {/* ✅ Показываем skeleton пока идет загрузка */}
       {loading ? (
         <HomePageSkeleton />
       ) : (
-        <div className="home-homepage" style={{ 
-          animation: 'fadeInContent 0.5s ease-out',
-          opacity: 1 
-        }}>
-          <div className="home-banner-row">
-            {banners.map((banner, index) => {
-              const image = (
-                <img
-                  key={`banner-${banner.id}`}
-                  src={catalogService.formatImageUrl(banner.image)}
-                  alt={`Баннер ${index + 1}`}
-                  className={`home-homepage-banner ${index === 0 ? "left" : "right"}`}
-                  onError={(e) => (e.currentTarget.src = "/fallback.png")}
-                />
-              );
+        <div className="home-page">
+          {/* Баннеры */}
+          {banners.length > 0 && (
+            <div className="banners-section">
+              {banners.map((banner) => (
+                <div key={banner.id} className="banner">
+                  {banner.link ? (
+                    <a href={banner.link} target="_blank" rel="noopener noreferrer">
+                      <img 
+                        src={catalogService.formatImageUrl(banner.image)} 
+                        alt="Баннер" 
+                      />
+                    </a>
+                  ) : (
+                    <img 
+                      src={catalogService.formatImageUrl(banner.image)} 
+                      alt="Баннер" 
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
-              return banner.link ? (
-                <a
-                  key={banner.id}
-                  href={banner.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "block", position: "relative", zIndex: 2 }}
-                >
-                  {image}
-                </a>
-              ) : (
-                image
-              );
-            })}
-          </div>
-
-          <div className="home-course-grid">
+          {/* Курсы */}
+          <div className="courses-grid">
             {filteredCourses.map((course) => (
-              <div key={course.id} className="home-course-card">
-                <div className="home-course-content">
-                  <div className="home-course-text">
-                    <h3 className="home-course-title">{course.title}</h3>
-                    <p className="home-course-description">
-                      {course.short_description}
-                    </p>
-                  </div>
-                  <img
-                    src={catalogService.formatImageUrl(course.image)}
-                    alt={course.title}
-                    onError={(e) => (e.currentTarget.src = "/fallback.png")}
-                    className="home-course-avatar"
+              <Link
+                key={course.id}
+                to={`/course/${course.id}`}
+                className="course-card"
+              >
+                <div className="course-image">
+                  <img 
+                    src={catalogService.formatImageUrl(course.image)} 
+                    alt={course.title} 
                   />
+                  {course.is_free && (
+                    <span className="free-badge">Бесплатно</span>
+                  )}
                 </div>
-
-                <div className="home-course-footer">
-                  <div className="home-course-price">
-                    {course.is_free ? (
-                      <span className="home-course-free">Бесплатно</span>
-                    ) : course.price > course.final_price ? (
-                      <div className="home-course-paid">
-                        <div className="home-course-original-price">
-                          {course.price} ₽
-                        </div>
-                        <div className="home-course-final-price">
-                          {course.final_price} ₽
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="home-course-final-price">
-                        {course.final_price} ₽
-                      </span>
-                    )}
-                  </div>
-
-                  <Link to={`/course/${course.id}`}>
-                    <button className="home-course-button">{course.button_text}</button>
-                  </Link>
+                <div className="course-content">
+                  <h3 className="course-title">{course.title}</h3>
+                  <p className="course-description">{course.short_description}</p>
+                  {!course.is_free && (
+                    <div className="course-price">
+                      {course.discount ? (
+                        <>
+                          <span className="price-old">{course.price} ₽</span>
+                          <span className="price-current">
+                            {Math.round(course.price * (1 - course.discount / 100))} ₽
+                          </span>
+                        </>
+                      ) : (
+                        <span className="price-current">{course.price} ₽</span>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
+
+          {filteredCourses.length === 0 && (
+            <div className="no-courses">
+              <p>Курсы не найдены</p>
+            </div>
+          )}
         </div>
       )}
     </Layout>
