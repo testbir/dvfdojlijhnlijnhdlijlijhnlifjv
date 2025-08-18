@@ -1,4 +1,4 @@
-// src/pages/PromoCodesPage.tsx
+// admin-frontend/src/pages/PromoCodesPage.tsx
 
 import { useEffect, useState } from 'react';
 import {
@@ -15,7 +15,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import axiosInstance from '../api/axiosInstance';
+import { promoCodesApi } from '../services/adminApi';
 
 const { RangePicker } = DatePicker;
 
@@ -51,8 +51,8 @@ export default function PromoCodesPage() {
   const fetchPromoCodes = async () => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get<PromoCode[]>('/admin/promocodes/');
-      setPromoCodes(response.data);
+      const data = await promoCodesApi.getPromoCodes();
+      setPromoCodes(data);
     } catch {
       message.error('Ошибка при загрузке промокодов');
     } finally {
@@ -62,7 +62,7 @@ export default function PromoCodesPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      await axiosInstance.delete(`/admin/promocodes/${id}/`);
+      await promoCodesApi.deletePromoCode(id);
       message.success('Промокод удалён');
       fetchPromoCodes();
     } catch {
@@ -79,17 +79,20 @@ export default function PromoCodesPage() {
     }
 
     const payload = {
-      ...values,
+      code: values.code,
+      discount_percent: values.discount_percent,
+      discount_amount: values.discount_amount,
+      max_uses: values.max_uses,
       valid_from: values.valid_range[0].toISOString(),
       valid_until: values.valid_range[1].toISOString(),
     };
 
     try {
       if (editingId) {
-        await axiosInstance.put(`/admin/promocodes/${editingId}/`, payload);
+        await promoCodesApi.updatePromoCode(editingId, payload);
         message.success('Промокод обновлён');
       } else {
-        await axiosInstance.post('/admin/promocodes/', payload);
+        await promoCodesApi.createPromoCode(payload);
         message.success('Промокод создан');
       }
       form.resetFields();
@@ -112,21 +115,13 @@ export default function PromoCodesPage() {
   };
 
   const columns: ColumnsType<PromoCode> = [
-    {
-      title: 'Код',
-      dataIndex: 'code',
-    },
+    { title: 'Код', dataIndex: 'code' },
     {
       title: 'Скидка',
       render: (_, record) =>
-        record.discount_percent
-          ? `${record.discount_percent}%`
-          : `${record.discount_amount}₽`,
+        record.discount_percent ? `${record.discount_percent}%` : `${record.discount_amount}₽`,
     },
-    {
-      title: 'Осталось использований',
-      render: (r) => `${r.uses_left} / ${r.max_uses}`,
-    },
+    { title: 'Осталось использований', render: (r) => `${r.uses_left} / ${r.max_uses}` },
     {
       title: 'Срок действия',
       render: (r) =>
@@ -147,12 +142,9 @@ export default function PromoCodesPage() {
         else if (now.isAfter(end)) status = 'Истёк';
         else status = 'Активен';
 
-        const color = {
-          Активен: 'green',
-          Ожидается: 'blue',
-          Истёк: 'red',
-          Исчерпан: 'orange',
-        }[status];
+        const color = { Активен: 'green', Ожидается: 'blue', Истёк: 'red', Исчерпан: 'orange' }[
+          status
+        ] as any;
 
         return <Tag color={color}>{status}</Tag>;
       },

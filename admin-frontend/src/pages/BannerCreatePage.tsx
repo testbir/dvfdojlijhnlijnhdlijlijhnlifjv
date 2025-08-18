@@ -2,11 +2,9 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from '../api/axiosInstance';
 import Layout from '../components/Layout';
 import { DateTimePicker } from '@mantine/dates';
-
-
+import { bannersApi } from '../services/adminApi';
 
 import {
   Container,
@@ -31,15 +29,16 @@ export default function BannerCreatePage() {
   const [discountStart, setDiscountStart] = useState<Date | null>(null);
   const [discountUntil, setDiscountUntil] = useState<Date | null>(null);
 
-
-const handleSubmit = async () => {
-  if (!file) {
-    setError('Выберите изображение');
-    return;
-  }
+  const handleSubmit = async () => {
+    if (!file) {
+      setError('Выберите изображение');
+      return;
+    }
 
     try {
       setUploading(true);
+      setError(null);
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('order', order.toString());
@@ -52,20 +51,14 @@ const handleSubmit = async () => {
         formData.append('discount_until', discountUntil.toISOString());
       }
 
-      await axios.post('/admin/banners/', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
+      await bannersApi.createBanner(formData);
       navigate('/');
-    } catch {
-      setError('Ошибка при создании баннера');
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Ошибка при создании баннера');
     } finally {
       setUploading(false);
     }
   };
-
 
   return (
     <Layout>
@@ -103,33 +96,30 @@ const handleSubmit = async () => {
           mb="md"
         />
 
-          <DateTimePicker
-            label="Начало скидки"
-            value={discountStart}
-            onChange={(value) => setDiscountStart(value ? new Date(value) : null)}
-            valueFormat="YYYY-MM-DDTHH:mm:ss"
-            clearable
-            mb="md"
-          />
+        <DateTimePicker
+          label="Начало скидки"
+          value={discountStart}
+          onChange={(value) => setDiscountStart(value ? new Date(value) : null)}
+          valueFormat="YYYY-MM-DDTHH:mm:ss"
+          clearable
+          mb="md"
+        />
 
-          <DateTimePicker
-            label="Окончание скидки"
-            value={discountUntil}
-            onChange={(value) => setDiscountUntil(value ? new Date(value) : null)}
-            valueFormat="YYYY-MM-DDTHH:mm:ss"
-            clearable
-            mb="md"
-          />
-
-
-
+        <DateTimePicker
+          label="Окончание скидки"
+          value={discountUntil}
+          onChange={(value) => setDiscountUntil(value ? new Date(value) : null)}
+          valueFormat="YYYY-MM-DDTHH:mm:ss"
+          clearable
+          mb="md"
+        />
 
         <Button fullWidth onClick={handleSubmit} disabled={uploading}>
           Сохранить баннер
         </Button>
 
         {error && (
-          <Notification color="red" mt="md">
+          <Notification color="red" mt="md" onClose={() => setError(null)}>
             {error}
           </Notification>
         )}

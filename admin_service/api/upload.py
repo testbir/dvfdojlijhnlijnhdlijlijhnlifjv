@@ -145,7 +145,7 @@ async def upload_to_s3(
 
 # ============= ПУБЛИЧНЫЕ ФАЙЛЫ =============
 
-@router.post("/upload/public", summary="Загрузить публичное изображение")
+@router.post("/upload/public/", summary="Загрузить публичное изображение")
 async def upload_public_file(
     file: UploadFile = File(...),
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -167,7 +167,7 @@ async def upload_public_file(
         raise HTTPException(status_code=500, detail=f"Ошибка загрузки: {str(e)}")
 
 
-@router.post("/upload/video-public", summary="Загрузить публичное видео (для страницы О курсе)")
+@router.post("/upload/video-public/", summary="Загрузить публичное видео (для страницы О курсе)")
 async def upload_public_video_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
@@ -299,7 +299,7 @@ async def process_public_video_background(video_id: str, temp_path: str, filenam
 
 # ============= КОНТЕНТ ФАЙЛЫ =============
 
-@router.post("/upload/content", summary="Загрузить курс-контент (изображения, документы)")
+@router.post("/upload/content/", summary="Загрузить курс-контент (изображения, документы)")
 async def upload_content_file(
     file: UploadFile = File(...),
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -323,7 +323,7 @@ async def upload_content_file(
         raise HTTPException(status_code=500, detail=f"Ошибка загрузки: {str(e)}")
 
 
-@router.post("/upload/video", summary="Загрузить и обработать приватное видео (внутри курса)")
+@router.post("/upload/video/", summary="Загрузить и обработать приватное видео (внутри курса)")
 async def upload_video_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
@@ -506,7 +506,7 @@ async def delete_video_status_endpoint(
 
 # ============= ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ =============
 
-@router.post("/upload/video-direct", summary="Прямая загрузка видео (синхронная)")
+@router.post("/upload/video-direct/", summary="Прямая загрузка видео (синхронная)")
 async def upload_video_direct(
     file: UploadFile = File(...),
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -567,7 +567,7 @@ async def upload_video_direct(
         raise HTTPException(status_code=500, detail=f"Ошибка обработки видео: {str(e)}")
 
 
-@router.post("/upload/video-simple", summary="Простая загрузка видео без обработки")
+@router.post("/upload/video-simple/", summary="Простая загрузка видео без обработки")
 async def upload_simple_video(
     file: UploadFile = File(...),
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -592,7 +592,7 @@ async def upload_simple_video(
         raise HTTPException(status_code=500, detail=f"Ошибка загрузки видео: {str(e)}")
 
 
-@router.post("/upload/video-simple-public", summary="Простая загрузка публичного видео")
+@router.post("/upload/video-simple-public/", summary="Простая загрузка публичного видео")
 async def upload_simple_video_public(
     file: UploadFile = File(...),
     current_admin: AdminUser = Depends(get_current_admin_user)

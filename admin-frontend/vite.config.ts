@@ -13,18 +13,17 @@ export default defineConfig({
       usePolling: true,
     },
     proxy: {
-      "/admin-api": {
-        target: "http://localhost:8010",
+      '/admin-api': {
+        target: 'http://localhost:8010',
         changeOrigin: true,
-        // Исправленная функция rewrite, которая сохраняет trailing slash
         rewrite: (path) => {
-          // Удаляем префикс /admin-api
-          const newPath = path.replace(/^\/admin-api/, "");
-          // Если путь пустой, возвращаем /
-          return newPath || '/';
+          // режем и приводим к одному ведущему /
+          const p = path.replace(/^\/admin-api\/?/, '/');
+          return p === '' ? '/' : p;
         },
       },
     },
+
   },
   preview: {
     host: "0.0.0.0",

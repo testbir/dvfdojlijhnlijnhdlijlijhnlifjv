@@ -23,9 +23,7 @@ import {
 } from '@mantine/core';
 import { IconTrash, IconArrowUp, IconArrowDown, IconPlus } from '@tabler/icons-react';
 import Layout from '../components/Layout';
-import axios from '../api/axiosInstance';
-
-
+import { courseModalApi, uploadApi } from '../services/adminApi';
 
 interface ModalBlock {
   type: 'text' | 'image';
@@ -35,31 +33,41 @@ interface ModalBlock {
 
 export default function CourseModalPage() {
   const { courseId } = useParams<{ courseId: string }>();
+  const cid = Number(courseId);
   const navigate = useNavigate();
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [title, setTitle] = useState('');
   const [blocks, setBlocks] = useState<ModalBlock[]>([]);
   const [hasExistingModal, setHasExistingModal] = useState(false);
 
   useEffect(() => {
     fetchModalData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
 
   const fetchModalData = async () => {
+    setLoading(true);
     try {
-      const res = await axios.get(`/admin/course-extras/modal/${courseId}/`);
-      if (res.data) {
-        setTitle(res.data.title);
-        setBlocks(res.data.blocks.sort((a: any, b: any) => a.order - b.order));
+      const data = await courseModalApi.getModal(cid);
+      if (data) {
+        setTitle(data.title || '');
+        setBlocks((data.blocks || []).sort((a: any, b: any) => a.order - b.order));
         setHasExistingModal(true);
+      } else {
+        setHasExistingModal(false);
       }
-    } catch (err) {
-      console.error('Ошибка загрузки модального окна:', err);
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        setHasExistingModal(false);
+      } else {
+        console.error('Ошибка загрузки модального окна:', err);
+        setError('Ошибка загрузки модального окна');
+      }
     } finally {
       setLoading(false);
     }
@@ -81,37 +89,28 @@ export default function CourseModalPage() {
   };
 
   const moveBlock = (index: number, direction: 'up' | 'down') => {
-    if (
-      (direction === 'up' && index === 0) ||
-      (direction === 'down' && index === blocks.length - 1)
-    ) {
-      return;
-    }
+    if ((direction === 'up' && index === 0) || (direction === 'down' && index === blocks.length - 1)) return;
 
     const newBlocks = [...blocks];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
-    // Меняем местами order
+
     const tempOrder = newBlocks[index].order;
     newBlocks[index].order = newBlocks[targetIndex].order;
     newBlocks[targetIndex].order = tempOrder;
-    
-    // Меняем местами элементы
+
     [newBlocks[index], newBlocks[targetIndex]] = [newBlocks[targetIndex], newBlocks[index]];
-    
     setBlocks(newBlocks);
   };
 
   const handleImageUpload = async (file: File, blockIndex: number) => {
     try {
       setUploading(true);
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await axios.post('/admin/upload/content', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      updateBlock(blockIndex, res.data.url);
+      const res = await uploadApi.uploadImage(file, 'course-modals');
+      const imageUrl = (res && (res.url || res.path || res.location)) as string | undefined;
+      if (!imageUrl) throw new Error('Нет URL загруженного файла');
+      updateBlock(blockIndex, imageUrl);
     } catch (err) {
+      console.error(err);
       setError('Ошибка при загрузке изображения');
     } finally {
       setUploading(false);
@@ -124,7 +123,6 @@ export default function CourseModalPage() {
       return;
     }
 
-    // Проверяем, что все блоки заполнены
     const emptyBlocks = blocks.filter(b => !b.content.trim());
     if (emptyBlocks.length > 0) {
       setError('Заполните все блоки или удалите пустые');
@@ -136,21 +134,15 @@ export default function CourseModalPage() {
       const blocksData = blocks.map((block, index) => ({
         type: block.type,
         content: block.content,
-        order: index
+        order: index,
       }));
 
       if (hasExistingModal) {
-        await axios.put(`/admin/course-extras/modal/${courseId}/`, {
-          title,
-          blocks: blocksData
-        });
+        await courseModalApi.updateModal(cid, { title, blocks: blocksData });
       } else {
-        await axios.post(`/admin/course-extras/modal/${courseId}/`, {
-          title,
-          blocks: blocksData
-        });
+        await courseModalApi.createModal(cid, { title, blocks: blocksData });
       }
-      
+
       navigate(`/courses/${courseId}/structure`);
     } catch (err) {
       console.error('Ошибка сохранения:', err);
@@ -162,11 +154,12 @@ export default function CourseModalPage() {
 
   const handleDelete = async () => {
     if (!window.confirm('Вы уверены, что хотите удалить модальное окно?')) return;
-    
+
     try {
-      await axios.delete(`/admin/course-extras/modal/${courseId}/`);
+      await courseModalApi.deleteModal(cid);
       navigate(`/courses/${courseId}/structure`);
     } catch (err) {
+      console.error(err);
       setError('Ошибка при удалении');
     }
   };
@@ -212,19 +205,10 @@ export default function CourseModalPage() {
           <Group justify="space-between" mb="sm">
             <Title order={4}>Блоки контента</Title>
             <Group>
-              <Button
-                leftSection={<IconPlus size={16} />}
-                onClick={() => addBlock('text')}
-                variant="light"
-              >
+              <Button leftSection={<IconPlus size={16} />} onClick={() => addBlock('text')} variant="light">
                 Добавить текст
               </Button>
-              <Button
-                leftSection={<IconPlus size={16} />}
-                onClick={() => addBlock('image')}
-                variant="light"
-                color="green"
-              >
+              <Button leftSection={<IconPlus size={16} />} onClick={() => addBlock('image')} variant="light" color="green">
                 Добавить изображение
               </Button>
             </Group>
@@ -245,11 +229,7 @@ export default function CourseModalPage() {
                   {block.type === 'text' ? 'Текст' : 'Изображение'}
                 </Badge>
                 <Group gap="xs">
-                  <ActionIcon
-                    variant="light"
-                    onClick={() => moveBlock(index, 'up')}
-                    disabled={index === 0}
-                  >
+                  <ActionIcon variant="light" onClick={() => moveBlock(index, 'up')} disabled={index === 0}>
                     <IconArrowUp size={16} />
                   </ActionIcon>
                   <ActionIcon
@@ -259,25 +239,20 @@ export default function CourseModalPage() {
                   >
                     <IconArrowDown size={16} />
                   </ActionIcon>
-                  <ActionIcon
-                    color="red"
-                    variant="light"
-                    onClick={() => deleteBlock(index)}
-                  >
+                  <ActionIcon color="red" variant="light" onClick={() => deleteBlock(index)}>
                     <IconTrash size={16} />
                   </ActionIcon>
                 </Group>
               </Group>
 
               {block.type === 'text' ? (
-              <Textarea
-                value={block.content}
-                onChange={(e) => updateBlock(index, e.currentTarget.value)}
-                placeholder="Вставьте HTML (p, ul, strong и т.д.)"
-                autosize
-                minRows={8}
-              />
-
+                <Textarea
+                  value={block.content}
+                  onChange={(e) => updateBlock(index, e.currentTarget.value)}
+                  placeholder="Вставьте HTML (p, ul, strong и т.д.)"
+                  autosize
+                  minRows={8}
+                />
               ) : (
                 <>
                   <FileInput
@@ -314,11 +289,7 @@ export default function CourseModalPage() {
                 Удалить модальное окно
               </Button>
             )}
-            <Button
-              onClick={handleSave}
-              loading={saving}
-              disabled={!title.trim() || blocks.length === 0}
-            >
+            <Button onClick={handleSave} loading={saving} disabled={!title.trim() || blocks.length === 0}>
               {hasExistingModal ? 'Сохранить изменения' : 'Создать модальное окно'}
             </Button>
           </Group>

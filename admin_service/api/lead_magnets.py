@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 from schemas import LeadMagnetCreate, LeadMagnetRead, LeadMagnetStats
 from services import catalog_api
+from fastapi import HTTPException
 
 router = APIRouter(prefix="/internal/lead-magnets", tags=["LeadMagnets"])
 
@@ -24,4 +25,4 @@ async def delete_lead_magnet(lead_magnet_id: int):
 
 @router.get("/{lead_magnet_id}/stats", response_model=LeadMagnetStats)
 async def get_lead_magnet_stats(lead_magnet_id: int):
-    return await catalog_api.get_lead_magnet_stats(lead_magnet_id)
+    raise HTTPException(status_code=501, detail="Статистика лид-магнитов ещё не реализована")

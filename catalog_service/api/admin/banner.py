@@ -24,6 +24,14 @@ async def create_banner(data: BannerCreateSchema, db: AsyncSession = Depends(get
     await db.refresh(banner)
     return {"id": banner.id, "message": "Баннер создан"}
 
+@router.get("/{banner_id}", response_model=BannerSchema)
+async def get_banner(banner_id: int, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(Banner).where(Banner.id == banner_id))
+    banner = result.scalar_one_or_none()
+    if not banner:
+        raise HTTPException(status_code=404, detail="Баннер не найден")
+    return banner
+
 @router.delete("/{banner_id}")
 async def delete_banner(banner_id: int, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Banner).where(Banner.id == banner_id))

@@ -1,4 +1,4 @@
-// admin-frontend/src/pages/BlockCreatePage.tsx (обновленная версия с поддержкой языков)
+// admin-frontend/src/pages/BlockCreatePage.tsx
 
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -58,7 +58,7 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 type BlockType = 'text' | 'video' | 'code' | 'image';
-type Lang = typeof SUPPORTED_LANGUAGES[number]['value'];
+type Lang = (typeof SUPPORTED_LANGUAGES)[number]['value'];
 
 export default function BlockCreatePage() {
   const { moduleId } = useParams<{ moduleId: string }>();
@@ -79,7 +79,7 @@ export default function BlockCreatePage() {
     try {
       setLoadingUpload(true);
       setError(null);
-      const res = await uploadApi.uploadImage(file);      // ⬅️
+      const res = await uploadApi.uploadImage(file);
       const url = res?.url || res?.image || '';
       if (!url) throw new Error('Сервер не вернул ссылку');
       setContent(url);
@@ -97,16 +97,13 @@ export default function BlockCreatePage() {
       setVideoProcessingProgress(0);
       setError(null);
 
-      // прогресс аплоада можно повесить на axios, если нужно — тогда добавь обертку в uploadApi
-      const res = await uploadApi.uploadVideo(file);      // ⬅️
-      // ожидаем поле master_playlist_url или url
+      const res = await uploadApi.uploadVideo(file);
       const url = res?.master_playlist_url || res?.url || '';
       if (!url) throw new Error('Сервер не вернул URL мастер-плейлиста');
 
       // симулированный прогресс обработки
       for (let i = 50; i <= 100; i += 10) {
-        // @ts-ignore
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise((r) => setTimeout(r, 500));
         setVideoProcessingProgress(i);
       }
       setContent(url);
@@ -122,7 +119,7 @@ export default function BlockCreatePage() {
   const handleVideoPreviewUpload = async (file: File) => {
     try {
       setLoadingUpload(true);
-      const res = await uploadApi.uploadImage(file, 'video-previews'); // ⬅️
+      const res = await uploadApi.uploadImage(file, 'video-previews');
       const url = res?.url || res?.image || '';
       setVideoPreview(url);
     } catch (e) {
@@ -134,7 +131,10 @@ export default function BlockCreatePage() {
   };
 
   const handleSubmit = async () => {
-    if (!moduleId) { setError('Не указан ID модуля'); return; }
+    if (!moduleId) {
+      setError('Не указан ID модуля');
+      return;
+    }
     try {
       await blocksApi.createBlock(Number(moduleId), {
         type,
@@ -143,7 +143,7 @@ export default function BlockCreatePage() {
         order,
         language: type === 'code' ? language : undefined,
         video_preview: type === 'video' ? (videoPreview.trim() || undefined) : undefined,
-      });                                                // ⬅️
+      });
       navigate(-1);
     } catch (e) {
       console.error(e);
@@ -154,7 +154,9 @@ export default function BlockCreatePage() {
   return (
     <Layout>
       <Container size="sm">
-        <Title order={2} ta="center" mb="lg">Создание блока</Title>
+        <Title order={2} ta="center" mb="lg">
+          Создание блока
+        </Title>
 
         {error && (
           <Notification color="red" mb="lg" onClose={() => setError(null)}>
@@ -200,7 +202,7 @@ export default function BlockCreatePage() {
               nothingFoundMessage="Язык не найден"
               description="Выберите язык для правильной подсветки синтаксиса"
             />
-            
+
             <Textarea
               label="Код"
               value={content}
@@ -209,22 +211,29 @@ export default function BlockCreatePage() {
               autosize
               minRows={10}
               styles={{
-                input: { 
+                input: {
                   fontFamily: 'JetBrains Mono, Consolas, Monaco, monospace',
-                  fontSize: '14px'
-                }
+                  fontSize: '14px',
+                },
               }}
-              description={`Введите код на ${SUPPORTED_LANGUAGES.find(l => l.value === language)?.label}`}
+              description={`Введите код на ${
+                SUPPORTED_LANGUAGES.find((l) => l.value === language)?.label
+              }`}
             />
 
             {content && (
               <Paper shadow="xs" p="md" mb="md" withBorder>
-              <Text size="sm" fw={500} mb="xs">Предпросмотр:</Text>
-                <Code block style={{ 
-                  maxHeight: 200, 
-                  overflow: 'auto',
-                  fontFamily: 'JetBrains Mono, Consolas, Monaco, monospace' 
-                }}>
+                <Text size="sm" fw={500} mb="xs">
+                  Предпросмотр:
+                </Text>
+                <Code
+                  block
+                  style={{
+                    maxHeight: 200,
+                    overflow: 'auto',
+                    fontFamily: 'JetBrains Mono, Consolas, Monaco, monospace',
+                  }}
+                >
                   {content}
                 </Code>
               </Paper>
@@ -261,8 +270,8 @@ export default function BlockCreatePage() {
             <Alert color="blue" mb="md">
               <strong>🎥 Загрузка видео</strong>
               <br />
-              Видео будет автоматически обработано в разных качествах для оптимального воспроизведения.
-              Поддерживаемые форматы: MP4, WebM, MOV.
+              Видео будет автоматически обработано в разных качествах для оптимального
+              воспроизведения. Поддерживаемые форматы: MP4, WebM, MOV.
             </Alert>
 
             <FileInput
@@ -278,10 +287,9 @@ export default function BlockCreatePage() {
               <div style={{ marginBottom: '1rem' }}>
                 <Progress value={videoProcessingProgress} mb="xs" />
                 <p style={{ fontSize: '14px', color: '#666' }}>
-                  {videoProcessingProgress < 50 
+                  {videoProcessingProgress < 50
                     ? `Загрузка видео... ${videoProcessingProgress}%`
-                    : `Обработка видео... ${videoProcessingProgress}%`
-                  }
+                    : `Обработка видео... ${videoProcessingProgress}%`}
                 </p>
               </div>
             )}
@@ -333,10 +341,10 @@ export default function BlockCreatePage() {
           mb="md"
         />
 
-        <Button 
-          fullWidth 
-          mt="lg" 
-          onClick={handleSubmit} 
+        <Button
+          fullWidth
+          mt="lg"
+          onClick={handleSubmit}
           disabled={loadingUpload || videoProcessing}
           loading={loadingUpload || videoProcessing}
         >

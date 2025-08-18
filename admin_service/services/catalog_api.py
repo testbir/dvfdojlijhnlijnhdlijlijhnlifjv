@@ -69,27 +69,23 @@ async def delete_banner(banner_id: int):
 # --- Модальные окна ---
 async def get_modal(course_id: int):
     async with httpx.AsyncClient(base_url=settings.CATALOG_SERVICE_URL, timeout=10.0) as c:
-        # БЕЗ СЛЕША - правильно (ID в конце)
-        r = await c.get(f"/v1/admin/modals/{course_id}", headers=_headers())
+        r = await c.get(f"/v1/admin/course-modals/{course_id}", headers=_headers())
         if r.status_code == 404: return None
         r.raise_for_status(); return r.json()
 
 async def create_modal(course_id: int, payload: dict):
     async with httpx.AsyncClient(base_url=settings.CATALOG_SERVICE_URL, timeout=10.0) as c:
-        # БЕЗ СЛЕША - правильно (ID в конце)
-        r = await c.post(f"/v1/admin/modals/{course_id}", headers=_headers(), json=payload)
+        r = await c.post(f"/v1/admin/course-modals/{course_id}", headers=_headers(), json=payload)
         r.raise_for_status(); return r.json()
 
 async def update_modal(course_id: int, payload: dict):
     async with httpx.AsyncClient(base_url=settings.CATALOG_SERVICE_URL, timeout=10.0) as c:
-        # БЕЗ СЛЕША - правильно (ID в конце)
-        r = await c.put(f"/v1/admin/modals/{course_id}", headers=_headers(), json=payload)
+        r = await c.put(f"/v1/admin/course-modals/{course_id}", headers=_headers(), json=payload)
         r.raise_for_status(); return r.json()
 
 async def delete_modal(course_id: int):
     async with httpx.AsyncClient(base_url=settings.CATALOG_SERVICE_URL, timeout=10.0) as c:
-        # БЕЗ СЛЕША - правильно (ID в конце)
-        r = await c.delete(f"/v1/admin/modals/{course_id}", headers=_headers())
+        r = await c.delete(f"/v1/admin/course-modals/{course_id}", headers=_headers())
         r.raise_for_status(); return {"success": True}
 
 # --- Работы учеников ---

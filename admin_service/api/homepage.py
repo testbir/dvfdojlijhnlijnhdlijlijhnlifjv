@@ -13,10 +13,13 @@ import os
 from utils.auth import get_current_admin_user
 from models.admin import AdminUser
 import logging
+import httpx
 
 router = APIRouter(prefix="/admin", tags=["Homepage"])
 logger = logging.getLogger(__name__)
 
+def _hdr():
+    return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}
 
 async def save_temp_file(file: UploadFile) -> tuple[str, str]:
     """
@@ -277,16 +280,11 @@ async def edit_promo(
 ):
     """Обновляет существующее промо-изображение"""
     logger.info(f"Админ {current_admin.username} обновляет промо-изображение {promo_id}")
-    
     try:
         update_data = {}
-        
-        # Если загружено новое изображение
         if file and file.filename:
             image_url = await upload_image(file)
             update_data["image"] = image_url
-        
-        # Обновляем остальные поля (только если они переданы)
         if title is not None:
             update_data["title"] = title
         if description is not None:
@@ -297,13 +295,17 @@ async def edit_promo(
             update_data["order"] = order
         if is_active is not None:
             update_data["is_active"] = is_active
-            
-        # Пока используем базовую реализацию обновления
-        result = {"success": True, "message": f"Промо-изображение {promo_id} обновлено", "data": update_data}
-        
-        logger.info(f"Промо-изображение {promo_id} успешно обновлено")
-        return result
-        
+
+        async with httpx.AsyncClient(base_url=settings.CATALOG_SERVICE_URL, timeout=15.0) as client:
+            response = await client.put(
+                f"/v1/admin/promos/{promo_id}",
+                headers=_hdr(),
+                json=update_data
+            )
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Промо не найдено")
+            response.raise_for_status()
+            return response.json()
     except HTTPException:
         raise
     except Exception as e:

@@ -62,6 +62,8 @@ from api import statistics as statistics_api
 from api import users as users_api
 from api import bulk_operations as bulk_operations_api
 from api import upload as upload_api
+from api import promocodes as admin_promocodes
+
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -96,6 +98,7 @@ app.include_router(statistics_api.router)
 app.include_router(users_api.router)
 app.include_router(bulk_operations_api.router)
 app.include_router(upload_api.router) 
+app.include_router(admin_promocodes.router)
 
 # Базовый эндпоинт для проверки
 @app.get("/")

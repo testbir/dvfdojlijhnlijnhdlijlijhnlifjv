@@ -110,7 +110,7 @@ async def delete_banner(
         response.raise_for_status()
         return {"message": "Баннер успешно удален"}
 
-@router.post("/reorder")
+@router.post("/reorder/")
 async def reorder_banners(
     order_map: dict = Body(...),  # {banner_id: new_order}
     current_admin: AdminUser = Depends(get_current_admin_user)

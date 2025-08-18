@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from db.dependencies import get_db_session
 from models.promo import PromoImage
-from schemas.promo import PromoSchema, PromoCreateSchema
+from schemas.promo import PromoSchema, PromoCreateSchema, PromoUpdateSchema
 
 from typing import List
 
@@ -26,6 +26,32 @@ async def create_promo(data: PromoCreateSchema, db: AsyncSession = Depends(get_d
     await db.commit()
     await db.refresh(promo)
     return {"id": promo.id, "message": "Промо добавлено"}
+
+@router.put("/{promo_id}", response_model=PromoSchema)
+async def update_promo(promo_id: int, data: PromoUpdateSchema, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(PromoImage).where(PromoImage.id == promo_id))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Промо не найдено")
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(promo, k, v)
+    await db.commit()
+    await db.refresh(promo)
+    return promo
+
+@router.put("/{promo_id}", response_model=PromoSchema)
+async def update_promo(promo_id: int, data: PromoCreateSchema, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(PromoImage).where(PromoImage.id == promo_id))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Промо не найдено")
+
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(promo, k, v)
+
+    await db.commit()
+    await db.refresh(promo)
+    return promo
 
 @router.delete("/{promo_id}")
 async def delete_promo(promo_id: int, db: AsyncSession = Depends(get_db_session)):

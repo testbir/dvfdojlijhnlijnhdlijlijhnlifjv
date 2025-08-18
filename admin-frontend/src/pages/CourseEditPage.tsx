@@ -1,13 +1,10 @@
-// src/pages/CourseEditPage.tsx
-
+// admin-frontend/src/pages/CourseEditPage.tsx
 
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from '../api/axiosInstance';
 import { DateTimePicker } from '@mantine/dates';
 import '@mantine/dates/styles.css';
 import dayjs from 'dayjs';
-
 
 import {
   Container,
@@ -25,6 +22,7 @@ import {
   Alert,
 } from '@mantine/core';
 import Layout from '../components/Layout';
+import { coursesApi, uploadApi } from '../services/adminApi';
 
 interface Course {
   id: number;
@@ -58,9 +56,9 @@ export default function CourseEditPage() {
   useEffect(() => {
     const fetchCourse = async () => {
       try {
-        const res = await axios.get(`/admin/courses/${courseId}`);
-        console.log("Курс с сервера:", res.data); // ← проверь поля discount_start/discount_until
-        setCourse(res.data);
+        const res = await coursesApi.getCourse(Number(courseId));
+        console.log('Курс с сервера:', res);
+        setCourse(res);
       } catch {
         setError('Ошибка при загрузке курса');
       } finally {
@@ -70,17 +68,11 @@ export default function CourseEditPage() {
     fetchCourse();
   }, [courseId]);
 
-
   const uploadFile = async (file: File) => {
     try {
       setUploading(true);
-      const formData = new FormData();
-      formData.append('file', file);
-      const url = '/admin/upload/public'; // Всегда используем public для файлов курса
-      const res = await axios.post(url, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return res.data;
+      const res = await uploadApi.uploadImage(file, 'courses');
+      return res; // ожидаем { url: string, ... }
     } catch {
       setError('Ошибка при загрузке файла');
       return null;
@@ -89,63 +81,24 @@ export default function CourseEditPage() {
     }
   };
 
-  // 🎬 Новая функция для загрузки и обработки видео (как в CourseCreatePage)
-  // admin-frontend/src/pages/CourseEditPage.tsx - ЗАМЕНИТЕ ФУНКЦИЮ handleVideoUpload:
-
-const handleVideoUpload = async (file: File | null) => {
-  if (!file) return;
-
-  try {
-    setUploading(true);
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    // ⬇️ важно: timeout: 0  (нет ограничения по времени)
-    const { data } = await axios.post(
-      '/admin/upload/video-public',
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 0,
-        onUploadProgress: (pe) => {
-          if (pe.total) {
-            console.log(`upload: ${Math.round((pe.loaded / pe.total) * 100)}%`);
-          }
-        }
-      }
-    );
-
-    const videoId = data.video_id;          // <-- берём id
-
-    // опрашиваем статус пока не обработается
-    let status;
-    do {
-      await new Promise(r => setTimeout(r, 5000));      // 5-сек опрос
-      status = (await axios.get(`/admin/video-status/${videoId}`)).data;
-      console.log(status.status, status.progress ?? '');
-    } while (status.status !== 'completed' && status.status !== 'failed');
-
-    if (status.status === 'completed') {
-      const url = status.result.master_playlist_url;    // HLS-pl
-      setCourse(prev => prev ? { ...prev, video: url } : prev);
-    } else {
-      setError('Ошибка обработки видео: ' + status.error);
+  const handleVideoUpload = async (file: File | null) => {
+    if (!file) return;
+    try {
+      setUploading(true);
+      const url = await uploadApi.uploadVideo(file); // возвращает master_playlist_url
+      setCourse(prev => (prev ? { ...prev, video: url } : prev));
+    } catch {
+      setError('Ошибка при загрузке видео');
+    } finally {
+      setUploading(false);
     }
-  } catch (e) {
-    setError('Ошибка при загрузке видео');
-  } finally {
-    setUploading(false);
-  }
-};
-
-
+  };
 
   const handleSave = async () => {
-    if (!course) return;
+    if (!course || !courseId) return;
     setSaving(true);
     try {
-      await axios.put(`/admin/courses/${courseId}`, {
+      await coursesApi.updateCourse(Number(courseId), {
         title: course.title?.trim(),
         short_description: course.short_description?.trim() || undefined,
         full_description: course.full_description?.trim() || undefined,
@@ -162,7 +115,6 @@ const handleVideoUpload = async (file: File | null) => {
         order: course.order ?? 0,
         discount_start: course.discount_start ?? undefined,
         discount_until: course.discount_until ?? undefined,
-
       });
       navigate('/');
     } catch {
@@ -243,7 +195,7 @@ const handleVideoUpload = async (file: File | null) => {
           onChange={async (file) => {
             if (file) {
               const res = await uploadFile(file);
-              if (res?.url) setCourse((prev) => prev ? { ...prev, image: res.url } : prev);
+              if (res?.url) setCourse((prev) => (prev ? { ...prev, image: res.url } : prev));
             }
           }}
           mb="md"
@@ -264,87 +216,70 @@ const handleVideoUpload = async (file: File | null) => {
           mb="md"
         />
 
-
         {!course?.is_free && (
-        <>
-          <NumberInput
-            label="Цена"
-            value={course?.price ?? 0}
-            onChange={(val) => setCourse({ ...course!, price: val as number })}
-            mb="md"
-          />
-          <NumberInput
-            label="Скидка"
-            value={course?.discount ?? 0}
-            onChange={(val) => setCourse({ ...course!, discount: val as number })}
-            mb="md"
-          />
+          <>
+            <NumberInput
+              label="Цена"
+              value={course?.price ?? 0}
+              onChange={(val) => setCourse({ ...course!, price: val as number })}
+              mb="md"
+            />
+            <NumberInput
+              label="Скидка"
+              value={course?.discount ?? 0}
+              onChange={(val) => setCourse({ ...course!, discount: val as number })}
+              mb="md"
+            />
 
-          <DateTimePicker
-            label="Начало скидки"
-            placeholder="Выберите дату и время"
-            value={course?.discount_start ? dayjs(course.discount_start).toDate() : null}
-            onChange={(val) =>
-              setCourse({
-                ...course!,
-                discount_start: val ? dayjs(val).toISOString() : undefined,
-              })
-            }
-            valueFormat="DD.MM.YYYY HH:mm"
-            mb="md"
-          />
+            <DateTimePicker
+              label="Начало скидки"
+              placeholder="Выберите дату и время"
+              value={course?.discount_start ? dayjs(course.discount_start).toDate() : null}
+              onChange={(val) =>
+                setCourse({
+                  ...course!,
+                  discount_start: val ? dayjs(val).toISOString() : undefined,
+                })
+              }
+              valueFormat="DD.MM.YYYY HH:mm"
+              mb="md"
+            />
 
-          <DateTimePicker
-            label="Окончание скидки"
-            placeholder="Выберите дату и время"
-            value={course?.discount_until ? dayjs(course.discount_until).toDate() : null}
-            onChange={(val) =>
-              setCourse({
-                ...course!,
-                discount_until: val ? dayjs(val).toISOString() : undefined,
-              })
-            }
-            valueFormat="DD.MM.YYYY HH:mm"
-            mb="md"
-          />
+            <DateTimePicker
+              label="Окончание скидки"
+              placeholder="Выберите дату и время"
+              value={course?.discount_until ? dayjs(course.discount_until).toDate() : null}
+              onChange={(val) =>
+                setCourse({
+                  ...course!,
+                  discount_until: val ? dayjs(val).toISOString() : undefined,
+                })
+              }
+              valueFormat="DD.MM.YYYY HH:mm"
+              mb="md"
+            />
 
+            <Button
+              color="red"
+              variant="outline"
+              onClick={() =>
+                setCourse((prev) =>
+                  prev
+                    ? { ...prev, discount: 0, discount_start: undefined, discount_until: undefined }
+                    : prev
+                )
+              }
+              mb="md"
+            >
+              Отменить скидку
+            </Button>
+          </>
+        )}
 
-
-        <Button
-            color="red"
-            variant="outline"
-            onClick={() =>
-              setCourse((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      discount: 0,
-                      discount_start: undefined,
-                      discount_until: undefined,
-                    }
-                  : prev
-              )
-            }
-            mb="md"
-        >
-            Отменить скидку
-        </Button>
-
-
-
-
-
-
-        </>
-      )}
-
-
-        {/* 🎬 Обновленная секция видео с HLS обработкой */}
         <Alert color="blue" mb="md">
           <strong>🎥 Замена видео курса</strong>
           <br />
-          Новое видео будет автоматически обработано в разных качествах для оптимального воспроизведения.
-          Поддерживаемые форматы: MP4, WebM, MOV (рекомендуется MP4).
+          Новое видео будет автоматически обработано в разных качествах (HLS).
         </Alert>
 
         <FileInput
@@ -355,7 +290,6 @@ const handleVideoUpload = async (file: File | null) => {
           disabled={uploading}
           mb="md"
         />
-
 
         {course?.video && (
           <>
@@ -373,7 +307,9 @@ const handleVideoUpload = async (file: File | null) => {
             <TextInput
               label="URL видео (HLS мастер-плейлист или обычное видео)"
               value={course.video}
-              onChange={(e) => setCourse((prev) => prev ? { ...prev, video: e.currentTarget.value } : prev)}
+              onChange={(e) =>
+                setCourse((prev) => (prev ? { ...prev, video: e.currentTarget.value } : prev))
+              }
               mb="md"
             />
           </>
@@ -385,7 +321,7 @@ const handleVideoUpload = async (file: File | null) => {
           onChange={async (file) => {
             if (file) {
               const res = await uploadFile(file);
-              if (res?.url) setCourse((prev) => prev ? { ...prev, video_preview: res.url } : prev);
+              if (res?.url) setCourse((prev) => (prev ? { ...prev, video_preview: res.url } : prev));
             }
           }}
           mb="md"
@@ -396,7 +332,9 @@ const handleVideoUpload = async (file: File | null) => {
             <TextInput
               label="Ссылка на превью"
               value={course.video_preview}
-              onChange={(e) => setCourse((prev) => prev ? { ...prev, video_preview: e.currentTarget.value } : prev)}
+              onChange={(e) =>
+                setCourse((prev) => (prev ? { ...prev, video_preview: e.currentTarget.value } : prev))
+              }
               mb="md"
             />
           </>
@@ -421,12 +359,7 @@ const handleVideoUpload = async (file: File | null) => {
           mb="md"
         />
 
-        <Button 
-          fullWidth 
-          onClick={handleSave} 
-          loading={saving} 
-          disabled={uploading}
-        >
+        <Button fullWidth onClick={handleSave} loading={saving} disabled={uploading}>
           Сохранить
         </Button>
       </Container>

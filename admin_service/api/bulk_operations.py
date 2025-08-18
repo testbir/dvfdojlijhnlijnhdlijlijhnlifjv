@@ -38,8 +38,9 @@ async def bulk_course_operations(
                     results.append({"id": course_id, "success": False})
                     continue
                 cur = g.json()
-                u = await c.patch(f"/v1/admin/courses/{course_id}", headers=_hdr(), json={"is_free": not cur.get("is_free", False)})
-                results.append({"id": course_id, "success": u.status_code == 200, "is_free": not cur.get("is_free", False)})
+                cur["is_free"] = not cur.get("is_free", False)
+                u = await c.put(f"/v1/admin/courses/{course_id}", headers=_hdr(), json=cur)
+                results.append({"id": course_id, "success": u.status_code == 200, "is_free": cur["is_free"]})
             return {"operation": "toggle_free", "results": results}
 
         elif operation == "apply_discount":
@@ -48,7 +49,11 @@ async def bulk_course_operations(
                 raise HTTPException(status_code=400, detail="Скидка должна быть от 0 до 100")
             results = []
             for course_id in ids:
-                r = await c.patch(f"/v1/admin/courses/{course_id}", headers=_hdr(), json={"discount": discount})
+                r = await c.patch(
+                    f"/v1/admin/courses/{course_id}/discount/",
+                    headers=_hdr(),
+                    json={"discount": discount}
+                )
                 results.append({"id": course_id, "success": r.status_code == 200})
             return {"operation": "apply_discount", "discount": discount, "results": results}
 
@@ -56,7 +61,11 @@ async def bulk_course_operations(
             start_order = int(params.get("start_order", 0))
             results = []
             for i, course_id in enumerate(ids):
-                r = await c.patch(f"/v1/admin/courses/{course_id}", headers=_hdr(), json={"order": start_order + i})
+                r = await c.patch(
+                    f"/v1/admin/courses/{course_id}/order/",
+                    headers=_hdr(),
+                    json={"order": start_order + i}
+                )
                 results.append({"id": course_id, "success": r.status_code == 200, "order": start_order + i})
             return {"operation": "reorder", "results": results}
 

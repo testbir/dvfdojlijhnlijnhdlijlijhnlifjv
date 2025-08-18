@@ -17,7 +17,7 @@ def _hdr():
     return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}
 
 # ИСПРАВЛЕНО: убрали слеш в конце URL
-@router.get("/admin/modules/{module_id}/blocks")
+@router.get("/admin/modules/{module_id}/blocks/")
 async def get_module_blocks(
     module_id: int,
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -34,7 +34,7 @@ async def get_module_blocks(
         return response.json()
 
 # ИСПРАВЛЕНО: убрали слеш в конце URL
-@router.post("/admin/modules/{module_id}/blocks")
+@router.post("/admin/modules/{module_id}/blocks/")
 async def create_block(
     module_id: int,
     type: str = Body(...),  # text, video, code, image
@@ -49,13 +49,16 @@ async def create_block(
     logger.info(f"Admin {current_admin.username} creating block in module {module_id}")
     
     payload = {
-        "type": type,
-        "title": title,
-        "content": content,
-        "order": order,
-        "language": language,
-        "video_preview": video_preview
+        k: v for k, v in {
+            "type": type,
+            "title": title,
+            "content": content,
+            "order": order,
+            "language": language,
+            "video_preview": video_preview,
+        }.items() if v is not None
     }
+
     
     async with httpx.AsyncClient(base_url=LEARNING_SERVICE_URL, timeout=15.0) as client:
         response = await client.post(
@@ -141,7 +144,7 @@ async def delete_block(
         response.raise_for_status()
         return {"success": True, "message": "Блок удален"}
 
-@router.post("/admin/blocks/reorder")
+@router.post("/admin/blocks/reorder/")
 async def reorder_blocks(
     module_id: int = Body(...),
     blocks_order: List[dict] = Body(...),  # [{"id": block_id, "order": new_order}]

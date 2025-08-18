@@ -33,13 +33,16 @@ class PromoCodeUpdate(BaseModel):
 @router.get("/")
 async def list_promocodes(current_admin: AdminUser = Depends(get_current_admin_user)):
     async with httpx.AsyncClient(base_url=CATALOG_SERVICE_URL, timeout=15.0) as c:
-        r = await c.get("/v1/admin/promocodes", headers=_hdr())
-        r.raise_for_status(); return r.json()
-
+        r = await c.get("/v1/admin/promocodes/", headers=_hdr())
+        r.raise_for_status()
+        return r.json()
+    
 @router.post("/")
 async def create_promocode(data: PromoCodeCreate, current_admin: AdminUser = Depends(get_current_admin_user)):
     async with httpx.AsyncClient(base_url=CATALOG_SERVICE_URL, timeout=15.0) as c:
-        r = await c.post("/v1/admin/promocodes", headers=_hdr(), json=data.model_dump())
+        r = await c.post("/v1/admin/promocodes/", headers=_hdr(),
+                 json=data.model_dump(mode="json"))
+
         if r.status_code == 400:
             raise HTTPException(status_code=400, detail="Промокод уже существует")
         r.raise_for_status(); return r.json()
@@ -47,7 +50,9 @@ async def create_promocode(data: PromoCodeCreate, current_admin: AdminUser = Dep
 @router.put("/{promo_id}")
 async def update_promocode(promo_id: int, data: PromoCodeUpdate, current_admin: AdminUser = Depends(get_current_admin_user)):
     async with httpx.AsyncClient(base_url=CATALOG_SERVICE_URL, timeout=15.0) as c:
-        r = await c.put(f"/v1/admin/promocodes/{promo_id}", headers=_hdr(), json=data.model_dump(exclude_unset=True))
+        r = await c.put(f"/v1/admin/promocodes/{promo_id}", headers=_hdr(),
+                json=data.model_dump(mode="json", exclude_unset=True))
+
         if r.status_code == 404:
             raise HTTPException(status_code=404, detail="Промокод не найден")
         r.raise_for_status(); return r.json()
@@ -66,10 +71,14 @@ async def toggle_promocode_active(promo_id: int, is_active: bool, current_admin:
         r = await c.put(f"/v1/admin/promocodes/{promo_id}", headers=_hdr(), json={"is_active": is_active})
         r.raise_for_status(); return {"success": True, "is_active": is_active}
 
+@router.delete("/{promo_id}/", include_in_schema=False)
+async def delete_promocode_trailing(promo_id: int, current_admin: AdminUser = Depends(get_current_admin_user)):
+    return await delete_promocode(promo_id, current_admin)
+
 @router.get("/statistics/")
 async def get_promocode_statistics(current_admin: AdminUser = Depends(get_current_admin_user)):
     async with httpx.AsyncClient(base_url=CATALOG_SERVICE_URL, timeout=15.0) as c:
-        r = await c.get("/v1/admin/promocodes", headers=_hdr())
+        r = await c.get("/v1/admin/promocodes/", headers=_hdr())
         r.raise_for_status()
         promocodes = r.json()
     total = len(promocodes)

@@ -26,7 +26,7 @@ async def get_course_modal(
     
     async with httpx.AsyncClient(base_url=CATALOG_SERVICE_URL, timeout=15.0) as client:
         response = await client.get(
-            f"/v1/admin/modals/{course_id}", 
+            f"/v1/admin/course-modals/{course_id}", 
             headers=_hdr()
         )
         if response.status_code == 404:
@@ -46,7 +46,7 @@ async def create_course_modal(
     
     async with httpx.AsyncClient(base_url=CATALOG_SERVICE_URL, timeout=15.0) as client:
         response = await client.post(
-            f"/v1/admin/modals/{course_id}", 
+            f"/v1/admin/course-modals/{course_id}", 
             headers=_hdr(),
             json={"title": title, "blocks": blocks}
         )
@@ -73,7 +73,7 @@ async def update_course_modal(
     
     async with httpx.AsyncClient(base_url=CATALOG_SERVICE_URL, timeout=15.0) as client:
         response = await client.put(
-            f"/v1/admin/modals/{course_id}", 
+            f"/v1/admin/course-modals/{course_id}", 
             headers=_hdr(), 
             json=data
         )
@@ -90,7 +90,7 @@ async def delete_course_modal(
     
     async with httpx.AsyncClient(base_url=CATALOG_SERVICE_URL, timeout=15.0) as client:
         response = await client.delete(
-            f"/v1/admin/modals/{course_id}", 
+            f"/v1/admin/course-modals/{course_id}", 
             headers=_hdr()
         )
         response.raise_for_status()

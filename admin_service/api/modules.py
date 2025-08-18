@@ -16,8 +16,8 @@ LEARNING_SERVICE_URL = settings.LEARNING_SERVICE_URL
 def _hdr():
     return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}
 
-# ИСПРАВЛЕНО: убрали слеш в конце URL
-@router.get("/admin/courses/{course_id}/modules")
+# ИСПРАВЛЕНО: добавили слеш в конце URL для соответствия фронтенду
+@router.get("/admin/courses/{course_id}/modules/")
 async def get_course_modules(
     course_id: int,
     current_admin: AdminUser = Depends(get_current_admin_user)
@@ -27,14 +27,14 @@ async def get_course_modules(
     
     async with httpx.AsyncClient(base_url=LEARNING_SERVICE_URL, timeout=15.0) as client:
         response = await client.get(
-            f"/v1/admin/courses/{course_id}/modules/",  # оставляем слеш для learning_service
+            f"/v1/admin/courses/{course_id}/modules/",  # слеш для learning_service
             headers=_hdr()
         )
         response.raise_for_status()
         return response.json()
 
-# ИСПРАВЛЕНО: убрали слеш в конце URL
-@router.post("/admin/courses/{course_id}/modules")
+# ИСПРАВЛЕНО: добавили слеш в конце URL для соответствия фронтенду
+@router.post("/admin/courses/{course_id}/modules/")
 async def create_module(
     course_id: int,
     title: str = Body(...),
@@ -55,7 +55,7 @@ async def create_module(
     
     async with httpx.AsyncClient(base_url=LEARNING_SERVICE_URL, timeout=15.0) as client:
         response = await client.post(
-            f"/v1/admin/courses/{course_id}/modules/",  # оставляем слеш для learning_service
+            f"/v1/admin/courses/{course_id}/modules/",  # слеш для learning_service
             headers=_hdr(),
             json=payload
         )
@@ -119,7 +119,7 @@ async def delete_module(
     current_admin: AdminUser = Depends(get_current_admin_user)
 ):
     """Удалить модуль"""
-    logger.warning(f"Admin {current_admin.username} deleting module {module_id}")
+    logger.info(f"Admin {current_admin.username} deleting module {module_id}")
     
     async with httpx.AsyncClient(base_url=LEARNING_SERVICE_URL, timeout=15.0) as client:
         response = await client.delete(
@@ -129,4 +129,4 @@ async def delete_module(
         if response.status_code == 404:
             raise HTTPException(status_code=404, detail="Модуль не найден")
         response.raise_for_status()
-        return {"success": True, "message": "Модуль удален"}
+        return {"success": True}

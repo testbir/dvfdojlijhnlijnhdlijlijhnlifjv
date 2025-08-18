@@ -145,7 +145,7 @@ async def get_user_detail(
         raise HTTPException(status_code=500, detail=f"Внутренняя ошибка: {str(e)}")
 
 
-@router.post("/{user_id}/ban", summary="Заблокировать пользователя")
+@router.post("/{user_id}/ban/", summary="Заблокировать пользователя")
 async def ban_user(
     user_id: int,
     reason: str = Query(..., description="Причина блокировки"),
@@ -170,7 +170,7 @@ async def ban_user(
         raise HTTPException(status_code=500, detail=f"Ошибка блокировки: {str(e)}")
 
 
-@router.post("/{user_id}/unban", summary="Разблокировать пользователя")
+@router.post("/{user_id}/unban/", summary="Разблокировать пользователя")
 async def unban_user(
     user_id: int,
     current_admin: AdminUser = Depends(get_current_admin_user)

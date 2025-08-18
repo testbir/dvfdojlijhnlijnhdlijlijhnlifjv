@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from '../api/axiosInstance';
 import Layout from '../components/Layout';
 import { DateTimePicker } from '@mantine/dates';
 import {
@@ -16,6 +15,7 @@ import {
   TextInput,
   Loader,
 } from '@mantine/core';
+import { bannersApi } from '../services/adminApi';
 
 export default function BannerEditPage() {
   const { id } = useParams();
@@ -29,72 +29,49 @@ export default function BannerEditPage() {
   const [discountStart, setDiscountStart] = useState<Date | null>(null);
   const [discountUntil, setDiscountUntil] = useState<Date | null>(null);
 
-
   useEffect(() => {
-    
     if (!id) {
       setError('Некорректный ID баннера');
       return;
     }
 
-    axios
-      .get('/admin/banners/')
-      .then((res) => {
-        const banner = res.data.find((b: any) => b.id === Number(id));
-        if (banner) {
-          setImage(banner.image);
-          setOrder(banner.order);
-          setLink(banner.link || '');
+    (async () => {
+      try {
+        const banner = await bannersApi.getBanner(Number(id));
+        setImage(banner.image);
+        setOrder(banner.order ?? 0);
+        setLink(banner.link || '');
         setDiscountStart(banner.discount_start ? new Date(banner.discount_start) : null);
         setDiscountUntil(banner.discount_until ? new Date(banner.discount_until) : null);
-
-        } else {
-          setError('Баннер не найден');
-        }
-      })
-      .catch(() => {
+      } catch {
         setError('Ошибка загрузки баннера');
-      });
+      }
+    })();
   }, [id]);
 
- const handleSave = async () => {
-  if (!id) {
-    setError('ID баннера не определён');
-    return;
-  }
-
-  try {
-    setLoading(true);
-    const form = new FormData(); // <- сначала создаём form
-    form.append('order', order.toString());
-    form.append('link', link);
-
-    if (file) {
-      form.append('file', file);
+  const handleSave = async () => {
+    if (!id) {
+      setError('ID баннера не определён');
+      return;
     }
 
-    // Только теперь добавляем скидки
-    if (discountStart) {
-      form.append('discount_start', discountStart.toISOString());
+    try {
+      setLoading(true);
+      const form = new FormData();
+      form.append('order', order.toString());
+      form.append('link', link);
+      if (file) form.append('file', file);
+      if (discountStart) form.append('discount_start', discountStart.toISOString());
+      if (discountUntil) form.append('discount_until', discountUntil.toISOString());
+
+      await bannersApi.updateBanner(Number(id), form);
+      navigate('/');
+    } catch {
+      setError('Ошибка при сохранении');
+    } finally {
+      setLoading(false);
     }
-    if (discountUntil) {
-      form.append('discount_until', discountUntil.toISOString());
-    }
-
-    await axios.put(`/admin/banners/${id}`, form, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-
-    navigate('/');
-  } catch {
-    setError('Ошибка при сохранении');
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <Layout>
@@ -135,7 +112,6 @@ export default function BannerEditPage() {
               mb="md"
             />
 
-                        
             <DateTimePicker
               label="Начало скидки"
               value={discountStart}

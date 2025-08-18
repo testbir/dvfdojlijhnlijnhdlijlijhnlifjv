@@ -1,4 +1,4 @@
-// src/pages/StatisticsPage.tsx
+// admin-frontend/src/pages/StatisticsPage.tsx
 
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
@@ -30,7 +30,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import axios from '../api/axiosInstance';
+import { statisticsApi } from '../services/adminApi';
 
 interface Statistics {
   total_users: number;
@@ -75,8 +75,8 @@ export default function StatisticsPage() {
 
   const fetchStatistics = async () => {
     try {
-      const res = await axios.get('/admin/statistics/');
-      setStats(res.data);
+      const data = await statisticsApi.getPlatformStats();
+      setStats(data);
     } catch (error) {
       console.error('Ошибка загрузки статистики:', error);
     } finally {
@@ -162,18 +162,8 @@ export default function StatisticsPage() {
                   <XAxis dataKey="date" />
                   <YAxis />
                   <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="registrations"
-                    stroke="#8884d8"
-                    name="Регистрации"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="active_users"
-                    stroke="#82ca9d"
-                    name="Активные"
-                  />
+                  <Line type="monotone" dataKey="registrations" stroke="#8884d8" name="Регистрации" />
+                  <Line type="monotone" dataKey="active_users" stroke="#82ca9d" name="Активные" />
                 </LineChart>
               </ResponsiveContainer>
             </Paper>
@@ -190,20 +180,20 @@ export default function StatisticsPage() {
                     cy="50%"
                     labelLine={false}
                     label={(entry: PieLabelRenderProps) => {
-                        const { name, value } = entry;
-                        return `${name}: ${value}`;
-                      }}
+                      const { name, value } = entry;
+                      return `${name}: ${value}`;
+                    }}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
                   >
-                        {courseTypeData.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                            name={entry.name} 
-                          />
-                        ))}
+                    {courseTypeData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                        name={entry.name}
+                      />
+                    ))}
                   </Pie>
                   <Tooltip />
                 </PieChart>

@@ -18,13 +18,11 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { coursesApi } from '../services/adminApi';
+import { coursesApi, uploadApi } from '../services/adminApi';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from '../api/axiosInstance';
 import { DateTimePicker } from '@mantine/dates';
 
-/* ------------------ схема формы ------------------ */
 const numberOpt = (schema: z.ZodTypeAny) =>
   z.preprocess((v) => (v === '' ? undefined : v), schema);
 
@@ -53,15 +51,12 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-/* ================================================= */
 export default function CourseCreatePage() {
   const navigate = useNavigate();
 
-  /* ---------- local state ---------- */
   const [error, setError] = useState<string | null>(null);
   const [loadingUpload, setLoadingUpload] = useState(false);
 
-  /* ---------- react-hook-form ---------- */
   const { control, handleSubmit, watch, setValue } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -84,24 +79,19 @@ export default function CourseCreatePage() {
     }
   });
 
-  /* ---------- watchers ---------- */
   const isFree   = watch('is_free');
   const imageUrl = watch('image');
   const videoUrl = watch('video');
 
-  /* ---------- generic file upload ---------- */
+  // загрузка изображений (курс/превью)
   const handleUpload = async (file: File | null): Promise<string | null> => {
     if (!file) return null;
     try {
       setLoadingUpload(true);
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const endpoint = '/admin/upload/public';
-      const res = await axios.post(endpoint, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      return res.data.url as string;
+      const res = await uploadApi.uploadImage(file, 'courses'); // <- adminApi
+      const url = res?.url || res?.image || '';
+      if (!url) throw new Error('Сервер не вернул url');
+      return url;
     } catch {
       setError('Ошибка при загрузке файла');
       return null;
@@ -110,26 +100,13 @@ export default function CourseCreatePage() {
     }
   };
 
-  /* ---------- видео: простой public-upload, БЕЗ HLS ---------- */
+  // видео: через uploadApi (HLS с ожиданием обработки)
   const handleVideoUpload = async (file: File | null): Promise<void> => {
     if (!file) return;
     try {
       setLoadingUpload(true);
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const res = await axios.post('/admin/upload/video-public', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (pe) => {
-          if (pe.total) {
-            const percent = Math.round((pe.loaded / pe.total) * 100);
-            console.log(`video upload: ${percent}%`);
-          }
-        }
-      });
-
-      /* прямой CDN-URL .mp4 /.webm */
-      setValue('video', res.data.url);
+      const url = await uploadApi.uploadVideo(file); // <- adminApi (возвращает master_playlist_url)
+      setValue('video', url);
     } catch {
       setError('Ошибка при загрузке видео');
     } finally {
@@ -137,35 +114,30 @@ export default function CourseCreatePage() {
     }
   };
 
-  /* ---------- submit ---------- */
-const onSubmit = async (data: FormData) => {
-  try {
-    const createdCourse = await coursesApi.createCourse({
-      ...data,
-      discount_start: data.discount_start?.toISOString(),
-      discount_until: data.discount_until?.toISOString(),
-      short_description : data.short_description.trim(),
-      full_description  : data.full_description?.trim()   || undefined,
-      image             : data.image?.trim()              || undefined,
-      video             : data.video?.trim()              || undefined,
-      video_preview     : data.video_preview?.trim()      || undefined,
-      banner_text       : data.banner_text?.trim()        || undefined,
-      banner_color_left : data.banner_color_left?.trim()  || undefined,
-      banner_color_right: data.banner_color_right?.trim() || undefined,
-      group_title       : data.group_title?.trim()        || undefined
-    });
-    
-    // Добавьте логирование
-    console.log('Created course:', createdCourse);
-    
-    navigate(`/courses/${createdCourse.id}/structure`);
-  } catch (err) {
-    console.error(err);
-    setError('Ошибка при создании курса');
-  }
-};
+  const onSubmit = async (data: FormData) => {
+    try {
+      const createdCourse = await coursesApi.createCourse({
+        ...data,
+        discount_start: data.discount_start?.toISOString(),
+        discount_until: data.discount_until?.toISOString(),
+        short_description : data.short_description.trim(),
+        full_description  : data.full_description?.trim()   || undefined,
+        image             : data.image?.trim()              || undefined,
+        video             : data.video?.trim()              || undefined,
+        video_preview     : data.video_preview?.trim()      || undefined,
+        banner_text       : data.banner_text?.trim()        || undefined,
+        banner_color_left : data.banner_color_left?.trim()  || undefined,
+        banner_color_right: data.banner_color_right?.trim() || undefined,
+        group_title       : data.group_title?.trim()        || undefined
+      });
 
-  /* ========================================================== */
+      navigate(`/courses/${createdCourse.id}/structure`);
+    } catch (err) {
+      console.error(err);
+      setError('Ошибка при создании курса');
+    }
+  };
+
   return (
     <Layout>
       <Container size="sm">
@@ -180,7 +152,6 @@ const onSubmit = async (data: FormData) => {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)}>
-          {/* ---------- название ---------- */}
           <Controller
             name="title"
             control={control}
@@ -189,7 +160,6 @@ const onSubmit = async (data: FormData) => {
             )}
           />
 
-          {/* ---------- группа ---------- */}
           <Controller
             name="group_title"
             control={control}
@@ -203,7 +173,6 @@ const onSubmit = async (data: FormData) => {
             )}
           />
 
-          {/* ---------- порядок ---------- */}
           <Controller
             name="order"
             control={control}
@@ -218,7 +187,6 @@ const onSubmit = async (data: FormData) => {
             )}
           />
 
-          {/* ---------- описания ---------- */}
           <Controller
             name="short_description"
             control={control}
@@ -234,7 +202,6 @@ const onSubmit = async (data: FormData) => {
             )}
           />
 
-          {/* ---------- картинка ---------- */}
           <FileInput
             label="Изображение курса"
             placeholder="Загрузите файл"
@@ -249,7 +216,6 @@ const onSubmit = async (data: FormData) => {
             <Image src={imageUrl} alt="preview" height={200} radius="md" mb="md" />
           )}
 
-          {/* ---------- бесплатный / платный ---------- */}
           <Controller
             name="is_free"
             control={control}
@@ -295,7 +261,6 @@ const onSubmit = async (data: FormData) => {
             </>
           )}
 
-          {/* ---------- даты скидки ---------- */}
           <Controller
             name="discount_start"
             control={control}
@@ -323,11 +288,10 @@ const onSubmit = async (data: FormData) => {
             )}
           />
 
-          {/* ---------- видео ---------- */}
           <Alert color="blue" mb="md">
             <strong>🎥 Загрузка видео курса</strong>
             <br />
-            Файл будет сохранён «как есть» (без HLS). Поддерживаются MP4, WebM, MOV.
+            Видео будет обработано (HLS) и доступно в нескольких качествах.
           </Alert>
 
           <FileInput
@@ -359,7 +323,6 @@ const onSubmit = async (data: FormData) => {
             />
           )}
 
-          {/* ---------- баннер ---------- */}
           <Controller
             name="banner_text"
             control={control}
@@ -389,7 +352,6 @@ const onSubmit = async (data: FormData) => {
 
           {loadingUpload && <Loader size="sm" mb="md" />}
 
-          {/* ---------- submit ---------- */}
           <Group justify="center" mt="xl">
             <Button type="submit" disabled={loadingUpload}>
               Создать курс

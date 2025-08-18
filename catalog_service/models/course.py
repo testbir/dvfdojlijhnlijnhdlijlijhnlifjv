@@ -12,7 +12,7 @@ class Course(Base):
     title = Column(String(255), nullable=False)
     short_description = Column(Text, nullable=False)
     full_description = Column(Text, nullable=True)
-    image = Column(Text)
+    image = Column(Text, nullable=True)
     is_free = Column(Boolean, default=False)
     price = Column(DECIMAL(10, 2), nullable=True)
     discount = Column(DECIMAL(5, 2), default=0.0)
