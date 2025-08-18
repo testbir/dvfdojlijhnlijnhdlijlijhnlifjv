@@ -17,19 +17,7 @@ import {
 import { Link } from 'react-router-dom';
 import { IconDots, IconTrash, IconEye, IconCopy } from '@tabler/icons-react';
 import { BulkOperations } from './BulkOperations';
-import api from '../api/axiosInstance';
-
-interface Course {
-  id: number;
-  title: string;
-  price: number;
-  order?: number;
-  is_free: boolean;
-  discount?: number;
-  image?: string;
-  short_description?: string;
-  is_discount_active?: boolean;
-}
+import { type AdminCourse, coursesApi, bannersApi } from '../services/adminApi';
 
 interface Banner {
   id: number;
@@ -38,8 +26,8 @@ interface Banner {
   link?: string;
 }
 
-export function EnhancedCourseTable({ courses: initialCourses }: { courses: Course[] }) {
-  const [courses, setCourses] = useState<Course[]>(initialCourses);
+export function EnhancedCourseTable({ courses: initialCourses }: { courses: AdminCourse[] }) {
+  const [courses, setCourses] = useState<AdminCourse[]>(initialCourses);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [selectedCourses, setSelectedCourses] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,8 +42,8 @@ export function EnhancedCourseTable({ courses: initialCourses }: { courses: Cour
 
   const fetchBanners = async () => {
     try {
-      const res = await api.get('/admin/banners/');
-      setBanners(res.data);
+      const data = await bannersApi.getBanners();
+      setBanners(data);
     } catch (e) {
       console.error('Ошибка при загрузке баннеров', e);
     }
@@ -80,7 +68,7 @@ export function EnhancedCourseTable({ courses: initialCourses }: { courses: Cour
   const handleDeleteBanner = async (id: number) => {
     if (!window.confirm('Удалить баннер?')) return;
     try {
-      await api.delete(`/admin/banners/${id}`);
+      await bannersApi.deleteBanner(id);
       setBanners((prev) => prev.filter((b) => b.id !== id));
     } catch (e) {
       console.error('Ошибка удаления баннера', e);
@@ -90,7 +78,7 @@ export function EnhancedCourseTable({ courses: initialCourses }: { courses: Cour
   const handleDeleteCourse = async (id: number) => {
     if (!window.confirm('Удалить курс?')) return;
     try {
-      await api.delete(`/admin/courses/${id}`);
+      await coursesApi.deleteCourse(id);
       setCourses(prev => prev.filter(c => c.id !== id));
       setSelectedCourses(prev => prev.filter(courseId => courseId !== id));
     } catch (e) {
@@ -101,18 +89,30 @@ export function EnhancedCourseTable({ courses: initialCourses }: { courses: Cour
   const handleDuplicateCourse = async (courseId: number) => {
     try {
       setLoading(true);
-      await api.post(`/admin/courses/${courseId}/duplicate/`);
-      // Обновляем список курсов
-      window.location.reload();
-    } catch (e) {
-      console.error('Ошибка дублирования курса', e);
+      const original = courses.find(c => c.id === courseId);
+      if (!original) return;
+
+      await coursesApi.createCourse({
+        ...original,
+        id: undefined,
+        title: `${original.title} (копия)`
+      });
+
+      const updatedCourses = await coursesApi.getCourses();
+      setCourses(updatedCourses);
     } finally {
       setLoading(false);
     }
   };
 
-  const refreshCourses = () => {
-    window.location.reload(); // Простое обновление, можно заменить на API вызов
+
+  const refreshCourses = async () => {
+    try {
+      const data = await coursesApi.getCourses();
+      setCourses(data);
+    } catch (e) {
+      console.error('Ошибка обновления курсов', e);
+    }
   };
 
   return (
@@ -260,7 +260,6 @@ export function EnhancedCourseTable({ courses: initialCourses }: { courses: Cour
                 ) : (
                   <Text c="dimmed">—</Text>
                 )}
-
               </Table.Td>
               <Table.Td>{course.order ?? 0}</Table.Td>
               <Table.Td>

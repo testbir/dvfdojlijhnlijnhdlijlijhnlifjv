@@ -8,7 +8,7 @@ const CourseSchema = z.object({
   title: z.string(),
   short_description: z.string().nullable().optional(),
   full_description: z.string().nullable().optional(),
-  image: z.string().nullable().optional(), // ← ИСПРАВЛЕНО: может быть null
+  image: z.string().nullable(),  // ← ИЗМЕНЕНО: теперь принимает string | null
   is_free: z.boolean().optional().default(false),
   price: z.number().nonnegative().nullable().optional(),
   discount: z.number().nonnegative().nullable().optional(),
@@ -21,6 +21,7 @@ const CourseSchema = z.object({
   discount_start: z.string().nullable().optional(),
   discount_until: z.string().nullable().optional(),
   group_title: z.string().nullable().optional(),
+  is_discount_active: z.boolean().optional(), // ← ДОБАВЛЕНО: это поле используется в компоненте
 }).passthrough();
 
 export type AdminCourse = z.infer<typeof CourseSchema>;
@@ -34,10 +35,11 @@ export const getCoursesSafe = async (): Promise<AdminCourse[]> => {
 // ==================== КУРСЫ ====================
 export const coursesApi = {
   // Получить список курсов
-  getCourses: async () => {
-  const { data } = await api.get('/admin/courses/');
-  return data; // ← убрать .parse(data)
-},
+  getCourses: async (): Promise<AdminCourse[]> => {
+    const { data } = await api.get('/admin/courses/');
+    console.log('Raw data from API:', data); // Временно для отладки
+    return z.array(CourseSchema).parse(data);
+  },
   // Получить курс по ID
   getCourse: async (id: number) => {
     const response = await api.get(`/admin/courses/${id}`);

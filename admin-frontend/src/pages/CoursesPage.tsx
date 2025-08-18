@@ -1,24 +1,13 @@
-//pages/CoursePage.tsx
+// pages/CoursesPage.tsx
 
 import { useState, useEffect } from 'react';
 import { Title, Container } from '@mantine/core';
 import { EnhancedCourseTable } from '../components/EnhancedCourseTable';
-import { coursesApi } from '../services/adminApi';
+import { coursesApi, type AdminCourse } from '../services/adminApi';
 import Layout from '../components/Layout';
 
-interface Course {
-  id: number;
-  title: string;
-  price: number;
-  order?: number;
-  is_free: boolean;
-  discount?: number;
-  image?: string;
-  short_description?: string;
-}
-
 export default function CoursesPage() {
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<AdminCourse[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
