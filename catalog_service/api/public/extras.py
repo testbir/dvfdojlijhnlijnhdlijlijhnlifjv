@@ -19,7 +19,7 @@ router = APIRouter(prefix="/courses", tags=["Public Course Extras"])
 
 
 
-@router.get("/{course_id}/modal", response_model=Optional[dict])
+@router.get("/{course_id}/modal/", response_model=Optional[dict])
 async def get_course_modal_public(
     course_id: int, 
     db: AsyncSession = Depends(get_db_session)
@@ -60,7 +60,7 @@ async def get_course_modal_public(
         ]
     }
 
-@router.get("/{course_id}/student-works", response_model=Optional[dict])
+@router.get("/{course_id}/student-works/", response_model=Optional[dict])
 async def get_student_works_public(
     course_id: int, 
     db: AsyncSession = Depends(get_db_session)

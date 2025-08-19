@@ -8,7 +8,7 @@ from typing import List
 
 from db.dependencies import get_db_session
 from models.course import Course
-from schemas.course import CourseCreate
+from schemas.course import CourseCreate, CourseUpdate
 
 router = APIRouter(prefix="/courses")
 
@@ -41,24 +41,21 @@ async def admin_create_course(data: CourseCreate, db: AsyncSession = Depends(get
     return course
 
 @router.put("/{course_id}", summary="Обновить курс")
-async def admin_update_course(course_id: int, data: CourseCreate, db: AsyncSession = Depends(get_db_session)):
+async def admin_update_course(course_id: int, data: CourseUpdate, db: AsyncSession = Depends(get_db_session)):
     res = await db.execute(select(Course).where(Course.id == course_id))
     course = res.scalar_one_or_none()
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
 
-    NON_NULLABLE = {"title", "short_description"}
-    data_dict = data.model_dump(mode="python", exclude_unset=True)
+    payload = data.model_dump(mode="python", exclude_unset=True)
 
-    if "discount_start" in data_dict:
-        data_dict["discount_start"] = _norm_aware(data_dict["discount_start"])
-    if "discount_until" in data_dict:
-        data_dict["discount_until"] = _norm_aware(data_dict["discount_until"])
+    if "discount_start" in payload:
+        payload["discount_start"] = _norm_aware(payload["discount_start"])
+    if "discount_until" in payload:
+        payload["discount_until"] = _norm_aware(payload["discount_until"])
 
-    for k, v in data_dict.items():
+    for k, v in payload.items():
         if isinstance(v, str) and not v.strip():
-            if k in NON_NULLABLE:
-                continue
             v = None
         setattr(course, k, v)
 

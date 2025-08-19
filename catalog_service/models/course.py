@@ -2,6 +2,7 @@
 
 from sqlalchemy import Column, Integer, String, Text, Boolean, DECIMAL
 from sqlalchemy import DateTime
+from sqlalchemy.orm import relationship
 
 from core.base import Base
 
@@ -31,3 +32,17 @@ class Course(Base):
     
     
     group_title = Column(String(100), nullable=True)
+    
+    modal = relationship(
+        "CourseModal",
+        back_populates="course",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    student_works_sections = relationship(
+        "StudentWorksSection",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )

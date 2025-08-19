@@ -1,4 +1,4 @@
-# catalog_service/ale
+# catalog_service/alembic/env.py
 
 
 import os, sys

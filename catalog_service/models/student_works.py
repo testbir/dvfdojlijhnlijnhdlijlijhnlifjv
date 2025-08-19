@@ -13,7 +13,7 @@ class StudentWorksSection(Base):
     title = Column(String(255), nullable=False)  # "Работы учеников нашего курса"
     description = Column(Text, nullable=False)  # Описание секции
     
-    course = relationship("Course", backref="student_works_sections")
+    course = relationship("Course", back_populates="student_works_sections")
     works = relationship(
         "StudentWork",
         back_populates="section",

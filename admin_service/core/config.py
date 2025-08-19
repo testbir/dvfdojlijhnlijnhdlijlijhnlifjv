@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     S3_CONTENT_BUCKET: str = "course-content"
     S3_CONTENT_CDN_URL: str = "https://content-cdn-url.selstorage.ru"
     # App
+    REDIS_URL: str = "redis://redis_cache:6379/0"
     DEBUG: bool = False
     CORS_ALLOW_ORIGINS: str = "*"
 

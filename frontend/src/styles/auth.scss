@@ -7,15 +7,10 @@
    ШРИФТЫ И ТИПОГРАФИЯ
    ======================================================================== */
 
-// Утилитарный класс для шрифта Sora
-.sora-text {
-  font-family: 'Sora', sans-serif;
-}
+/* Базовые переменные */
+$font-sora: 'Sora', sans-serif;
+$font-opensans: 'Open Sans', sans-serif;
 
-// Утилитарный класс для шрифта Space Grotesk
-.spaceglotesk-text {
-  font-family: 'Space Grotesk', sans-serif;
-}
 
 /* ========================================================================
    ОСНОВНАЯ СТРУКТУРА СТРАНИЦЫ АВТОРИЗАЦИИ
@@ -141,7 +136,7 @@
 
 // Заголовок формы (например, "Вход", "Регистрация")
 .auth-title {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: $font-opensans;
   font-size: 32px;
   font-weight: 600;
   color: #479EFD;

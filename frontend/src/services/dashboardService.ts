@@ -1,5 +1,4 @@
 // frontend/src/services/dashboardService.ts
-
 import { catalogApi } from "../api/catalogApi";
 
 export interface UserStats {
@@ -37,25 +36,21 @@ export interface UserProfile {
 }
 
 class DashboardService {
-  // Получение профиля пользователя (из catalog, который проксирует к auth)
   async getUserProfile(): Promise<UserProfile> {
-    const response = await catalogApi.get("/v1/public/profile");
+    const response = await catalogApi.get("/v1/public/profile/");
     return response.data;
   }
 
-  // Получение данных дашборда
   async getDashboardData(): Promise<DashboardData> {
-    const response = await catalogApi.get("/v1/public/dashboard");
+    const response = await catalogApi.get("/v1/public/dashboard/");
     return response.data;
   }
 
-  // Получение статистики
   async getUserStats(): Promise<UserStats> {
-    const response = await catalogApi.get("/v1/public/stats");
+    const response = await catalogApi.get("/v1/public/stats/");
     return response.data;
   }
 
-  // Комбинированный запрос
   async getFullDashboard(): Promise<{
     profile: UserProfile;
     dashboard: DashboardData;
@@ -64,7 +59,6 @@ class DashboardService {
       this.getUserProfile(),
       this.getDashboardData()
     ]);
-
     return { profile, dashboard };
   }
 }

@@ -1,292 +1,161 @@
 // frontend/src/services/catalogService.ts
-
-import catalogApi from "../api/catalogApi";
+import { catalogApi } from "../api/axiosInstance";
 
 // === ТИПЫ ===
-// (типы остаются без изменений)
-
 export interface Course {
   id: number;
   title: string;
   short_description: string;
-  image: string;
+  full_description?: string;
+  image: string | null;
   price: number;
-  final_price: number;
-  is_free: boolean;
-  has_access: boolean;
-  button_text: string;
-  order?: number;
   discount?: number;
+  is_free: boolean;
+  is_purchased?: boolean;
+  modules_count?: number;
+  students_count?: number;
+  order?: number;
+  video?: string | null;
+  video_preview?: string | null;
+  banner_text?: string | null;
+  banner_color_left?: string | null;
+  banner_color_right?: string | null;
+  group_title?: string | null;
+  discount_start?: string | null;
+  discount_until?: string | null;
   is_discount_active?: boolean;
-  discount_ends_in?: number;
 }
 
-export interface CourseDetail {
+export interface Module {
   id: number;
   title: string;
-  full_description: string;
-  short_description: string;
-  image: string;
-  is_free: boolean;
-  price: number;
-  discount: number;
-  final_price: number;
-  has_access: boolean;
-  button_text: string;
-  video?: string;
-  video_preview?: string;
-  banner_text?: string;
-  banner_color_left?: string;
-  banner_color_right?: string;
-  group_title?: string;
-  discount_start?: string;
-  discount_until?: string;
-  discount_ends_in?: number;
-  is_discount_active?: boolean;
+  group_title?: string | null;
+  order: number;
+  sp_award: number;
+  blocks_count: number;
+  is_completed?: boolean;
 }
 
 export interface Banner {
   id: number;
   image: string;
   order: number;
-  link?: string;
+  link?: string | null;
 }
 
-export interface CourseModule {
+export interface PromoCode {
   id: number;
-  title: string;
-  group_title?: string;
-  order: number;
+  code: string;
+  discount_percent: number;
+  valid_until?: string | null;
+  max_uses?: number | null;
+  uses_left?: number | null;
+  is_active: boolean;
 }
-
-export interface CourseStructure {
-  course_id: number;
-  modules: CourseModule[];
-}
-
-export interface BuyCourseRequest {
-  payment_id?: string;
-}
-
-export interface BuyCourseResponse {
-  success: boolean;
-  message: string;
-}
-
-export interface CourseAccessResponse {
-  has_access: boolean;
-  requires_auth: boolean;
-  course_type?: string;
-  message?: string;
-}
-
-// === СЕРВИС ===
 
 class CatalogService {
-  // ПУБЛИЧНЫЙ CDN (course-public) - для изображений, баннеров, видео "О курсе"
+  // CDN URLs
   private readonly PUBLIC_CDN = "https://79340a29-0019-4283-b338-388e7f5c1822.selstorage.ru";
-  
-  // ПРИВАТНЫЙ CDN (course-content) - для видео внутри курсов
   private readonly PRIVATE_CDN = "https://3e95e171-5a4f-482f-828a-d9394d4fb18e.selcdn.net";
 
-  // Форматирование URL для публичного контента (изображения, баннеры)
-  formatImageUrl(url: string): string {
+  // Утилиты для форматирования URL
+  formatImageUrl(url: string | null): string {
     if (!url) return "";
     if (url.startsWith("http")) return url;
     return `${this.PUBLIC_CDN}/${url}`;
   }
 
-  // Форматирование URL для публичных видео (страница "О курсе")
-  formatPublicVideoUrl(url: string): string {
+  formatVideoUrl(url: string | null, isPrivate = false): string {
     if (!url) return "";
     if (url.startsWith("http")) return url;
-    return `${this.PUBLIC_CDN}/${url}`;
+    return isPrivate ? `${this.PRIVATE_CDN}/${url}` : `${this.PUBLIC_CDN}/${url}`;
   }
 
-  // Форматирование URL для приватных видео (внутри курса)
-  formatPrivateVideoUrl(url: string): string {
-    if (!url) return "";
-    if (url.startsWith("http")) return url;
-    return `${this.PRIVATE_CDN}/${url}`;
-  }
+// === КУРСЫ ===
+async getCourses(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  is_free?: boolean;
+}): Promise<{ courses: Course[]; total: number }> {
+  const { data } = await catalogApi.get("/v1/public/courses/", { params });
+  const courses = Array.isArray(data) ? data : (data.courses ?? []);
+  const total = Array.isArray(data) ? data.length : (data.total ?? courses.length);
+  return { courses, total };
+}
 
-  // === КУРСЫ ===
 
-  // Получение списка всех курсов
-  async getCourses(): Promise<Course[]> {
-    const response = await catalogApi.get("/courses/");
-    if (!Array.isArray(response.data)) {
-      throw new Error("Ожидался массив курсов");
-    }
-    
-    return response.data.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }
-
-  // Получение детальной информации о курсе
-  async getCourseDetail(courseId: number): Promise<CourseDetail> {
-    const response = await catalogApi.get(`/courses/${courseId}/`);
+  async getCourseDetail(courseId: number): Promise<Course> {
+    const response = await catalogApi.get(`/v1/public/courses/${courseId}`);
     return response.data;
   }
 
-  // Получение структуры курса (модули)
-  async getCourseStructure(courseId: number): Promise<CourseStructure> {
-    const response = await catalogApi.get(`/courses/${courseId}/structure/`);
+  async buyCourse(courseId: number, promoCode?: string): Promise<{
+    success: boolean;
+    message: string;
+    purchase_id?: number;
+  }> {
+      const response = await catalogApi.post(
+        `/v1/public/courses/${courseId}/buy/`,
+        { course_id: courseId, promo_code: promoCode }
+      );
     return response.data;
   }
 
-  // Проверка доступа к курсу
-  async checkCourseAccess(courseId: number): Promise<CourseAccessResponse> {
-    const response = await catalogApi.post(`/courses/${courseId}/check-access/`);
-    return response.data;
-  }
-
-  // Покупка курса
-  async buyCourse(courseId: number, data: BuyCourseRequest = {}): Promise<BuyCourseResponse> {
-    const response = await catalogApi.post(`/courses/${courseId}/buy/`, data);
-    return response.data;
+  async getMyCourses(): Promise<Course[]> {
+    const response = await catalogApi.get("/v1/public/my-courses/");
+    return response.data.courses || response.data;
   }
 
   // === БАННЕРЫ ===
-
-  // Получение баннеров для главной страницы
-  async getBanners(limit = 2): Promise<Banner[]> {
-    const response = await catalogApi.get("/internal/banners/");
-    if (!Array.isArray(response.data)) {
-      throw new Error("Ожидался массив баннеров");
-    }
-
-    return response.data
-      .sort((a, b) => a.order - b.order)
-      .slice(0, limit);
-  }
-
-  // === ПОИСК И ФИЛЬТРАЦИЯ ===
-
-  // Фильтрация курсов по поисковому запросу
-  filterCourses(courses: Course[], searchQuery: string): Course[] {
-    if (!searchQuery.trim()) return courses;
-    
-    const query = searchQuery.toLowerCase();
-    return courses.filter((course) =>
-      course.title.toLowerCase().includes(query) ||
-      course.short_description.toLowerCase().includes(query)
-    );
-  }
-
-  // Получение курсов с поиском
-  async getCoursesWithSearch(searchQuery?: string): Promise<Course[]> {
-    const courses = await this.getCourses();
-    return searchQuery ? this.filterCourses(courses, searchQuery) : courses;
+  async getBanners(): Promise<Banner[]> {
+    const response = await catalogApi.get("/v1/public/banners/");
+    return response.data;
   }
 
   // === ПРОМОКОДЫ ===
-
-  // Проверка промокода
-  async checkPromocode(code: string, courseId?: number) {
-    const params = courseId ? { course_id: courseId } : {};
-    const response = await catalogApi.post("/promocodes/check/", { code, ...params });
+  async checkPromoCode(courseId: number, code: string): Promise<{
+    valid: boolean;
+    discount_percent?: number;
+    final_price?: number;
+    message?: string;
+  }> {
+    const response = await catalogApi.post("/v1/public/promocodes/check/", {
+      course_id: courseId,
+      code: code
+    });
     return response.data;
   }
 
-  // Применение промокода
-  async usePromocode(code: string, courseId?: number) {
-    const params = courseId ? { course_id: courseId } : {};
-    const response = await catalogApi.post("/promocodes/use/", { code, ...params });
-    return response.data;
-  }
-
-  // === КЭШИРОВАНИЕ ===
-
-  private cache: {
-    courses: Course[] | null;
-    banners: Banner[] | null;
-    coursesTimestamp: number;
-    bannersTimestamp: number;
-  } = {
-    courses: null,
-    banners: null,
-    coursesTimestamp: 0,
-    bannersTimestamp: 0,
-  };
-
-  private readonly CACHE_TIME = 5 * 60 * 1000; // 5 минут
-
-  // Получение курсов с кэшированием
-  async getCachedCourses(forceRefresh = false): Promise<Course[]> {
-    const now = Date.now();
-    
-    if (
-      !forceRefresh &&
-      this.cache.courses &&
-      (now - this.cache.coursesTimestamp) < this.CACHE_TIME
-    ) {
-      return this.cache.courses;
-    }
-
-    const courses = await this.getCourses();
-    this.cache.courses = courses;
-    this.cache.coursesTimestamp = now;
-    
-    return courses;
-  }
-
-  // Получение баннеров с кэшированием
-  async getCachedBanners(limit = 2, forceRefresh = false): Promise<Banner[]> {
-    const now = Date.now();
-    
-    if (
-      !forceRefresh &&
-      this.cache.banners &&
-      (now - this.cache.bannersTimestamp) < this.CACHE_TIME
-    ) {
-      return this.cache.banners.slice(0, limit);
-    }
-
-    const banners = await this.getBanners(limit);
-    this.cache.banners = banners;
-    this.cache.bannersTimestamp = now;
-    
-    return banners;
-  }
-
-  // Очистка кэша
-  clearCache() {
-    this.cache = {
-      courses: null,
-      banners: null,
-      coursesTimestamp: 0,
-      bannersTimestamp: 0,
+  // === ДАШБОРД ===
+  async getDashboardData(): Promise<{
+    user_id: number;
+    stats: {
+      total_courses: number;
+      completed_courses: number;
+      total_progress_percent: number;
     };
+    courses: Array<{
+      course_id: number;
+      course_title: string;
+      image: string | null;
+      progress_percent: number;
+      is_completed: boolean;
+      purchased_at: string;
+    }>;
+  }> {
+    const response = await catalogApi.get("/v1/public/dashboard/");
+    return response.data;
   }
 
-  // === КОМБИНИРОВАННЫЕ МЕТОДЫ ===
-
-  // Получение всех данных для главной страницы
-  async getHomePageData(searchQuery?: string): Promise<{
-    courses: Course[];
-    banners: Banner[];
+  // === ПРОФИЛЬ ===
+  async getUserProfile(): Promise<{
+    id: number;
+    username: string;
+    email: string;
   }> {
-    const [courses, banners] = await Promise.all([
-      this.getCoursesWithSearch(searchQuery),
-      this.getCachedBanners(2)
-    ]);
-
-    return { courses, banners };
-  }
-
-  // Получение полных данных о курсе (детали + структура)
-  async getFullCourseData(courseId: number): Promise<{
-    course: CourseDetail;
-    structure: CourseStructure;
-    access: CourseAccessResponse;
-  }> {
-    const [course, structure, access] = await Promise.all([
-      this.getCourseDetail(courseId),
-      this.getCourseStructure(courseId),
-      this.checkCourseAccess(courseId)
-    ]);
-
-    return { course, structure, access };
+    const response = await catalogApi.get("/v1/public/profile/");
+    return response.data;
   }
 }
 

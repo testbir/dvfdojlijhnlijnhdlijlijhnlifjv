@@ -12,7 +12,7 @@ router = APIRouter()
 
     
 
-@router.get("/profile", summary="Профиль пользователя")
+@router.get("/profile/", summary="Профиль пользователя")
 async def get_user_profile(request: Request):
     """
     Возвращает данные пользователя из auth_service

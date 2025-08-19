@@ -1,141 +1,145 @@
-// frontend/src/pages/EmailVerificationPage.tsx
+// src/pages/EmailVerificationPage.tsx
 
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import authService from "../services/authService";
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import Layout from "../components/Layout";
+import authlogo from "../assets/authlogo.png";
+import logomobile from "../assets/logomobile.png";
+import CodeInput from '../components/CodeInput';
+import authService from '../services/authService';
 
-const EmailVerificationPage = () => {
+import "../styles/auth.scss";
+import "../styles/EmailVerificationPage.scss";
+
+const EmailVerificationPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+
+  const purpose = searchParams.get('purpose'); // 'register' | 'reset_password'
+  const userIdParam = searchParams.get('user_id');
+  const emailParam = searchParams.get('email');
+
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [timer, setTimer] = useState(60);
   const [resending, setResending] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
-
-  // Получаем данные из состояния навигации
-  const userId = location.state?.userId;
-  const email = location.state?.email;
-  const message = location.state?.message;
 
   useEffect(() => {
-    // Если нет userId, перенаправляем на регистрацию
-    if (!userId) {
-      navigate("/register");
-    }
-  }, [userId, navigate]);
+    const interval = setInterval(() => {
+      setTimer(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
+  // Валидация входных параметров
   useEffect(() => {
-    // Таймер для повторной отправки
-    if (resendTimer > 0) {
-      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
-      return () => clearTimeout(timer);
+    if (purpose === 'reset_password' && !emailParam) {
+      navigate('/forgot-password');
+      return;
     }
-  }, [resendTimer]);
+    if (purpose === 'register' && !userIdParam) {
+      navigate('/register');
+      return;
+    }
+    if (purpose !== 'register' && purpose !== 'reset_password') {
+      navigate('/login');
+    }
+  }, [purpose, userIdParam, emailParam, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
+  const handleVerify = async () => {
+    setError('');
     try {
-      await authService.verifyCode(userId, code);
-      // После успешной верификации перенаправляем на главную
-      navigate("/", { 
-        state: { message: "Email успешно подтвержден!" } 
-      });
-    } catch (error: any) {
-      if (error.response?.data?.message) {
-        setError(error.response.data.message);
-      } else {
-        setError("Неверный код подтверждения");
+      if (purpose === 'register') {
+        // вернёт и сохранит токены
+        await authService.verifyCode(Number(userIdParam), code);
+        navigate('/?message=activated');
+      } else if (purpose === 'reset_password') {
+        const res = await authService.verifyResetCode(String(emailParam), code);
+        navigate(`/set-new-password?user_id=${res.user_id}`);
       }
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Ошибка проверки кода');
     }
   };
 
-  const handleResendCode = async () => {
+  const handleResend = async () => {
+    if (timer > 0 || resending) return;
     setResending(true);
-    setError("");
+    setError('');
 
     try {
-      await authService.resendCode(userId, 'register');
-      setResendTimer(60); // 60 секунд до следующей отправки
-    } catch (error: any) {
-      if (error.response?.data?.message) {
-        setError(error.response.data.message);
-      } else {
-        setError("Не удалось отправить код");
+      if (purpose === 'register') {
+        if (!userIdParam) throw new Error('Отсутствует user_id');
+        await authService.resendCode(Number(userIdParam), 'register');
+      } else if (purpose === 'reset_password') {
+        if (!emailParam) throw new Error('Отсутствует email');
+        await authService.requestPasswordReset(String(emailParam));
       }
+      setTimer(60);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Не удалось отправить код повторно');
     } finally {
       setResending(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Подтверждение Email
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {message || `Мы отправили 4-значный код на ${email || "ваш email"}`}
-          </p>
-        </div>
-
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-800">{error}</p>
+    <Layout>
+      <div className="auth-wrapper email-verification-page">
+        <div className="auth-box">
+          <div className="auth-side auth-side--left">
+            <div className="auth-logo-container">
+              <div className="auth-logo">
+                <img src={authlogo} alt="AsyncTeach" />
+              </div>
             </div>
-          )}
-
-          <div>
-            <label htmlFor="code" className="block text-sm font-medium text-gray-700">
-              Код подтверждения
-            </label>
-            <input
-              id="code"
-              name="code"
-              type="text"
-              autoComplete="one-time-code"
-              required
-              maxLength={4}
-              pattern="[0-9]{4}"
-              className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm text-center text-2xl"
-              placeholder="0000"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            />
           </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading || code.length !== 4}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Проверка..." : "Подтвердить"}
-            </button>
-          </div>
+          <div className="auth-side auth-side--right">
+            <div className="mobile-logo-container mobile-logo-container--center">
+              <div className="mobile-logo">
+                <img src={logomobile} alt="AsyncTeach" />
+              </div>
+            </div>
 
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={handleResendCode}
-              disabled={resending || resendTimer > 0}
-              className="text-sm text-indigo-600 hover:text-indigo-500 disabled:text-gray-400 disabled:cursor-not-allowed"
-            >
-              {resendTimer > 0 
-                ? `Отправить повторно через ${resendTimer}с` 
-                : "Отправить код повторно"}
-            </button>
+            <div className="auth-content">
+              <h1 className="auth-title emailverification-title">Подтвердите почту</h1>
+
+              <div className="verification-block">
+                <p className="verification-text">Мы отправили код на твою почту</p>
+
+                <CodeInput length={4} onComplete={setCode} />
+
+                <div className="resend-block">
+                  {timer > 0 ? (
+                    <p className="resend-timer">Можно запросить повторно через {timer} сек.</p>
+                  ) : (
+                    <button
+                      onClick={handleResend}
+                      disabled={resending}
+                      className="resend-text"
+                    >
+                      {resending ? 'Отправляем...' : 'Повторно отправить код'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="auth-error-container"></div>
+              {error && <div className="auth-error emailverification-error">{error}</div>}
+
+              <button
+                onClick={handleVerify}
+                disabled={code.length !== 4}
+                className="auth-button emailverification-button"
+              >
+                Подтвердить
+              </button>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

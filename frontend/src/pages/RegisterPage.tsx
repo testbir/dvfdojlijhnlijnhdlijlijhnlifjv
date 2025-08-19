@@ -1,171 +1,221 @@
-// frontend/src/pages/RegisterPage.tsx
+// src/pages/RegisterPage.tsx
 
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import authService from "../services/authService";
-import type { RegisterData } from "../services/authService";
+import Layout from "../components/Layout";
+import authlogo from "../assets/authlogo.png";
+import logomobile from "../assets/logomobile.png";
 
-const RegisterPage = () => {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState<RegisterData>({
+import "../styles/auth.scss";
+import "../styles/RegisterPage.scss";
+
+const errorTranslations: { [key: string]: string } = {
+  "A user with that username already exists.": "Пользователь с таким логином уже существует.",
+  "A user with that email already exists.": "Пользователь с такой почтой уже существует.",
+  "This field may not be blank.": "Это поле не может быть пустым.",
+  "Enter a valid email address.": "Введите корректный email адрес.",
+  "This password is too short. It must contain at least 8 characters.": "Пароль слишком короткий. Минимум 8 символов.",
+  "This password is too common.": "Пароль слишком простой.",
+  "This password is entirely numeric.": "Пароль не может состоять только из цифр.",
+  "Username may only contain letters, numbers and @/./+/-/_ characters.": "Логин может содержать только буквы, цифры и символы @/./+/-/_.",
+};
+
+const translateError = (error: string): string => errorTranslations[error] || error;
+
+export default function RegisterPage() {
+  const [formData, setFormData] = useState({
     username: "",
     email: "",
-    password: ""
+    password1: "",
+    password2: "",
   });
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [canSubmit, setCanSubmit] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(""), 3000);
+    return () => clearTimeout(timer);
+  }, [error]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSubmit) return;
+
+    setCanSubmit(false);
     setError("");
 
-    if (formData.password !== confirmPassword) {
+    if (formData.password1 !== formData.password2) {
       setError("Пароли не совпадают");
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      setError("Пароль должен содержать минимум 8 символов");
+      setCanSubmit(true);
       return;
     }
 
     setLoading(true);
-
     try {
-      const response = await authService.register(formData);
-      
-      // Переходим на страницу подтверждения email
-      navigate("/email-verification", {
-        state: {
-          userId: response.user_id,
-          email: formData.email,
-          message: response.message
-        }
-      });
-    } catch (error: any) {
-      if (error.response?.data?.username) {
-        setError("Это имя пользователя уже занято");
-      } else if (error.response?.data?.email) {
-        setError("Этот email уже зарегистрирован");
-      } else if (error.response?.data?.message) {
-        setError(error.response.data.message);
+        const res = await authService.register({
+          username: formData.username.trim(),
+          email: formData.email.trim(),
+          password1: formData.password1,
+          password2: formData.password2,
+        });
+      navigate(
+        `/email-verification?user_id=${res.user_id}&email=${encodeURIComponent(
+          formData.email
+        )}&purpose=register`
+      );
+    } catch (err: any) {
+      if (err.response?.status === 429) {
+        setError("Слишком много попыток регистрации. Попробуйте через несколько минут.");
       } else {
-        setError("Произошла ошибка при регистрации");
+        const data = err.response?.data;
+        if (typeof data === "string") {
+          setError(translateError(data));
+        } else if (data && typeof data === "object") {
+          const firstKey = Object.keys(data)[0];
+          const firstValue = data[firstKey];
+          const msg = Array.isArray(firstValue) ? firstValue[0] : firstValue;
+          setError(translateError(String(msg)));
+        } else {
+          setError("Ошибка регистрации");
+        }
       }
+      setCanSubmit(false);
+      setTimeout(() => setCanSubmit(true), 4000);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Создать аккаунт
-          </h2>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
-          )}
-          
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Имя пользователя
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                autoComplete="username"
-                required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Имя пользователя"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Пароль
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Минимум 8 символов"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Подтвердите пароль
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Повторите пароль"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Регистрация..." : "Зарегистрироваться"}
-            </button>
-          </div>
-
-          <div className="text-center">
-            <span className="text-sm text-gray-600">Уже есть аккаунт? </span>
-            <Link
-              to="/login"
-              className="text-sm text-indigo-600 hover:text-indigo-500"
-            >
-              Войти
+    <Layout>
+      <div className="auth-wrapper register-page">
+        <div className="auth-box">
+          <div className="auth-side auth-side--left">
+            <Link to="/" className="auth-back">
+              <span className="material-symbols-outlined icon-back" aria-hidden="true" role="presentation">
+                arrow_back
+              </span>
+              На Главную
             </Link>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
 
-export default RegisterPage;
+            <div className="auth-logo-container">
+              <div className="auth-logo">
+                <img src={authlogo} alt="AsyncTeach" />
+              </div>
+            </div>
+          </div>
+
+          <div className="auth-side auth-side--right">
+            <div className="mobile-logo-container">
+              <Link to="/" className="mobile-auth-back">
+                <span className="material-symbols-outlined icon-back" aria-hidden="true" role="presentation">
+                  arrow_back
+                </span>
+                На Главную
+              </Link>
+
+              <div className="mobile-logo">
+                <img src={logomobile} alt="AsyncTeach" />
+              </div>
+            </div>
+
+            <div className="auth-content">
+              <h1 className="auth-title register-title">Регистрация</h1>
+
+              <form onSubmit={handleSubmit} className="auth-form register-form">
+                <div className={`auth-input-wrapper ${formData.username ? "filled" : ""}`}>
+                  <input
+                    className="auth-input"
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                    onFocus={(e) => e.target.parentElement?.classList.add("focused")}
+                    onBlur={(e) => {
+                      if (!e.target.value) e.target.parentElement?.classList.remove("focused");
+                    }}
+                    required
+                  />
+                  <span className="auth-placeholder">Введите логин</span>
+                </div>
+
+                <div className={`auth-input-wrapper ${formData.email ? "filled" : ""}`}>
+                  <input
+                    className="auth-input"
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    onFocus={(e) => e.target.parentElement?.classList.add("focused")}
+                    onBlur={(e) => {
+                      if (!e.target.value) e.target.parentElement?.classList.remove("focused");
+                    }}
+                    required
+                  />
+                  <span className="auth-placeholder">Введите почту</span>
+                </div>
+
+                <div className={`auth-input-wrapper ${formData.password1 ? "filled" : ""}`}>
+                  <input
+                    className="auth-input password-input"
+                    type="password"
+                    name="password1"
+                    value={formData.password1}
+                    onChange={handleChange}
+                    onFocus={(e) => e.target.parentElement?.classList.add("focused")}
+                    onBlur={(e) => {
+                      if (!e.target.value) e.target.parentElement?.classList.remove("focused");
+                    }}
+                    required
+                  />
+                  <span className="auth-placeholder">Введите пароль</span>
+                </div>
+
+                <div className={`auth-input-wrapper ${formData.password2 ? "filled" : ""}`}>
+                  <input
+                    className="auth-input password-input"
+                    type="password"
+                    name="password2"
+                    value={formData.password2}
+                    onChange={handleChange}
+                    onFocus={(e) => e.target.parentElement?.classList.add("focused")}
+                    onBlur={(e) => {
+                      if (!e.target.value) e.target.parentElement?.classList.remove("focused");
+                    }}
+                    required
+                  />
+                  <span className="auth-placeholder">Повторите пароль</span>
+                </div>
+
+                <div className="auth-links register-links">
+                  <Link to="/login" className="register-login-link">
+                    Уже есть аккаунт?
+                  </Link>
+                </div>
+
+                <div className="auth-error-container"></div>
+                {error && <div className="auth-error register-error">{error}</div>}
+
+                <button type="submit" disabled={loading || !canSubmit} className="auth-button register-button">
+                  {loading ? "Создание..." : "Создать профиль"}
+                </button>
+
+                <div className="register-terms">
+                  Подтверждая, вы соглашаетесь с <Link to="/terms" className="terms-link">условиями</Link>.
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+}

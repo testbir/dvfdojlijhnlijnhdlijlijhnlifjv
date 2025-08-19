@@ -1,128 +1,153 @@
-// ===== 1. Обновленный LoginPage.tsx =====
-// frontend/src/pages/LoginPage.tsx
+// src/pages/LoginPage.tsx
 
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import authService from "../services/authService";
-import type { LoginCredentials } from "../services/authService";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import Layout from "../components/Layout";
+import authlogo from "../assets/authlogo.png";
+import logomobile from "../assets/logomobile.png";
 
-const LoginPage = () => {
-  const navigate = useNavigate();
-  const [credentials, setCredentials] = useState<LoginCredentials>({
-    email: "",
-    password: ""
-  });
+import "../styles/auth.scss";
+import "../styles/LoginPage.scss";
+
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activationData, setActivationData] = useState<{ user_id: number; email: string } | null>(null);
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setActivationData(null);
     setLoading(true);
 
     try {
-      await authService.login(credentials);
+      await login(email.trim(), password);
       navigate("/");
-    } catch (error: any) {
-      if (error.type === 'NOT_ACTIVATED') {
-        // Перенаправляем на страницу подтверждения email
-        navigate("/email-verification", {
-          state: {
-            userId: error.userId,
-            email: error.email,
-            message: error.message
-          }
-        });
-      } else if (error.response?.data?.message) {
-        setError(error.response.data.message);
-      } else if (error.response?.data?.error === 'invalid_credentials') {
-        setError("Неверный email или пароль");
+    } catch (err: any) {
+      // Новый формат специальной ошибки из authService.login
+      if (err?.type === "NOT_ACTIVATED") {
+        setError(err.message || "Аккаунт не активирован");
+        setActivationData({ user_id: err.userId, email: err.email });
       } else {
-        setError("Произошла ошибка при входе");
+        const data = err?.response?.data;
+        setError(data?.detail || data?.message || err?.message || "Неверные учетные данные");
       }
     } finally {
       setLoading(false);
     }
   };
 
+  const goToActivation = () => {
+    if (!activationData) return;
+    navigate(
+      `/email-verification?user_id=${activationData.user_id}&email=${encodeURIComponent(
+        activationData.email
+      )}&purpose=register`
+    );
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Вход в систему
-          </h2>
+    <Layout>
+      <div className="auth-wrapper login-page">
+        <div className="auth-box">
+          <div className="auth-side auth-side--left">
+            <Link to="/" className="auth-back">
+              <span className="material-symbols-outlined icon-back" aria-hidden="true" role="presentation">
+                arrow_back
+              </span>
+              На Главную
+            </Link>
+
+            <div className="auth-logo-container">
+              <div className="auth-logo">
+                <img src={authlogo} alt="AsyncTeach" />
+              </div>
+            </div>
+          </div>
+
+          <div className="auth-side auth-side--right">
+            <div className="mobile-logo-container">
+              <Link to="/" className="mobile-auth-back">
+                <span className="material-symbols-outlined icon-back" aria-hidden="true" role="presentation">
+                  arrow_back
+                </span>
+                На Главную
+              </Link>
+
+              <div className="mobile-logo">
+                <img src={logomobile} alt="AsyncTeach" />
+              </div>
+            </div>
+
+            <div className="auth-content">
+              <h1 className="auth-title login-title">Вход</h1>
+
+              <form onSubmit={handleSubmit} className="auth-form login-form">
+                <div className={`auth-input-wrapper ${email ? "filled" : ""}`}>
+                  <input
+                    className="auth-input"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onFocus={(e) => e.target.parentElement?.classList.add("focused")}
+                    onBlur={(e) => {
+                      if (!e.target.value) e.target.parentElement?.classList.remove("focused");
+                    }}
+                    required
+                  />
+                  <span className="auth-placeholder">Введите почту</span>
+                </div>
+
+                <div className={`auth-input-wrapper ${password ? "filled" : ""}`}>
+                  <input
+                    className="auth-input password-input"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onFocus={(e) => e.target.parentElement?.classList.add("focused")}
+                    onBlur={(e) => {
+                      if (!e.target.value) e.target.parentElement?.classList.remove("focused");
+                    }}
+                    required
+                  />
+                  <span className="auth-placeholder">Введите пароль</span>
+                </div>
+
+                <div className="auth-links login-links">
+                  <Link to="/register" className="login-register-link">
+                    Создать аккаунт
+                  </Link>
+                  <Link to="/forgot-password" className="login-forgot-link">
+                    Забыли пароль?
+                  </Link>
+                </div>
+
+                <div className="auth-error-container"></div>
+                {error && (
+                  <div className="auth-error login-error">
+                    <span>{error}</span>
+                    {activationData && (
+                      <button type="button" onClick={goToActivation} className="activation-btn">
+                        Активировать
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <button type="submit" disabled={loading} className="auth-button login-button">
+                  {loading ? "Вход..." : "Войти"}
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
-          )}
-          
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email" className="sr-only">Email</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Email"
-                value={credentials.email}
-                onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">Пароль</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Пароль"
-                value={credentials.password}
-                onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Link
-              to="/forgot-password"
-              className="text-sm text-indigo-600 hover:text-indigo-500"
-            >
-              Забыли пароль?
-            </Link>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Вход..." : "Войти"}
-            </button>
-          </div>
-
-          <div className="text-center">
-            <span className="text-sm text-gray-600">Нет аккаунта? </span>
-            <Link
-              to="/register"
-              className="text-sm text-indigo-600 hover:text-indigo-500"
-            >
-              Зарегистрироваться
-            </Link>
-          </div>
-        </form>
       </div>
-    </div>
+    </Layout>
   );
-};
-
-export default LoginPage;
+}

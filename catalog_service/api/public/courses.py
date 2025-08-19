@@ -130,7 +130,7 @@ async def course_detail(course_id: int, request: Request, db: AsyncSession = Dep
         discount_ends_in=discount_ends_in,
     )
 
-@router.post("/{course_id}/buy", response_model=BuyCourseResponse, summary="Приобрести курс")
+@router.post("/{course_id}/buy/", response_model=BuyCourseResponse, summary="Приобрести курс")
 @limiter.limit(settings.BUY_COURSE_RATE_LIMIT)
 async def buy_course(course_id: int, request_data: BuyCourseRequest, request: Request, db: AsyncSession = Depends(get_db_session)):
     user_id = get_current_user_id(request)
@@ -158,7 +158,7 @@ async def buy_course(course_id: int, request_data: BuyCourseRequest, request: Re
         message=("Бесплатный курс успешно открыт" if course.is_free else "Курс успешно приобретён")
     )
 
-@router.post("/{course_id}/check-access", summary="Проверка доступа (deprecated)")
+@router.post("/{course_id}/check-access/", summary="Проверка доступа (deprecated)")
 async def check_course_access(course_id: int, request: Request, db: AsyncSession = Depends(get_db_session)):
     try:
         user_id = get_current_user_id(request)

@@ -18,8 +18,8 @@ async def get_course(course_id: int):
 async def create_course(payload: dict):
     return await catalog_api.create_course(payload)
 
-@router.patch("/{course_id}", dependencies=[Depends(get_current_admin_user)])
-async def update_course(course_id: int, payload: dict):
+@router.put("/{course_id}", dependencies=[Depends(get_current_admin_user)])
+async def put_course(course_id: int, payload: dict):
     return await catalog_api.update_course(course_id, payload)
 
 @router.delete("/{course_id}", dependencies=[Depends(get_current_admin_user)])

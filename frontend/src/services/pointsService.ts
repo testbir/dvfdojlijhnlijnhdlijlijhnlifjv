@@ -1,9 +1,9 @@
 // frontend/src/services/pointsService.ts
-
-import { pointsApi } from "../api/pointsApi";
+import { pointsApi } from "../api/axiosInstance";
 
 export interface PointsBalance {
   balance: number;
+  user_id: number;
 }
 
 export interface PointsTransaction {
@@ -17,26 +17,31 @@ export interface PointsTransaction {
   created_at: string;
 }
 
-export interface TransactionsList {
-  items: PointsTransaction[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
 class PointsService {
-  // Получение баланса
   async getBalance(): Promise<PointsBalance> {
-    const response = await catalogApi.get("/v1/public/points/balance");
+    const response = await pointsApi.get("/v1/public/balance/");
     return response.data;
   }
 
-  // Получение истории транзакций
   async getTransactions(params?: {
     limit?: number;
     offset?: number;
-  }): Promise<TransactionsList> {
-    const response = await catalogApi.get("/v1/public/points/transactions", { params });
+  }): Promise<{
+    items: PointsTransaction[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const response = await pointsApi.get("/v1/public/transactions/", { params });
+    return response.data;
+  }
+
+  async getPointsStats(): Promise<{
+    total_earned: number;
+    total_spent: number;
+    current_balance: number;
+  }> {
+    const response = await pointsApi.get("/v1/public/stats/");
     return response.data;
   }
 }

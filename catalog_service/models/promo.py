@@ -9,5 +9,5 @@ class PromoImage(Base):
 
     id = Column(Integer, primary_key=True)
     image = Column(String, nullable=False)
-    course_id = Column(Integer, ForeignKey("courses_course.id"), nullable=False)
+    course_id = Column(Integer, ForeignKey("courses_course.id", ondelete="CASCADE"), nullable=False)
     order = Column(Integer, default=0)

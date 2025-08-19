@@ -2,15 +2,13 @@
 
 import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { createApi } from "../api/axiosInstance";
-const axiosInstance = createApi("/auth-api");
 import Layout from "../components/Layout";
 import authlogo from "../assets/authlogo.png";
-import logomobile from "../assets/logomobile.png"; // Импорт мобильного логотипа
+import logomobile from "../assets/logomobile.png";
+import authService from "../services/authService";
 
-// Импорт стилей
-import "../styles/auth.scss"
-import "../styles/SetNewPasswordPage.scss"
+import "../styles/auth.scss";
+import "../styles/SetNewPasswordPage.scss";
 
 const SetNewPasswordPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -25,30 +23,22 @@ const SetNewPasswordPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
     if (!userId) {
       setError("Отсутствует user_id");
-      setLoading(false);
       return;
     }
-
     if (password1 !== password2) {
       setError("Пароли не совпадают");
-      setLoading(false);
       return;
     }
 
+    setLoading(true);
     try {
-      await axiosInstance.post("/api/set-new-password/", {
-        user_id: Number(userId),
-        password1,
-        password2,
-      });
-
+      await authService.setNewPassword(Number(userId), password1);
       navigate("/login");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Ошибка при обновлении пароля");
+      setError(err?.response?.data?.error || err?.message || "Ошибка при обновлении пароля");
     } finally {
       setLoading(false);
     }
@@ -58,9 +48,7 @@ const SetNewPasswordPage: React.FC = () => {
     <Layout>
       <div className="auth-wrapper">
         <div className="auth-box">
-          {/* Левая сторона (логотип) - показывается только на десктопе */}
           <div className="auth-side auth-side--left">
-            {/* Контейнер логотипа — по центру блока */}
             <div className="auth-logo-container">
               <div className="auth-logo">
                 <img src={authlogo} alt="AsyncTeach" />
@@ -68,9 +56,7 @@ const SetNewPasswordPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Правая сторона (форма смены пароля) */}
           <div className="auth-side auth-side--right">
-            {/* Мобильный логотип в правом верхнем углу */}
             <div className="auth-mobile-logo">
               <img src={logomobile} alt="AsyncTeach" />
             </div>
@@ -78,9 +64,7 @@ const SetNewPasswordPage: React.FC = () => {
             <div className="auth-content">
               <h1 className="auth-title newpassword-title">Новый пароль</h1>
 
-              {/* Форма смены пароля */}
               <form onSubmit={handleSubmit} className="auth-form newpassword-form">
-                {/* Поле ввода нового пароля */}
                 <div className={`auth-input-wrapper ${password1 ? "filled" : ""}`}>
                   <input
                     className="auth-input password-input"
@@ -96,7 +80,6 @@ const SetNewPasswordPage: React.FC = () => {
                   <span className="auth-placeholder">Новый пароль</span>
                 </div>
 
-                {/* Поле подтверждения пароля */}
                 <div className={`auth-input-wrapper ${password2 ? "filled" : ""}`}>
                   <input
                     className="auth-input password-input"
@@ -112,15 +95,9 @@ const SetNewPasswordPage: React.FC = () => {
                   <span className="auth-placeholder">Повторите пароль</span>
                 </div>
 
-                {/* Блок вывода ошибок */}
                 {error && <div className="auth-error newpassword-error">{error}</div>}
 
-                {/* Кнопка смены пароля */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="auth-button newpassword-button"
-                >
+                <button type="submit" disabled={loading} className="auth-button newpassword-button">
                   {loading ? "Сохранение..." : "Сменить пароль"}
                 </button>
               </form>

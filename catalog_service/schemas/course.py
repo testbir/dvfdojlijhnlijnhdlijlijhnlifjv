@@ -125,3 +125,33 @@ class CourseCreate(BaseModel):
         if discount_start and v and v <= discount_start:
             raise ValueError("Окончание скидки не может быть раньше начала")
         return v
+    
+class CourseUpdate(BaseModel):
+    title: Optional[str] = None
+    short_description: Optional[str] = None
+    full_description: Optional[str] = None
+    image: Optional[str] = None
+    is_free: Optional[bool] = None
+    price: Optional[float] = None
+    discount: Optional[float] = None
+
+    video: Optional[str] = None
+    video_preview: Optional[str] = None
+    banner_text: Optional[str] = None
+    banner_color_left: Optional[str] = None
+    banner_color_right: Optional[str] = None
+    order: Optional[int] = None
+    group_title: Optional[str] = None
+
+    discount_start: Optional[datetime] = None
+    discount_until: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("discount_until")
+    @classmethod
+    def validate_discount_range(cls, v, info: ValidationInfo):
+        ds = info.data.get("discount_start")
+        if ds and v and v <= ds:
+            raise ValueError("Окончание скидки не может быть раньше начала")
+        return v

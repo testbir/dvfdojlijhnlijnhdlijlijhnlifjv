@@ -11,7 +11,7 @@ from models.promocode import PromoCode
 
 router = APIRouter(prefix="/promocodes")
 
-@router.post("/check")
+@router.post("/check/")
 async def check_promocode(
     code: str = Body(..., embed=True),
     course_id: Optional[int] = Body(None, embed=True),
@@ -30,7 +30,7 @@ async def check_promocode(
         raise HTTPException(status_code=400, detail="Промокод не применим к данному курсу")
     return {"valid": True, "discount_percent": promo.discount_percent, "discount_amount": promo.discount_amount}
 
-@router.post("/use")
+@router.post("/use/")
 async def use_promocode(
     code: str = Body(..., embed=True),
     course_id: Optional[int] = Body(None, embed=True),
