@@ -3,15 +3,14 @@
 
 .verification-block {
 
-    border: 1.5px solid rgba(0, 0, 0, 0.2);  /* Линия вокруг блока */
+  
   border-radius: 15px;
-  padding: 20px;
   background-color: transparent;
   display: flex;
   flex-direction: column;
   gap: 10px;
   text-align: center;
-  width: 80%;  /* Блок занимает 80% ширины правой стороны */
+  width: 100%;  /* Блок занимает 80% ширины правой стороны */
   margin: 50px auto 0;
 
   @media (max-width: 430px) {
@@ -20,8 +19,8 @@
 }
 
 .verification-text {
-  font-family: 'Sora', sans-serif;
-  font-size: 16px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 18px;
   font-weight: 500;
   color: rgba(0, 0, 0, 0.6);
   text-align: center;  /* Выравнивание текста по центру */
@@ -34,13 +33,13 @@
 .verification-inputs {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: 11px;
 
 }
 
 .verification-timer {
-  font-family: 'Sora', sans-serif;
-  font-size: 14px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
   font-weight: 400;
   color: rgba(0, 0, 0, 0.7);
   text-align: center;
@@ -48,8 +47,8 @@
 }
 
 .resend-timer {
-      font-family: 'Sora', sans-serif;
-  font-size: 14px;
+      font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
   font-weight: 400;
   color: rgba(0, 0, 0, 0.6);
   text-align: center;
@@ -60,10 +59,10 @@
 }
 
 .resend-text {
-  font-family: 'Sora', sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: #000000;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #3c3c3c;
   cursor: pointer;
   transition: color 0.2s ease;
   width: 100%;  /* Добавлено для того, чтобы текст занимал всю ширину контейнера */
@@ -71,7 +70,7 @@
 }
 
 .resend-text:hover {
-  color: #7a7a7a;
+  color: #258DFF;
 }
 
 .resend-text.disabled {
@@ -86,27 +85,28 @@
   display: flex;
   gap: 10px;
   justify-content: center;
-  margin: 20px 0;
+  margin: 40px 0;
 
   
 }
 
 .code-input-field {
-  width: 55px;
-  height: 55px;
+  width: 75px;
+  height: 75px;
   text-align: center;
-  font-family: "Sora", sans-serif;
-  font-size: 24px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 30px;
   font-weight: 600;
   color: #333;
-  background: #ffffff;
-  border: 2px solid #e1e5e9;
-  border-radius: 12px;
+  background: #E9EDF1;
+  border: 2px solid #E9EDF1;
+  border-radius: 20px;
   outline: none;
   transition: all 0.2s ease;
 
   &:focus {
     border-color: #479EFD;
+    background: #F5F8FD;
     box-shadow: 0 0 0 3px rgba(71, 158, 253, 0.1);
   }
 

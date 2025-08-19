@@ -1,11 +1,9 @@
 // src/styles/RegisterPage.scss
 
-.sora-text {
-  font-family: 'Sora', sans-serif;
-}
+
 
 .register-form {
-  margin-top: 60px;  // отступ между полями ввода
+  margin-top: 55px;  // отступ между полями ввода
 
   @media (max-width: 768px) {
     margin-top: 50px;
@@ -13,18 +11,20 @@
 }
 
 .register-links {
-  width: 75%;
+  width: 100%;
   align-self: center;
   
+  
+  
   .register-login-link {
-    font-family: "Sora", sans-serif;  // шрифт для ссылок, если нужно
-    font-size: 15px;                  // размер шрифта
-    font-weight: 600;
-    color: rgba(0, 0, 0, 0.7);        // цвет текста, можно настроить
+    font-family: 'Open Sans', sans-serif;  // шрифт для ссылок, если нужно
+    font-size: 16px;                  // размер шрифта
+    font-weight: 700;
+    color: rgba(0, 0, 0, 0.6);        // цвет текста, можно настроить
     text-decoration: none;            // убираем подчеркивание
-    
+    transition: color 0.25s ease-in-out;
     &:hover {
-      text-decoration: underline;
+      color: #258DFF;
     }
   }
 
@@ -34,13 +34,13 @@
 }
 
 .register-terms {
-  width: 75%;
+  width: 100%;
   align-self: center;
   text-align: center;
-  font-family: "Sora", sans-serif;
-  font-size: 12px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
   color: rgba(0, 0, 0, 0.6);
-  margin-top: 12px;
+  margin: 0;
   
   .terms-link {
     color: #479EFD;
@@ -52,6 +52,8 @@
     }
   }
 
+
+  
   @media (max-width: 768px) {
     width: 90%;
     font-size: 13px;
@@ -61,4 +63,16 @@
       font-size: 12px;
     }
   }
+}
+
+
+/* прижимаем условия к низу формы */
+.register-terms {
+  margin-top: auto;      /* тянет блок вниз */
+  align-self: stretch;   /* по ширине как кнопка/инпуты */
+}
+
+/* чтобы кнопка прилипла к условиям */
+.register-button {
+  margin-top: 10px;       /* 0 — если нужно вплотную */
 }

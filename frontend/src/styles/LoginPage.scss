@@ -1,7 +1,7 @@
 /* src/styles/LoginPage.scss */
 
 .sora-text {
-  font-family: 'Sora', sans-serif;
+  font-family: 'Open Sans', sans-serif;
 }
 
 .login-form {
@@ -13,37 +13,38 @@
 }
 
 .login-links {
-  width: 75%;
-  align-self: center;
-  display: flex;               // размещаем ссылки на одной линии
-  justify-content: space-between; // растягиваем по краям
-  align-items: center;         // выравниваем по центру по вертикали
+  display: flex;
+  justify-content: space-between; // левая влево, правая вправо
+  align-items: center;
+  width: 100%;
+  align-self: stretch;            // или просто уберите align-self целиком
+  margin: 12px 0;
 
   @media (max-width: 768px) {
-    width: 90%;
+    width: 100%;                  // было 90% — убираем
   }
+
+  a { flex: 0 0 auto; }           // ссылки не сжимаются
 }
 
 .login-register-link {
-  font-family: "Sora", sans-serif;  // шрифт для ссылок, если нужно
+  font-family: "Open Sans", sans-serif;  // шрифт для ссылок, если нужно
   font-size: 16px;                  // размер шрифта
-  font-weight: 600;
+  font-weight: 700;
   color: rgba(0, 0, 0, 0.7);        // цвет текста, можно настроить
-  text-decoration: none;            // убираем подчеркивание
-
-  &:hover {
-    text-decoration: underline;
-  }
+    transition: color 0.25s ease-in-out;
+    &:hover {
+      color: #258DFF;
+    }
 }
 
 .login-forgot-link {
-  font-family: "Sora", sans-serif;  // шрифт для ссылок, если нужно
+  font-family: "Open Sans", sans-serif;  // шрифт для ссылок, если нужно
   font-size: 16px;                  // размер шрифта
   font-weight: 500;                 // добавил для единообразия
   color: #262b31;                   // цвет текста, можно настроить
-  text-decoration: none;            // убираем подчеркивание
-
-  &:hover {
-    text-decoration: underline;
-  }
+    transition: color 0.25s ease-in-out;
+    &:hover {
+      color: #258DFF;
+    }
 }

@@ -532,7 +532,7 @@ body {
   
   // Границы и тени
   border: 1.5px solid rgba(0, 111, 255, 0.6);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: 0px 4px 6px rgba(0, 81, 255, 0.2);
   
   // Типографика
@@ -700,7 +700,8 @@ body {
   // Типографика
   font-family: 'Montserrat', sans-serif;
   font-size: 16px;
-  line-height: 1.6;
+  line-height: 2;
+  
   color: #333;
   
   // Сглаживание шрифтов

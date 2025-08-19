@@ -35,9 +35,9 @@ export default function HomePage() {
   };
 
   const getButtonText = (c: Course) => {
-    if (c.is_free) return "ПОЛУЧИТЬ";
+    if (c.is_free) return "ОТКРЫТЬ";
     if (c.is_purchased) return "ОТКРЫТЬ";
-    return "КУПИТЬ";
+    return "ОТКРЫТЬ";
   };
 
   useEffect(() => {
@@ -116,39 +116,40 @@ export default function HomePage() {
               const finalPrice = getFinalPrice(course);
               const hasDiscount = !course.is_free && course.price > finalPrice;
               return (
-                <div key={course.id} className="home-course-card">
-                  <div className="home-course-content">
-                    <div className="home-course-text">
-                      <h3 className="home-course-title">{course.title}</h3>
-                      <p className="home-course-description">{course.short_description}</p>
-                    </div>
-                    <img
-                      src={catalogService.formatImageUrl(course.image)}
-                      alt={course.title}
-                      onError={(e) => (e.currentTarget.src = "/fallback.png")}
-                      className="home-course-avatar"
-                    />
-                  </div>
+<Link key={course.id} to={`/course/${course.id}`} className="home-course-card-link">
+  <div className="home-course-card">
+    <div className="home-course-content">
+      <div className="home-course-text">
+        <h3 className="home-course-title">{course.title}</h3>
+        <p className="home-course-description">{course.short_description}</p>
+      </div>
+      <img
+        src={catalogService.formatImageUrl(course.image)}
+        alt={course.title}
+        onError={(e) => (e.currentTarget.src = "/fallback.png")}
+        className="home-course-avatar"
+      />
+    </div>
 
-                  <div className="home-course-footer">
-                    <div className="home-course-price">
-                      {course.is_free ? (
-                        <span className="home-course-free">Бесплатно</span>
-                      ) : hasDiscount ? (
-                        <div className="home-course-paid">
-                          <div className="home-course-original-price">{course.price} ₽</div>
-                          <div className="home-course-final-price">{finalPrice} ₽</div>
-                        </div>
-                      ) : (
-                        <span className="home-course-final-price">{finalPrice} ₽</span>
-                      )}
-                    </div>
+    <div className="home-course-footer">
+      <div className="home-course-price">
+        {course.is_free ? (
+          <span className="home-course-free">Бесплатно</span>
+        ) : hasDiscount ? (
+          <div className="home-course-paid">
+            <div className="home-course-original-price">{course.price} ₽</div>
+            <div className="home-course-final-price">{finalPrice} ₽</div>
+          </div>
+        ) : (
+          <span className="home-course-final-price">{finalPrice} ₽</span>
+        )}
+      </div>
 
-                    <Link to={`/course/${course.id}`}>
-                      <button className="home-course-button">{getButtonText(course)}</button>
-                    </Link>
-                  </div>
-                </div>
+      <span className="home-course-button">{getButtonText(course)}</span>
+    </div>
+  </div>
+</Link>
+
               );
             })}
           </div>

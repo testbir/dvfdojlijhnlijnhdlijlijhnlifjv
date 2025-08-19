@@ -1,3 +1,5 @@
+# learning_service/migrations/env.py
+
 from logging.config import fileConfig
 import os
 

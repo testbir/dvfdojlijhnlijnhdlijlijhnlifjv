@@ -1,6 +1,6 @@
 # catalog_service/api/public/courses.py
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
@@ -130,9 +130,16 @@ async def course_detail(course_id: int, request: Request, db: AsyncSession = Dep
         discount_ends_in=discount_ends_in,
     )
 
+
 @router.post("/{course_id}/buy/", response_model=BuyCourseResponse, summary="Приобрести курс")
 @limiter.limit(settings.BUY_COURSE_RATE_LIMIT)
-async def buy_course(course_id: int, request_data: BuyCourseRequest, request: Request, db: AsyncSession = Depends(get_db_session)):
+async def buy_course(
+    course_id: int,
+    request: Request,
+    response: Response,           # ← обязателен для SlowAPI
+    request_data: BuyCourseRequest,
+    db: AsyncSession = Depends(get_db_session),
+):
     user_id = get_current_user_id(request)
 
     res = await db.execute(select(Course).where(Course.id == course_id))
@@ -149,7 +156,6 @@ async def buy_course(course_id: int, request_data: BuyCourseRequest, request: Re
     if acc_res.scalar_one_or_none():
         return BuyCourseResponse(success=True, message="Курс уже доступен")
 
-    # Для MVP выдаём доступ сразу и на платные тоже (платёжка позже)
     db.add(CourseAccess(user_id=user_id, course_id=course_id))
     await db.commit()
 
