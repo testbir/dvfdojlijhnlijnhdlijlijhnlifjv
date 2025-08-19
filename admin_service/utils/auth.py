@@ -20,7 +20,7 @@ def get_current_admin_user(request: Request) -> AdminUser:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token")
     db = SessionLocal()
     try:
-        admin = db.query(AdminUser).get(int(admin_id))
+        admin = db.get(AdminUser, int(admin_id))
         if not admin:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="admin not found")
         return admin

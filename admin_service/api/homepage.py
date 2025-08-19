@@ -1,6 +1,6 @@
 # admin_service/api/homepage.py
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
+from fastapi import APIRouter, Body, UploadFile, File, Depends, HTTPException, Form
 from services.s3_client import S3Client
 from services.catalog_api import (
     get_banners, create_banner, delete_banner, update_banner,
@@ -17,6 +17,8 @@ import httpx
 
 router = APIRouter(prefix="/admin", tags=["Homepage"])
 logger = logging.getLogger(__name__)
+
+CATALOG_SERVICE_URL = settings.CATALOG_SERVICE_URL
 
 def _hdr():
     return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}
@@ -111,10 +113,7 @@ async def list_banners(current_admin: AdminUser = Depends(get_current_admin_user
 async def add_banner(
     file: UploadFile = File(...),
     order: int = Form(0),
-    title: str = Form(""),
-    description: str = Form(""),
     link: str = Form(""),
-    is_active: bool = Form(True),
     current_admin: AdminUser = Depends(get_current_admin_user)
 ):
     """Создает новый баннер с изображением"""
@@ -128,10 +127,7 @@ async def add_banner(
         banner_data = {
             "image": image_url,
             "order": order,
-            "title": title,
-            "description": description,
             "link": link,
-            "is_active": is_active,
             "created_by": current_admin.username
         }
         
@@ -152,10 +148,7 @@ async def edit_banner(
     banner_id: int,
     file: UploadFile = File(None),
     order: int = Form(None),
-    title: str = Form(None),
-    description: str = Form(None),
     link: str = Form(None),
-    is_active: bool = Form(None),
     current_admin: AdminUser = Depends(get_current_admin_user)
 ):
     """Обновляет существующий баннер"""
@@ -172,14 +165,8 @@ async def edit_banner(
         # Обновляем остальные поля (только если они переданы)
         if order is not None:
             update_data["order"] = order
-        if title is not None:
-            update_data["title"] = title
-        if description is not None:
-            update_data["description"] = description
         if link is not None:
             update_data["link"] = link
-        if is_active is not None:
-            update_data["is_active"] = is_active
             
         update_data["updated_by"] = current_admin.username
         
@@ -214,6 +201,26 @@ async def remove_banner(
         raise HTTPException(status_code=500, detail=f"Ошибка удаления баннера: {str(e)}")
 
 
+@router.post("/banners/reorder/")
+async def reorder_banners(
+    order_map: dict = Body(...),  # {banner_id: new_order}
+    current_admin: AdminUser = Depends(get_current_admin_user)
+):
+    """Изменить порядок отображения баннеров"""
+    logger.info(f"Admin {current_admin.username} reordering banners")
+    
+    async with httpx.AsyncClient(base_url=CATALOG_SERVICE_URL, timeout=15.0) as client:
+        # Обновляем порядок для каждого баннера
+        for banner_id, new_order in order_map.items():
+            response = await client.put(
+                f"/v1/admin/banners/{banner_id}",
+                headers=_hdr(),
+                json={"order": new_order}
+            )
+            response.raise_for_status()
+        
+        return {"message": "Порядок баннеров обновлен"}
+
 # === ПРОМО-ИЗОБРАЖЕНИЯ ===
 
 @router.get("/promos/", summary="Список промо-изображений")
@@ -231,11 +238,8 @@ async def list_promos(current_admin: AdminUser = Depends(get_current_admin_user)
 @router.post("/promos/", summary="Загрузить промо-изображение")
 async def add_promo(
     file: UploadFile = File(...),
-    title: str = Form(""),
-    description: str = Form(""),
     course_id: int = Form(None),
     order: int = Form(0),
-    is_active: bool = Form(True),
     current_admin: AdminUser = Depends(get_current_admin_user)
 ):
     """Создает новое промо-изображение"""
@@ -248,14 +252,11 @@ async def add_promo(
         # Создаем промо
         promo_data = PromoCreate(
             image=image_url,
-            title=title,
-            description=description,
             course_id=course_id,
             order=order,
-            is_active=is_active
         )
         
-        result = await create_promo(promo_data)
+        result = await create_promo(promo_data.model_dump(exclude_none=True))
         
         logger.info(f"Промо-изображение успешно создано: {result}")
         return result
@@ -271,11 +272,8 @@ async def add_promo(
 async def edit_promo(
     promo_id: int,
     file: UploadFile = File(None),
-    title: str = Form(None),
-    description: str = Form(None),
     course_id: int = Form(None),
     order: int = Form(None),
-    is_active: bool = Form(None),
     current_admin: AdminUser = Depends(get_current_admin_user)
 ):
     """Обновляет существующее промо-изображение"""
@@ -285,16 +283,10 @@ async def edit_promo(
         if file and file.filename:
             image_url = await upload_image(file)
             update_data["image"] = image_url
-        if title is not None:
-            update_data["title"] = title
-        if description is not None:
-            update_data["description"] = description
         if course_id is not None:
             update_data["course_id"] = course_id
         if order is not None:
             update_data["order"] = order
-        if is_active is not None:
-            update_data["is_active"] = is_active
 
         async with httpx.AsyncClient(base_url=settings.CATALOG_SERVICE_URL, timeout=15.0) as client:
             response = await client.put(

@@ -73,10 +73,9 @@ async def complete_module(module_id: int, db: AsyncSession = Depends(get_db_sess
     awarded = 0
     if not already and m.sp_award > 0:
         try:
-            await award_points(user_id, m.sp_award, f"complete_module:{module_id}", f"{user_id}:{module_id}")
+            await award_points(user_id, m.sp_award, f"complete_module:{module_id}", f"{user_id}:{module_id}", module_id=module_id)
             awarded = m.sp_award
         except Exception:
-            # логируем, но не падаем
             pass
 
     return CompleteModuleResponse(success=True, awarded_sp=awarded, already_completed=already, completion_message=m.completion_message)
