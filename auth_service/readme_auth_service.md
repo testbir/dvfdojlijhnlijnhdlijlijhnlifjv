@@ -1,1 +1,0 @@
-# auth_service/readme_auth_service.md

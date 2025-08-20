@@ -1,8 +1,0 @@
-.env
-*.env
-.env.
-__pycache__/
-*.pyc
-.vscode/
-.idea/
-auth_service/.env
