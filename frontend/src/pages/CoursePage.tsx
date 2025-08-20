@@ -1,7 +1,5 @@
 // frontend/src/pages/CoursePage.tsx
 
-// frontend/src/pages/CoursePage.tsx
-
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import catalogService, { type Course as CatalogCourse } from "../services/catalogService";

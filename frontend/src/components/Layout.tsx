@@ -1,4 +1,4 @@
-// src/components/Layout.tsx
+// frontend/src/components/Layout.tsx
 
 import type { ReactNode } from "react";
 import { useLocation, matchPath } from "react-router-dom";

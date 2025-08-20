@@ -1,4 +1,4 @@
-// src/components/Header.tsx
+// frontend/src/components/Header.tsx
 
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";

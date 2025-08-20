@@ -1,4 +1,4 @@
-// src/components/AuthModal.tsx
+// frontend/src/components/AuthModal.tsx
 
 import React from 'react';
 import '../styles/AuthModal.scss';

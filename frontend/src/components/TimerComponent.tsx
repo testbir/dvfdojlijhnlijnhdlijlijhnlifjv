@@ -1,4 +1,4 @@
-// src/components/TimerComponent.tsx
+// frontend/src/components/TimerComponent.tsx
 
 
 import { useState, useEffect } from "react";

@@ -1,6 +1,5 @@
 # auth_service/accounts/jwt_views.py
 
-# auth_service/accounts/jwt_views.py
 
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer

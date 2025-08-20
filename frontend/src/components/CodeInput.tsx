@@ -1,4 +1,4 @@
-// src/components/CodeInput.tsx
+// frontend/src/components/CodeInput.tsx
 
 import React, { useRef, useState, useEffect } from "react";
 import "../styles/EmailVerificationPage.scss"

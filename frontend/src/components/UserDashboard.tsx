@@ -1,4 +1,4 @@
-// src/components/UserDashboard.tsx
+// frontend/src/components/UserDashboard.tsx
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
