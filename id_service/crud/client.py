@@ -35,6 +35,7 @@ class ClientCRUD:
         redirect_uris: List[str] = None,
         post_logout_redirect_uris: List[str] = None,
         backchannel_logout_uri: Optional[str] = None,
+        frontchannel_logout_uri: Optional[str] = None,
         scopes: List[str] = None,
         client_secret: Optional[str] = None,
         pkce_required: bool = True
@@ -59,6 +60,7 @@ class ClientCRUD:
             redirect_uris=redirect_uris or [],
             post_logout_redirect_uris=post_logout_redirect_uris or [],
             backchannel_logout_uri=backchannel_logout_uri,
+            frontchannel_logout_uri=frontchannel_logout_uri,
             scopes=scopes or ["openid", "email", "profile"],
             client_secret_hash=client_secret_hash,
             created_at=datetime.now(timezone.utc)

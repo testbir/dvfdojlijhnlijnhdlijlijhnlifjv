@@ -1,6 +1,35 @@
 # docker-compose.yml
 
+version: "3.9"
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+
 services:
+  traefik:
+    image: traefik:v2.11
+    container_name: traefik
+    command:
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - "80:80"
+      - "8081:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [app-network]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.traefik.rule=Host(`traefik.localhost`)
+      - traefik.http.routers.traefik.entrypoints=web
+      - traefik.http.routers.traefik.service=api@internal
+
   db:
     image: postgres:15
     container_name: postgres_team
@@ -8,10 +37,8 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: siperup44rQVr8
-      POSTGRES_DB: postgres  # Изменено на postgres для начальной БД
+      POSTGRES_DB: team_platform_id   # создаём нужную БД сразу
     command: ["postgres", "-c", "password_encryption=md5"]
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,238 +48,111 @@ services:
       retries: 5
     networks: [app-network]
 
-  db-creator:
-    image: postgres:15
-    container_name: db_creator_team
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./create-databases.sh:/create-databases.sh
-    environment:
-      POSTGRES_PASSWORD: siperup44rQVr8
-      POSTGRES_USER: postgres
-      PGPASSWORD: siperup44rQVr8
-    command: bash /create-databases.sh
-    restart: "no"
-    networks: [app-network]
-
   redis:
     image: redis:7-alpine
     container_name: redis_cache
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     networks: [app-network]
 
-  authservice:
-    build:
-      context: ./auth_service
-    container_name: authservice_team
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
-    volumes:
-      - ./auth_service:/app
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./auth_service/.env
-    depends_on:
-      db:
-        condition: service_healthy
-      db-creator:
-        condition: service_completed_successfully
-    networks: [app-network]
+  idservice:
+    profiles: ["prod"]
 
-  catalogservice:
     build:
-      context: ./catalog_service
-    container_name: catalogservice_team
-    command: sh -c "alembic upgrade head && python -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload"
-    volumes:
-      - ./catalog_service:/catalog_service
-    working_dir: /catalog_service
-    ports:
-      - "8001:8001"
+      context: ./id_service
+    container_name: idservice_team
+    command: sh -lc "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
     env_file:
-      - ./catalog_service/.env
-    depends_on:
-      db:
-        condition: service_healthy
-      db-creator:
-        condition: service_completed_successfully
-    networks: [app-network]
-
-  learningservice:
-    build:
-      context: ./learning_service
-    container_name: learningservice_team
-    command: sh -lc "alembic upgrade head && python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
+      - ./id_service/.env
     environment:
-    - DATABASE_URL=postgresql://postgres:siperup44rQVr8@db:5432/team_platform_learning
-    volumes:
-      - ./learning_service:/learning_service
-    working_dir: /learning_service
-    ports:
-      - "8004:8002"
-    env_file:
-      - ./learning_service/.env
+      ISSUER: http://id.localhost/idp
+      DATABASE_URL: postgresql+asyncpg://postgres:siperup44rQVr8@db:5432/team_platform_id
+      REDIS_URL: redis://redis:6379/1
+      CORS_ORIGINS: "[]"
+      APP_ENV: development
     depends_on:
       db:
         condition: service_healthy
-      db-creator:
-        condition: service_completed_successfully
-    networks: [app-network]
-
-  pointsservice:
-    build:
-      context: ./points_service
-    container_name: pointsservice_team
-    command: sh -lc "./init_db.sh; alembic upgrade head; python -m uvicorn main:app --host 0.0.0.0 --port 8003 --reload"
-    volumes:
-      - ./points_service:/points_service
-    working_dir: /points_service
-    ports:
-      - "8003:8003"
-    env_file:
-      - ./points_service/.env
-    depends_on:
-      db:
-        condition: service_healthy
-      db-creator:
-        condition: service_completed_successfully
-    networks: [app-network]
-
-  adminservice:
-    build:
-      context: ./admin_service
-    container_name: adminservice_team
-    working_dir: /admin_service
-    command: sh -c "alembic upgrade head && python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
-    volumes:
-      - ./admin_service:/admin_service
-    ports:
-      - "8010:8002"
-    env_file:
-      - ./admin_service/.env
-    depends_on:
-      db:
-        condition: service_healthy
-      db-creator:
-        condition: service_completed_successfully
       redis:
         condition: service_started
-      authservice:
-        condition: service_started
-      catalogservice:
-        condition: service_started
-      learningservice:
-        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks: [app-network]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.idservice.rule=Host(`id.localhost`) && PathPrefix(`/idp`)
+      - traefik.http.routers.idservice.entrypoints=web
+      - traefik.http.middlewares.idservice-stripprefix.stripprefix.prefixes=/idp
+      - traefik.http.routers.idservice.middlewares=idservice-stripprefix
+      - traefik.http.services.idservice.loadbalancer.server.port=8000
 
-  celeryworker:
-    build:
-      context: ./auth_service
-    container_name: celeryworker_team
-    command: celery -A app worker -l info
-    volumes:
-      - ./auth_service:/app
-    env_file:
-      - ./auth_service/.env
-    depends_on:
-      - authservice
-      - redis
-    networks: [app-network]
+  idfrontend:
+    profiles: ["prod"]
 
-  adminfrontend:
     build:
-      context: ./admin-frontend
+    
+      context: ./id_frontend
       args:
-        - REACT_APP_API_URL=http://adminservice:8002
-    container_name: admin_frontend_team
-    ports:
-      - "3001:80"
-    environment:
-      - REACT_APP_API_URL=http://adminservice:8002
-    depends_on:
-      - adminservice
+        VITE_API_BASE: /idp   # можно оставить по умолчанию
+    container_name: id_frontend
     networks: [app-network]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.idfrontend.rule=Host(`id.localhost`)
+      - traefik.http.routers.idfrontend.entrypoints=web
+      - traefik.http.services.idfrontend.loadbalancer.server.port=80
 
-  central:
-    build: ./central_service   # создашь простую FastAPI
-    container_name: central_team
-    working_dir: /central_service
-    command: uvicorn main:app --host 0.0.0.0 --port 7000 --reload
-    volumes:
-      - ./central_service:/central_service
-    ports:
-      - "7000:7000"
+
+
+
+  # --- DEV: бэкенд с авто-перезапуском ---
+  idservice_dev:
+    profiles: ["dev"]
+    build:
+      context: ./id_service
+    command: sh -lc "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     env_file:
-      - ./central_service/.env
+      - ./id_service/.env
+    environment:
+      ISSUER: http://id.localhost/idp
+      DATABASE_URL: postgresql+asyncpg://postgres:siperup44rQVr8@db:5432/team_platform_id
+      REDIS_URL: redis://redis:6379/1
+      CORS_ORIGINS: "[]"
+      APP_ENV: development
+      WATCHFILES_FORCE_POLLING: "true"   # для Windows/WSL
+    volumes:
+      - ./id_service:/id_service
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks: [app-network]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.idservice.rule=Host(`id.localhost`) && PathPrefix(`/idp`)
+      - traefik.http.routers.idservice.entrypoints=web
+      - traefik.http.middlewares.idservice-stripprefix.stripprefix.prefixes=/idp
+      - traefik.http.routers.idservice.middlewares=idservice-stripprefix
+      - traefik.http.services.idservice.loadbalancer.server.port=8000
 
-  teachfrontend:
-    build:
-      context: ./teach_frontend
-    container_name: teach_frontend_team
-    ports:
-      - "5174:5173"
+  # --- DEV: фронт на Vite с HMR ---
+  idfrontend_dev:
+    profiles: ["dev"]
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_BASE: /idp
+      CHOKIDAR_USEPOLLING: "true"       # для Windows/WSL
     volumes:
-      - ./teach_frontend:/app
+      - ./id_frontend:/app
       - /app/node_modules
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-      - DOCKER_ENV=true
-    command: npm run dev -- --host 0.0.0.0 --port 5173
     networks: [app-network]
-
-
-  kc-db:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: keycloak
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: keycloak
-    volumes:
-      - kcdata:/var/lib/postgresql/data
-    networks: [app-network]
-
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.0
-    depends_on: [kc-db]
-    command: start-dev
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://kc-db:5432/keycloak
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: keycloak
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-    ports:
-      - "8080:8080"
-    networks: [app-network]
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin_name
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    depends_on:
-      - db
-    networks: [app-network]
-
-networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  postgres_data:
-  pgadmin_data:
-  kcdata:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.idfrontend.rule=Host(`id.localhost`)
+      - traefik.http.routers.idfrontend.entrypoints=web
+      - traefik.http.services.idfrontend.loadbalancer.server.port=5173

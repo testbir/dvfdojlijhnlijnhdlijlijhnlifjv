@@ -40,6 +40,7 @@ async def init_db(session: AsyncSession) -> None:
                 "http://teach.localhost:3001"
             ],
             "backchannel_logout_uri": "http://localhost:3001/backchannel-logout",
+            "frontchannel_logout_uri": "http://localhost:3001/frontchannel-logout",
             "scopes": ["openid", "email", "profile", "offline_access"]
         },
         {
@@ -55,6 +56,7 @@ async def init_db(session: AsyncSession) -> None:
                 "http://run.localhost:3002"
             ],
             "backchannel_logout_uri": "http://localhost:3002/backchannel-logout",
+            "frontchannel_logout_uri": "http://localhost:3002/frontchannel-logout",
             "scopes": ["openid", "email", "profile", "offline_access"]
         },
         {
@@ -70,6 +72,7 @@ async def init_db(session: AsyncSession) -> None:
                 "http://learn.localhost:3003"
             ],
             "backchannel_logout_uri": "http://localhost:3003/backchannel-logout",
+            "frontchannel_logout_uri": "http://localhost:3003/frontchannel-logout",
             "scopes": ["openid", "email", "profile", "offline_access"]
         }
     ]

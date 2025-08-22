@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any, Tuple
 
 from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 from cryptography.hazmat.primitives import serialization
 
 from db.session import async_session_maker
@@ -51,10 +51,8 @@ class TokenService:
         code_hash = hashlib.sha256(code.encode()).hexdigest()
         now = datetime.now(timezone.utc)
 
-        code_challenge_hash = None
-        if code_challenge:
-            code_challenge_hash = hashlib.sha256(code_challenge.encode()).hexdigest()
-
+        code_challenge_hash = code_challenge
+        
         auth_code = AuthCode(
             code_hash=code_hash,
             client_id=client.client_id,
@@ -138,6 +136,7 @@ class TokenService:
         now = datetime.now(timezone.utc)
         auth_time = auth_time or now
         ts = lambda dt: int(dt.timestamp())
+        scopes = set(scope.split())
 
         # активный JWK
         jwk_key = await jwk_service.get_active_key()
@@ -173,7 +172,7 @@ class TokenService:
 
         # id token при scope openid
         id_token: Optional[str] = None
-        if "openid" in scope:
+        if "openid" in scopes:
             id_claims = {
                 "iss": settings.ISSUER,
                 "sub": str(user.id),
@@ -181,10 +180,12 @@ class TokenService:
                 "exp": ts(now + timedelta(seconds=settings.ACCESS_TOKEN_TTL)),
                 "iat": ts(now),
                 "auth_time": ts(auth_time),
-                "email": user.email,
-                "email_verified": user.email_verified,
-                "preferred_username": user.username,
             }
+            if "email" in scopes:
+                id_claims["email"] = user.email
+                id_claims["email_verified"] = user.email_verified
+            if "profile" in scopes:
+                id_claims["preferred_username"] = user.username
             if nonce:
                 id_claims["nonce"] = nonce
             if session_id:
@@ -193,7 +194,6 @@ class TokenService:
             # at_hash = left-most 128 bits of SHA-256(access_token), base64url без '='
             at_hash = hashlib.sha256(access_token.encode()).digest()[:16]
             import base64
-
             id_claims["at_hash"] = base64.urlsafe_b64encode(at_hash).decode().rstrip("=")
 
             id_token = jwt.encode(
@@ -203,9 +203,10 @@ class TokenService:
                 headers={"kid": jwk_key.kid},
             )
 
+
         # refresh при offline_access
         refresh_token: Optional[str] = None
-        if "offline_access" in scope:
+        if "offline_access" in scopes:
             refresh_token_obj = RefreshToken(
                 jti=refresh_jti,
                 user_id=user.id,
@@ -253,29 +254,23 @@ class TokenService:
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
     ) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-        """
-        Ротация refresh: проверка подписи/тип/ауд/iss, lock по записи,
-        выпуск новой пары, связка цепочки. Reuse → отзыв цепочки и back-channel.
-        """
         try:
-            # определяем kid из заголовка
             unverified = jwt.get_unverified_header(refresh_token)
             kid = unverified.get("kid")
             if not kid:
                 return None, "invalid_grant"
 
-            # находим ключ
+            # Берём ключ по kid
             result = await session.execute(select(JWKKey).where(JWKKey.kid == kid))
             jwk_key = result.scalar_one_or_none()
             if not jwk_key:
                 return None, "invalid_grant"
 
+            # Верифицируем токен
             private_key_pem = jwk_service.decrypt_private_key(jwk_key.private_pem_encrypted)
-
-            # верификация refresh
             claims = jwt.decode(
                 refresh_token,
-                private_key_pem,
+                private_key_pem,  # допустимо, ключ RSA приватный содержит публичную часть
                 algorithms=["RS256"],
                 audience=client_id,
                 issuer=settings.ISSUER,
@@ -286,7 +281,7 @@ class TokenService:
             jti = claims.get("jti")
             user_id = claims.get("sub")
 
-            # lock по записи refresh
+            # Лочим запись рефреша
             result = await session.execute(
                 select(RefreshToken)
                 .where(
@@ -301,7 +296,7 @@ class TokenService:
             refresh_token_obj = result.scalar_one_or_none()
 
             if not refresh_token_obj:
-                # Возможно reuse уже использованного токена
+                # Проверка reuse
                 result = await session.execute(select(RefreshToken).where(RefreshToken.jti == jti))
                 used_token = result.scalar_one_or_none()
                 if used_token:
@@ -312,23 +307,28 @@ class TokenService:
 
             now = datetime.now(timezone.utc)
 
-            # срок годности
+            # Протух
             if refresh_token_obj.expires_at < now:
                 refresh_token_obj.revoked_at = now
                 refresh_token_obj.revoked_reason = "expired"
                 await session.flush()
                 return None, "invalid_grant"
 
-            # сущности
+            # Получаем сущности корректно
             user = await session.get(User, user_id)
-            client = await session.get(Client, client_id)
+            # ВАЖНО: Client ищем по client_id, а не по PK
+            cres = await session.execute(select(Client).where(Client.client_id == client_id))
+            client = cres.scalar_one_or_none()
             if not user or not client:
                 return None, "invalid_grant"
 
-            # помечаем старый как ротированный
+            # Жёсткая ротация: старый сразу недействителен
             refresh_token_obj.rotated_at = now
+            refresh_token_obj.revoked_at = now
+            refresh_token_obj.revoked_reason = "rotated"
 
-            # выпускаем новые токены
+
+            # Выпускаем новую пачку
             new_tokens = await self.create_tokens(
                 session=session,
                 user=user,
@@ -338,11 +338,11 @@ class TokenService:
                 user_agent=user_agent,
             )
 
-            # связываем цепочку (parent/prev)
+            # Связываем цепочку
             if new_tokens.get("refresh_token"):
                 new_jti = jwt.decode(new_tokens["refresh_token"], private_key_pem, algorithms=["RS256"])["jti"]
-                result = await session.execute(select(RefreshToken).where(RefreshToken.jti == new_jti))
-                new_refresh_obj = result.scalar_one()
+                res2 = await session.execute(select(RefreshToken).where(RefreshToken.jti == new_jti))
+                new_refresh_obj = res2.scalar_one()
                 new_refresh_obj.parent_jti = refresh_token_obj.jti
                 new_refresh_obj.prev_jti = refresh_token_obj.jti
 
@@ -355,6 +355,87 @@ class TokenService:
         except Exception as e:
             logger.error("Error rotating refresh token: %s", e)
             return None, "server_error"
+
+    async def revoke_refresh_token(
+        self,
+        session: AsyncSession,
+        refresh_token: str,
+        client_id: str,
+        reason: str = "revoked_by_client",
+    ) -> None:
+        """
+        RFC 7009: отзыв refresh токена. Безболезненно возвращает 200 даже если токен невалиден.
+        Мы отзывем сам токен и всех его потомков по цепочке parent_jti.
+        """
+        try:
+            # Вычисляем ключ по kid и валидируем токен
+            unverified = jwt.get_unverified_header(refresh_token)
+            kid = unverified.get("kid")
+            if not kid:
+                return
+
+            res = await session.execute(select(JWKKey).where(JWKKey.kid == kid))
+            jwk_key = res.scalar_one_or_none()
+            if not jwk_key:
+                return
+
+            private_key_pem = jwk_service.decrypt_private_key(jwk_key.private_pem_encrypted)
+            claims = jwt.decode(
+                refresh_token,
+                private_key_pem,  # валидно: приватный ключ содержит публичную часть
+                algorithms=["RS256"],
+                audience=client_id,
+                issuer=settings.ISSUER,
+            )
+            jti = claims.get("jti")
+            if not jti:
+                return
+
+            # Находим сам токен
+            result = await session.execute(
+                select(RefreshToken)
+                .where(
+                    and_(
+                        RefreshToken.jti == jti,
+                        RefreshToken.client_id == client_id,
+                    )
+                )
+                .with_for_update()
+            )
+            root = result.scalar_one_or_none()
+            if not root:
+                return
+
+            now = datetime.now(timezone.utc)
+
+            # Собираем всех потомков (широкий поиск по parent_jti)
+            to_revoke = [root]
+            queue = [root.jti]
+            seen = set([root.jti])
+            while queue:
+                cur = queue.pop(0)
+                res = await session.execute(select(RefreshToken).where(RefreshToken.parent_jti == cur))
+                children = res.scalars().all()
+                for c in children:
+                    if c.jti not in seen:
+                        seen.add(c.jti)
+                        to_revoke.append(c)
+                        queue.append(c.jti)
+
+            # Отзываем
+            for t in to_revoke:
+                if not t.revoked_at:
+                    t.revoked_at = now
+                    t.revoked_reason = reason
+
+            await session.flush()
+
+        except JWTError:
+            return
+        except Exception:
+            logger.exception("Error during refresh token revocation")
+            return
+
 
     async def _revoke_token_chain(self, session: AsyncSession, token: RefreshToken) -> None:
         """
@@ -431,6 +512,40 @@ class TokenService:
             return claims
         except JWTError:
             return None
+
+    async def revoke_all_refresh_tokens_for_user(
+        self,
+        session: AsyncSession,
+        user_id: str,
+        client_id: Optional[str] = None,
+        reason: str = "user_action",
+    ) -> list[str]:
+        """
+        Отозвать все активные refresh токены пользователя.
+        Возвращает список client_id, у которых были активные токены.
+        """
+        now = datetime.now(timezone.utc)
+        q = select(RefreshToken).where(
+            and_(
+                RefreshToken.user_id == user_id,
+                RefreshToken.revoked_at.is_(None),
+                RefreshToken.expires_at > now,
+            )
+        )
+        if client_id:
+            q = q.where(RefreshToken.client_id == client_id)
+
+        res = await session.execute(q)
+        tokens = res.scalars().all()
+
+        affected = set()
+        for t in tokens:
+            t.revoked_at = now
+            t.revoked_reason = reason
+            affected.add(t.client_id)
+
+        await session.flush()
+        return list(affected)
 
 
 token_service = TokenService()

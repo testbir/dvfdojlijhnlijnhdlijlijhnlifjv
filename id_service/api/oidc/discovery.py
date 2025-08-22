@@ -1,4 +1,11 @@
 # id_service/api/oidc/discovery.py
+"""
+OIDC Discovery (.well-known/openid-configuration)
+
+Обновлено:
+- frontchannel_logout_supported = False, т.к. фронт-канал убран.
+- backchannel_logout_supported = True (как и было).
+"""
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -12,9 +19,8 @@ router = APIRouter()
 @router.get("/.well-known/openid-configuration", response_model=DiscoveryResponse)
 async def openid_configuration(request: Request):
     """OpenID Connect Discovery endpoint"""
-    
     base_url = settings.ISSUER
-    
+
     return DiscoveryResponse(
         issuer=base_url,
         authorization_endpoint=f"{base_url}/authorize",
@@ -33,7 +39,7 @@ async def openid_configuration(request: Request):
             "sub", "email", "email_verified", "preferred_username",
             "auth_time", "iss", "aud", "exp", "iat", "nonce", "at_hash", "sid"
         ],
-        frontchannel_logout_supported=True,
+        frontchannel_logout_supported=False,   # фронт-канал отключён
         backchannel_logout_supported=True,
-        backchannel_logout_session_supported=True
+        backchannel_logout_session_supported=True,
     )

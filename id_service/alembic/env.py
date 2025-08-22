@@ -1,82 +1,59 @@
-#id_service/alembic/env.py
+# id_service/alembic/env.py
+from __future__ import annotations
 
 import asyncio
 from logging.config import fileConfig
+
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
-from alembic import context
-import os
-import sys
-from pathlib import Path
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-# Add project root to path
-sys.path.append(str(Path(__file__).parent.parent))
-
-from db.base import Base
 from core.config import settings
+from db.base import Base
 
-# Import all models to ensure they're registered with Base
-from models import *
-
-# this is the Alembic Config object
 config = context.config
-
-# Set database URL from settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("+asyncpg", ""))
-
-# Interpret the config file for Python logging
-if config.config_file_name is not None:
+if config.config_file_name:
     fileConfig(config.config_file_name)
 
-# Model's MetaData object for 'autogenerate' support
 target_metadata = Base.metadata
 
-
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode."""
-    url = config.get_main_option("sqlalchemy.url")
+    url = settings.DATABASE_URL.replace("+asyncpg", "")
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
+        compare_server_default=True,
+        version_table="alembic_version",
     )
-
     with context.begin_transaction():
         context.run_migrations()
-
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
-
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+        compare_server_default=True,
+        version_table="alembic_version",
+    )
     with context.begin_transaction():
         context.run_migrations()
 
-
-async def run_async_migrations() -> None:
-    """Run migrations in 'online' mode."""
-    configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = settings.DATABASE_URL
-    
-    connectable = async_engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
+async def run_migrations_online() -> None:
+    engine: AsyncEngine = create_async_engine(
+        settings.DATABASE_URL,
         poolclass=pool.NullPool,
+        future=True,
     )
-
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
-
-    await connectable.dispose()
-
-
-def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
-    asyncio.run(run_async_migrations())
-
+    async with engine.connect() as conn:
+        await conn.run_sync(do_run_migrations)
+    await engine.dispose()
 
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    run_migrations_online()
+    asyncio.run(run_migrations_online())

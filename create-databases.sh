@@ -24,5 +24,6 @@ create_db_if_not_exists "team_platform_admin"
 create_db_if_not_exists "team_platform_catalog"
 create_db_if_not_exists "team_platform_learning"
 create_db_if_not_exists "team_platform_points"
+create_db_if_not_exists "team_platform_id"
 
 echo "All databases created successfully!"

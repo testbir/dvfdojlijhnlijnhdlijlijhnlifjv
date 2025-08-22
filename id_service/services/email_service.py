@@ -50,11 +50,13 @@ class EmailService:
             async with aiosmtplib.SMTP(
                 hostname=self.smtp_host,
                 port=self.smtp_port,
-                use_tls=self.smtp_tls
+                use_tls=False
             ) as smtp:
+                if self.smtp_tls:
+                    await smtp.starttls()
                 await smtp.login(self.smtp_user, self.smtp_password)
                 await smtp.send_message(message)
-            
+
             logger.info(f"Email sent successfully to {to_email}")
             return True
             

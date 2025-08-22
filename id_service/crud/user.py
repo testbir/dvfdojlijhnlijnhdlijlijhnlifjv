@@ -10,6 +10,11 @@ from models import User
 from schemas.user import UserCreate, UserUpdate
 from core.security import security
 
+from datetime import datetime, timezone
+from sqlalchemy.ext.asyncio import AsyncSession
+from models import User
+from core.security import security
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -243,6 +248,22 @@ class UserCRUD:
         
         result = await session.execute(query.exists().select())
         return result.scalar()
+    
+    async def rehash_password(
+        self,
+        session: AsyncSession,
+        user: User,
+        raw_password: str
+    ) -> User:
+        """
+        Тихий ре-хэш пароля (без пометки last_password_change_at).
+        Меняет только password_hash/updated_at/failed_login_attempts.
+        """
+        user.password_hash = security.hash_password(raw_password)
+        user.updated_at = datetime.now(timezone.utc)
+        user.failed_login_attempts = 0
+        await session.flush()
+        return user
 
 
 user_crud = UserCRUD()

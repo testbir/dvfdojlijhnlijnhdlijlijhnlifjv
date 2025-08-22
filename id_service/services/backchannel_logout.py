@@ -9,6 +9,7 @@ from jose import jwt
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from db.session import async_session_maker
 
 from models import Client, RefreshToken, User
 from core.config import settings
@@ -34,63 +35,69 @@ class BackchannelLogoutService:
     
     async def initiate_backchannel_logout(
         self,
-        session: AsyncSession,
+        session: Optional[AsyncSession],
         user: User,
         session_id: Optional[str] = None,
         reason: str = "user_logout",
         only_client_id: Optional[str] = None
-        
     ) -> Dict[str, Any]:
         """Initiate back-channel logout for all user's active sessions"""
-        
-        # Get all active clients for the user
-        active_clients = await self._get_user_active_clients(session, user.id, session_id, only_client_id )
-        
-        if not active_clients:
-            logger.info(f"No active clients found for user {user.id}")
-            return {"notified_clients": [], "failed_clients": []}
-        
-        # Create logout tasks for each client
-        tasks = []
-        for client in active_clients:
-            if client.backchannel_logout_uri:
-                task = self._send_logout_notification(
-                    client=client,
-                    user=user,
-                    session_id=session_id,
-                    reason=reason
-                )
-                tasks.append((client.client_id, task))
-        
-        # Execute all logout notifications concurrently
-        notified_clients = []
-        failed_clients = []
-        
-        if tasks:
-            results = await asyncio.gather(
-                *[task for _, task in tasks],
-                return_exceptions=True
-            )
+        owns_session = False
+        if session is None:
+            owns_session = True
+            session_ctx = async_session_maker()
+            session = await session_ctx.__aenter__()
+        try:
+            active_clients = await self._get_user_active_clients(session, user.id, session_id, only_client_id)
             
-            for (client_id, _), result in zip(tasks, results):
-                if isinstance(result, Exception):
-                    logger.error(f"Failed to notify client {client_id}: {result}")
-                    failed_clients.append(client_id)
-                elif result:
-                    notified_clients.append(client_id)
-                else:
-                    failed_clients.append(client_id)
+            if not active_clients:
+                logger.info(f"No active clients found for user {user.id}")
+                return {"notified_clients": [], "failed_clients": []}
+            
+            # Create logout tasks for each client
+            tasks = []
+            for client in active_clients:
+                if client.backchannel_logout_uri:
+                    task = self._send_logout_notification(
+                        client=client,
+                        user=user,
+                        session_id=session_id,
+                        reason=reason
+                    )
+                    tasks.append((client.client_id, task))
+            
+            # Execute all logout notifications concurrently
+            notified_clients = []
+            failed_clients = []
+            
+            if tasks:
+                results = await asyncio.gather(
+                    *[task for _, task in tasks],
+                    return_exceptions=True
+                )
+                
+                for (client_id, _), result in zip(tasks, results):
+                    if isinstance(result, Exception):
+                        logger.error(f"Failed to notify client {client_id}: {result}")
+                        failed_clients.append(client_id)
+                    elif result:
+                        notified_clients.append(client_id)
+                    else:
+                        failed_clients.append(client_id)
+            
+            logger.info(
+                f"Back-channel logout completed for user {user.id}. "
+                f"Notified: {len(notified_clients)}, Failed: {len(failed_clients)}"
+            )
         
-        logger.info(
-            f"Back-channel logout completed for user {user.id}. "
-            f"Notified: {len(notified_clients)}, Failed: {len(failed_clients)}"
-        )
-        
-        return {
-            "notified_clients": notified_clients,
-            "failed_clients": failed_clients,
-            "reason": reason
-        }
+            return {
+                "notified_clients": notified_clients,
+                "failed_clients": failed_clients,
+                "reason": reason
+            }
+        finally:
+            if owns_session:
+                await session_ctx.__aexit__(None, None, None)
 
     async def _get_user_active_clients(
         self,
@@ -100,9 +107,9 @@ class BackchannelLogoutService:
         only_client_id: Optional[str] = None
     ) -> List[Client]:
         """Get all clients with active sessions or tokens for a user"""
-        clients = set()
-        
-        # Get clients from active refresh tokens
+        client_ids: set[str] = set()
+        clients: list[Client] = []
+
         q = select(RefreshToken).where(
             and_(
                 RefreshToken.user_id == user_id,
@@ -113,14 +120,18 @@ class BackchannelLogoutService:
         if only_client_id:
             q = q.where(RefreshToken.client_id == only_client_id)
 
-        result = await session.execute(q.distinct(RefreshToken.client_id))
-        for token in result.scalars():
-            client_result = await session.execute(select(Client).where(Client.client_id == token.client_id))
-            client = client_result.scalar_one_or_none()
-            if client:
-                clients.add(client)
+        result = await session.execute(q)
+        tokens = result.scalars().all()
+        for token in tokens:
+            if token.client_id not in client_ids:
+                cres = await session.execute(select(Client).where(Client.client_id == token.client_id))
+                client = cres.scalar_one_or_none()
+                if client:
+                    client_ids.add(client.client_id)
+                    clients.append(client)
 
-        return list(clients)
+        return clients
+
     
     async def _send_logout_notification(
         self,

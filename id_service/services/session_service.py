@@ -21,33 +21,34 @@ class SessionService:
     
     def __init__(self):
         self.cookie_name = "id_session"
-        self.cookie_domain = ".asynq.ru" if settings.APP_ENV == "production" else None
+        self.cookie_domain = "id.asynq.ru" if settings.APP_ENV == "production" else None
     
     async def create_session(
         self,
         session: AsyncSession,
         user: User,
-        request: Request
+        request: Request,
+        remember_me: bool = False,   # <— добавили
     ) -> IDPSession:
-        """Create new SSO session"""
         session_id = secrets.token_urlsafe(32)
         now = datetime.now(timezone.utc)
-        
+
+        max_ttl = settings.SSO_MAX_TTL if not remember_me else 30*24*3600
+
         idp_session = IDPSession(
             session_id=session_id,
             user_id=user.id,
             last_seen_at=now,
             idle_expires_at=now + timedelta(seconds=settings.SSO_IDLE_TTL),
-            max_expires_at=now + timedelta(seconds=settings.SSO_MAX_TTL),
+            max_expires_at=now + timedelta(seconds=max_ttl),  # <— было SSO_MAX_TTL
             ip_address=request.client.host,
             user_agent=request.headers.get("User-Agent"),
             created_at=now
         )
-        
         session.add(idp_session)
         await session.flush()
-        
         return idp_session
+
     
     async def get_session(
         self,
@@ -93,9 +94,9 @@ class SessionService:
     def set_session_cookie(
         self,
         response: Response,
-        session_id: str
+        session_id: str,
+        max_age: int | None = None,
     ) -> None:
-        """Set SSO session cookie"""
         response.set_cookie(
             key=self.cookie_name,
             value=session_id,
@@ -104,7 +105,7 @@ class SessionService:
             secure=settings.APP_ENV == "production",
             httponly=True,
             samesite="lax",
-            max_age=settings.SSO_MAX_TTL
+            max_age=max_age or settings.SSO_MAX_TTL,
         )
     
     def clear_session_cookie(self, response: Response) -> None:

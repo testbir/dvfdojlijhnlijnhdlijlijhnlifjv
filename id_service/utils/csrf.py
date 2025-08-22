@@ -66,17 +66,20 @@ class CSRFProtection:
         return True
     
     def should_check_csrf(self, request: Request) -> bool:
-        """Determine if CSRF check is needed for request"""
-        # Skip for safe methods
-        if request.method in ["GET", "HEAD", "OPTIONS"]:
+        if request.method in {"GET", "HEAD", "OPTIONS"}:
             return False
-        
-        # Skip for API endpoints with Bearer auth
+        path = request.url.path
+        if path in {
+            "/token", "/revoke", "/auth/csrf",
+            "/.well-known/openid-configuration", "/.well-known/jwks.json",
+            "/health", "/health/ready",
+        }:
+            return False
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             return False
-        
         return True
+
 
 
 csrf_protection = CSRFProtection()

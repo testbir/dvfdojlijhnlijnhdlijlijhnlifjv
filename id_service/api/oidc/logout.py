@@ -1,12 +1,23 @@
-#id_service/api/oidc/logout.py
+# id_service/api/oidc/logout.py
+"""
+OIDC RP-Initiated Logout.
+
+Изменения:
+- Добавлен JSON-логаут: POST /logout с телом LogoutRequest и ответом LogoutResponse.
+- GET /logout упрощён: больше НЕТ HTML/iframes. Только:
+    - 302 на валидный post_logout_redirect_uri (если он валиден для клиента из id_token_hint)
+    - иначе 204 No Content.
+- Back-channel остаётся. Фронт-канал удалён.
+- Очистка cookie и отзыв IdP-сессии — только в POST-варианте (по ТЗ).
+"""
 
 import logging
-import asyncio 
-
+import asyncio
 from typing import Optional
 from urllib.parse import urlencode
+
 from fastapi import APIRouter, Request, Response, Depends, Query
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt, JWTError
 
@@ -17,159 +28,131 @@ from services.jwk_service import jwk_service
 from crud import client_crud, user_crud
 from utils.validators import validators
 from core.config import settings
+from schemas.oidc import LogoutRequest, LogoutResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/logout")
-async def logout(
+async def _parse_id_token_hint(
+    id_token_hint: Optional[str],
+    session: AsyncSession,
+) -> tuple[Optional[str], Optional[str]]:
+    """
+    Разбор id_token_hint.
+    Возвращает (client_id, user_id) если токен корректен. Иначе (None, None).
+    Аудиторию (aud) валидируем как строку одного клиента.
+    """
+    if not id_token_hint:
+        return None, None
+    try:
+        hdr = jwt.get_unverified_header(id_token_hint)
+        kid = hdr.get("kid")
+        jwk = await jwk_service.get_key_by_kid(kid) if kid else None
+        if not jwk:
+            raise JWTError("unknown kid")
+        public_key = jwk_service.load_public_key(jwk.public_pem)
+
+        # aud проверять как hint: verify_aud=False, но issuer проверяем
+        claims = jwt.decode(
+            id_token_hint,
+            public_key,
+            algorithms=["RS256"],
+            issuer=settings.ISSUER,
+            options={"verify_aud": False},
+        )
+        aud = claims.get("aud")
+        client_id = aud if isinstance(aud, str) else None
+        user_id = claims.get("sub")
+        return client_id, user_id
+    except JWTError:
+        logger.warning("Invalid id_token_hint provided")
+        return None, None
+
+
+def _build_redirect(redirect_uri: Optional[str], state: Optional[str]) -> Optional[str]:
+    """Собирает redirect_to строку с ?state=... если задано."""
+    if not redirect_uri:
+        return None
+    if state:
+        return f"{redirect_uri}?{urlencode({'state': state})}"
+    return redirect_uri
+
+
+@router.post("/logout", response_model=LogoutResponse)
+async def logout_post(
     request: Request,
     response: Response,
+    body: LogoutRequest,
     session: AsyncSession = Depends(get_async_session),
-    id_token_hint: Optional[str] = Query(None),
-    post_logout_redirect_uri: Optional[str] = Query(None),
-    state: Optional[str] = Query(None)
 ):
-    """OpenID Connect RP-Initiated Logout endpoint"""
-    
-    client_id = None
-    user = None
-    
-    # Parse id_token_hint to get client and user
-    if id_token_hint:
-        try:
-            hdr = jwt.get_unverified_header(id_token_hint)
-            kid = hdr.get("kid")
-            jwk = await jwk_service.get_key_by_kid(kid) if kid else None
-            if not jwk:
-                raise JWTError("unknown kid")
-            public_key = jwk_service.load_public_key(jwk.public_pem)
+    """
+    JSON-логаут.
+    Действия:
+      - Если есть IdP-сессия: отозвать, очистить cookie, дернуть back-channel.
+      - Валидация post_logout_redirect_uri идёт по клиенту из id_token_hint.
+      - Возвращаем { ok: true, redirect_to: <uri>|null }. 302 нет.
+    """
+    # 1) Разобрать id_token_hint, чтобы понять клиента и пользователя (для back-channel)
+    client_id_from_hint, user_id_from_hint = await _parse_id_token_hint(body.id_token_hint, session)
 
-            # aud проверять не надо, это лишь hint для выбора клиента
-            claims = jwt.decode(
-                id_token_hint,
-                public_key,
-                algorithms=["RS256"],
-                issuer=settings.ISSUER,
-                options={"verify_aud": False}
-            )
-
-            client_id = claims.get("aud")
-            user_id = claims.get("sub")
-            if user_id:
-                user = await user_crud.get_by_id(session, user_id)
-        except JWTError:
-            logger.warning("Invalid id_token_hint provided")
-            client_id = None
-            user = None
-            
-    # Get SSO session
+    # 2) Считать текущую IdP-сессию из cookie
     idp_session = await session_service.get_session_from_cookie(session, request)
-    
+    current_user = None
+
+    # 3) Если сессия есть — отзываем и очищаем cookie
     if idp_session:
-        # Get user from session if not from token
-        if not user:
-            user = await user_crud.get_by_id(session, idp_session.user_id)
-        
-        # Revoke session
+        # Если пользователя ещё не знаем — загрузим
+        if not user_id_from_hint:
+            user_id_from_hint = str(idp_session.user_id)
+        current_user = await user_crud.get_by_id(session, user_id_from_hint) if user_id_from_hint else None
+
         await session_service.revoke_session(session, idp_session)
-        
-        # Clear session cookie
         session_service.clear_session_cookie(response)
-        
-        # Trigger back-channel logout
-        if user:
+
+        # 4) Back-channel для активных RP (как раньше)
+        if current_user:
             asyncio.create_task(
                 backchannel_logout_service.initiate_backchannel_logout(
                     session=None,  # сервис сам откроет сессию
-                    user=user,
+                    user=current_user,
                     session_id=idp_session.session_id,
                     reason="rp_logout",
                 )
             )
-    
-    # Validate post logout redirect URI
-    if post_logout_redirect_uri and client_id:
-        client = await client_crud.get_by_client_id(session, client_id)
-        if client and validators.validate_redirect_uri(
-            post_logout_redirect_uri,
-            client.post_logout_redirect_uris
-        ):
-            # Build redirect URL
-            params = {}
-            if state:
-                params["state"] = state
-            
-            redirect_url = post_logout_redirect_uri
-            if params:
-                redirect_url = f"{redirect_url}?{urlencode(params)}"
-            
-            return RedirectResponse(url=redirect_url, status_code=302)
-    
-    # Show logout confirmation page
-    return _render_logout_page()
+
+    # 5) Валидация post_logout_redirect_uri по клиенту из id_token_hint
+    redirect_to: Optional[str] = None
+    if body.post_logout_redirect_uri and client_id_from_hint:
+        client = await client_crud.get_by_client_id(session, client_id_from_hint)
+        if client and validators.validate_redirect_uri(body.post_logout_redirect_uri, client.post_logout_redirect_uris):
+            redirect_to = _build_redirect(body.post_logout_redirect_uri, body.state)
+
+    # 6) JSON-ответ
+    return LogoutResponse(ok=True, redirect_to=redirect_to)
 
 
-def _render_logout_page() -> HTMLResponse:
-    """Render logout confirmation page"""
-    html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Выход - Asynq ID</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .container {
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-                padding: 40px;
-                text-align: center;
-                max-width: 400px;
-            }
-            h1 {
-                color: #333;
-                margin-bottom: 20px;
-            }
-            p {
-                color: #666;
-                margin-bottom: 30px;
-            }
-            .icon {
-                font-size: 48px;
-                margin-bottom: 20px;
-            }
-            a {
-                display: inline-block;
-                padding: 12px 30px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                text-decoration: none;
-                border-radius: 6px;
-                font-weight: 600;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="icon">✓</div>
-            <h1>Вы вышли из системы</h1>
-            <p>Вы успешно вышли из всех приложений Asynq.</p>
-            <a href="/">На главную</a>
-        </div>
-    </body>
-    </html>
+@router.get("/logout")
+async def logout_get(
+    request: Request,
+    session: AsyncSession = Depends(get_async_session),
+    id_token_hint: Optional[str] = Query(None),
+    post_logout_redirect_uri: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+):
     """
-    return HTMLResponse(content=html)
+    Упрощённый GET-вариант.
+    Никаких HTML/iframes. Без очистки cookie и без ревокации.
+    Если redirect валиден по клиенту из id_token_hint — 302 туда (добавим state).
+    Иначе — 204 No Content.
+    """
+    client_id_from_hint, _ = await _parse_id_token_hint(id_token_hint, session)
 
+    if post_logout_redirect_uri and client_id_from_hint:
+        client = await client_crud.get_by_client_id(session, client_id_from_hint)
+        if client and validators.validate_redirect_uri(post_logout_redirect_uri, client.post_logout_redirect_uris):
+            url = _build_redirect(post_logout_redirect_uri, state)
+            return RedirectResponse(url=url, status_code=302)
 
+    # Ничего не делаем, даём 204
+    return Response(status_code=204)
