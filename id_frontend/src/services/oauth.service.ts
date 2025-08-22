@@ -1,6 +1,7 @@
-// src/services/oauth.service.ts
+// ============= src/services/oauth.service.ts =============
 
 import { api, apiClient } from '../api/client';
+import { API_ENDPOINTS } from '../api/endpoints';
 import {
   AuthorizationRequest,
   TokenRequest,
@@ -13,9 +14,12 @@ class OAuthService {
   /**
    * Генерация PKCE verifier и challenge
    */
-  generatePKCE(): { verifier: string; challenge: string } {
+  async generatePKCE(): Promise<{ verifier: string; challenge: string }> {
     const verifier = this.generateRandomString(128);
-    const challenge = this.base64URLEncode(this.sha256(verifier));
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    const challenge = this.base64URLEncode(digest);
     return { verifier, challenge };
   }
 
@@ -26,12 +30,6 @@ class OAuthService {
       text += possible.charAt(Math.floor(Math.random() * possible.length));
     }
     return text;
-  }
-
-  private sha256(plain: string): ArrayBuffer {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(plain);
-    return crypto.subtle.digest('SHA-256', data);
   }
 
   private base64URLEncode(buffer: ArrayBuffer): string {
@@ -64,14 +62,14 @@ class OAuthService {
     if (params.prompt) searchParams.append('prompt', params.prompt);
     if (params.max_age) searchParams.append('max_age', params.max_age.toString());
 
-    return `/oauth/authorize?${searchParams.toString()}`;
+    return `${API_ENDPOINTS.OAUTH.AUTHORIZE}?${searchParams.toString()}`;
   }
 
   /**
    * Обмен authorization code на токены
    */
   async exchangeCodeForTokens(params: TokenRequest): Promise<TokenResponse> {
-    const response = await api.post<TokenResponse>('/oauth/token', params);
+    const response = await api.post<TokenResponse>(API_ENDPOINTS.OAUTH.TOKEN, params);
     const tokens = response.data;
     apiClient.saveTokens(tokens);
     return tokens;
@@ -81,10 +79,10 @@ class OAuthService {
    * Обновление токенов через refresh token
    */
   async refreshTokens(refreshToken: string): Promise<TokenResponse> {
-    const response = await api.post<TokenResponse>('/oauth/token', {
+    const response = await api.post<TokenResponse>(API_ENDPOINTS.OAUTH.TOKEN, {
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
-      client_id: process.env.REACT_APP_CLIENT_ID || 'id_frontend',
+      client_id: import.meta.env.VITE_CLIENT_ID || 'id_frontend',
     });
     const tokens = response.data;
     apiClient.saveTokens(tokens);
@@ -95,7 +93,7 @@ class OAuthService {
    * Получение информации о пользователе
    */
   async getUserInfo(): Promise<UserInfo> {
-    const response = await api.get<UserInfo>('/oauth/userinfo');
+    const response = await api.get<UserInfo>(API_ENDPOINTS.OAUTH.USERINFO);
     return response.data;
   }
 
@@ -103,7 +101,7 @@ class OAuthService {
    * Получение информации о клиенте
    */
   async getClientInfo(clientId: string): Promise<OAuthClient> {
-    const response = await api.get<OAuthClient>(`/api/clients/${clientId}`);
+    const response = await api.get<OAuthClient>(API_ENDPOINTS.CLIENTS.GET(clientId));
     return response.data;
   }
 
@@ -111,7 +109,7 @@ class OAuthService {
    * Отзыв токена
    */
   async revokeToken(token: string, tokenType: 'access_token' | 'refresh_token' = 'access_token'): Promise<void> {
-    await api.post('/oauth/revoke', {
+    await api.post(API_ENDPOINTS.OAUTH.REVOKE, {
       token,
       token_type_hint: tokenType,
     });

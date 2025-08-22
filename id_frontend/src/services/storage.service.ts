@@ -1,3 +1,5 @@
+// ============= src/services/storage.service.ts =============
+
 interface StorageData {
   [key: string]: any;
 }

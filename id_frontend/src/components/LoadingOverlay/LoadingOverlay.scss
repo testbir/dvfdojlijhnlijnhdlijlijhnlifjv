@@ -1,0 +1,59 @@
+// ============= src/components/LoadingOverlay/LoadingOverlay.scss =============
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  border-radius: inherit;
+
+  &--fullscreen {
+    position: fixed;
+    border-radius: 0;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 32px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  }
+
+  &__spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(37, 141, 255, 0.2);
+    border-top-color: #258DFF;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  &__message {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+    font-family: 'Open Sans', sans-serif;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

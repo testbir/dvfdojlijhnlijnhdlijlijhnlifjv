@@ -1,4 +1,4 @@
-// src/types/auth.types.ts
+// ============= src/types/auth.types.ts =============
 
 export interface User {
   id: string;

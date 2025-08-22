@@ -1,9 +1,9 @@
-// src/api/client.ts
+// ============= src/api/client.ts =============
 
 import axios, { type AxiosInstance, AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import { type TokenResponse } from '../types/oauth.types';
+import { TokenResponse } from '../types/oauth.types';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -101,7 +101,7 @@ class ApiClient {
       .post<TokenResponse>('/oauth/token', {
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
-        client_id: process.env.REACT_APP_CLIENT_ID || 'id_frontend',
+        client_id: import.meta.env.VITE_CLIENT_ID || 'id_frontend',
       })
       .then((response) => {
         const tokens = response.data;
@@ -132,3 +132,4 @@ class ApiClient {
 
 export const apiClient = new ApiClient();
 export const api = apiClient.getClient();
+

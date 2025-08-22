@@ -1,4 +1,4 @@
-// src/types/oauth.types.ts
+// ============= src/types/oauth.types.ts =============
 
 export interface OAuthClient {
   client_id: string;
