@@ -1,7 +1,7 @@
 // ============= src/utils/errors.ts =============
 
 import { AxiosError } from 'axios';
-import { ApiError } from '../types/auth.types';
+import type { ApiError } from '../types/auth.types';
 import { ERROR_MESSAGES } from './constants';
 
 export class AppError extends Error {

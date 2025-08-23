@@ -9,16 +9,15 @@ export interface User {
   updated_at: string;
 }
 
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  username: string;
-  email: string;
-  password: string;
-  password_confirm: string;
+export interface LoginRequest { email: string; password: string; }
+export interface RegisterRequest { username: string; email: string; password: string; password_confirm: string; }
+export interface VerifyEmailRequest { user_id: string; code: string; }
+export interface ForgotPasswordRequest { email: string; }
+export interface ResetPasswordRequest {
+  user_id: string;
+  code: string;
+  new_password: string;
+  new_password_confirm: string;
 }
 
 export interface LoginResponse {
@@ -34,22 +33,6 @@ export interface RegisterResponse {
   email: string;
   message: string;
   requires_verification: boolean;
-}
-
-export interface VerifyEmailRequest {
-  user_id: string;
-  code: string;
-}
-
-export interface ForgotPasswordRequest {
-  email: string;
-}
-
-export interface ResetPasswordRequest {
-  user_id: string;
-  code: string;
-  new_password: string;
-  new_password_confirm: string;
 }
 
 export interface ApiError {

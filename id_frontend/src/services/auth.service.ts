@@ -2,7 +2,7 @@
 
 import { api } from '../api/client';
 import { API_ENDPOINTS } from '../api/endpoints';
-import {
+import type {
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -13,6 +13,7 @@ import {
   User,
 } from '../types/auth.types';
 import { apiClient } from '../api/client';
+
 
 class AuthService {
   async login(data: LoginRequest): Promise<LoginResponse> {

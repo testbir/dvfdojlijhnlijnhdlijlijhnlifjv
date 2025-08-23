@@ -19,9 +19,9 @@ depends_on = None
 
 def upgrade() -> None:
     # --- ENUM types: создаём один раз вручную и переиспользуем ---
-    client_type = psql.ENUM("PUBLIC", "CONFIDENTIAL", name="clienttype", create_type=False)
-    
-    token_auth_method = psql.ENUM("NONE", "CLIENT_SECRET_POST", "CLIENT_SECRET_BASIC", name="tokenauthmethod", create_type=False)
+   
+    client_type = psql.ENUM("public", "confidential", name="clienttype", create_type=False)
+    token_auth_method = psql.ENUM("none", "client_secret_post", "client_secret_basic", name="tokenauthmethod", create_type=False)
     
     email_code_purpose = psql.ENUM(
         "register", "reset", "change_email",
@@ -58,8 +58,8 @@ def upgrade() -> None:
         sa.Column("id", psql.UUID(as_uuid=True), primary_key=True, nullable=False),
         sa.Column("client_id", sa.String(length=255), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
-        sa.Column("type", client_type, nullable=False, server_default=sa.text("'PUBLIC'::clienttype")),
-        sa.Column("token_endpoint_auth_method", token_auth_method, nullable=False, server_default=sa.text("'NONE'::tokenauthmethod")),
+        sa.Column("type", client_type, nullable=False, server_default=sa.text("'public'::clienttype")),
+        sa.Column("token_endpoint_auth_method", token_auth_method, nullable=False, server_default=sa.text("'none'::tokenauthmethod")),
         sa.Column("pkce_required", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("redirect_uris", psql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'[]'::jsonb")),
         sa.Column("post_logout_redirect_uris", psql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'[]'::jsonb")),

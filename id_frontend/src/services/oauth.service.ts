@@ -2,7 +2,7 @@
 
 import { api, apiClient } from '../api/client';
 import { API_ENDPOINTS } from '../api/endpoints';
-import {
+import type {
   AuthorizationRequest,
   TokenRequest,
   TokenResponse,
@@ -24,13 +24,12 @@ class OAuthService {
   }
 
   private generateRandomString(length: number): string {
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-    let text = '';
-    for (let i = 0; i < length; i++) {
-      text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'
+    const bytes = new Uint8Array(length)
+    crypto.getRandomValues(bytes)
+    return Array.from(bytes, b => charset[b % charset.length]).join('')
   }
+
 
   private base64URLEncode(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
@@ -68,26 +67,33 @@ class OAuthService {
   /**
    * Обмен authorization code на токены
    */
-  async exchangeCodeForTokens(params: TokenRequest): Promise<TokenResponse> {
-    const response = await api.post<TokenResponse>(API_ENDPOINTS.OAUTH.TOKEN, params);
-    const tokens = response.data;
-    apiClient.saveTokens(tokens);
-    return tokens;
-  }
+async exchangeCodeForTokens(params: TokenRequest): Promise<TokenResponse> {
+  const body = new URLSearchParams({
+    grant_type: params.grant_type,
+    code: params.code ?? '',
+    redirect_uri: params.redirect_uri ?? '',
+    code_verifier: params.code_verifier ?? '',
+    client_id: params.client_id,
+  })
+  const { data } = await api.post<TokenResponse>(API_ENDPOINTS.OAUTH.TOKEN, body, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  })
+  apiClient.saveTokens(data)
+  return data
+}
 
-  /**
-   * Обновление токенов через refresh token
-   */
-  async refreshTokens(refreshToken: string): Promise<TokenResponse> {
-    const response = await api.post<TokenResponse>(API_ENDPOINTS.OAUTH.TOKEN, {
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-      client_id: import.meta.env.VITE_CLIENT_ID || 'id_frontend',
-    });
-    const tokens = response.data;
-    apiClient.saveTokens(tokens);
-    return tokens;
-  }
+async refreshTokens(refreshToken: string): Promise<TokenResponse> {
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+    client_id: import.meta.env.VITE_CLIENT_ID || 'id_frontend',
+  })
+  const { data } = await api.post<TokenResponse>(API_ENDPOINTS.OAUTH.TOKEN, body, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  })
+  apiClient.saveTokens(data)
+  return data
+}
 
   /**
    * Получение информации о пользователе

@@ -1,135 +1,109 @@
 // ============= src/api/client.ts =============
 
-import axios, { type AxiosInstance, AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import { TokenResponse } from '../types/oauth.types';
+import axios, { type AxiosInstance, AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import { type TokenResponse } from '../types/oauth.types'
+import {
+  TOKEN_STORAGE_KEY,
+  REFRESH_TOKEN_STORAGE_KEY,
+  ID_TOKEN_STORAGE_KEY,
+} from '../utils/constants'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 
 class ApiClient {
-  private client: AxiosInstance;
-  private refreshPromise: Promise<TokenResponse> | null = null;
+  private client: AxiosInstance
+  private refreshPromise: Promise<TokenResponse> | null = null
 
   constructor() {
     this.client = axios.create({
-      baseURL: API_URL,
+      baseURL: API_BASE,          // '' в dev, '/idp' в prod
       timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      withCredentials: true, // для cookies
-    });
-
-    this.setupInterceptors();
+      headers: { 'Content-Type': 'application/json' },
+      withCredentials: true,
+    })
+    this.setupInterceptors()
   }
 
   private setupInterceptors() {
-    // Request interceptor
-    this.client.interceptors.request.use(
-      (config: InternalAxiosRequestConfig) => {
-        const token = this.getAccessToken();
-        if (token && config.headers) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error: AxiosError) => Promise.reject(error)
-    );
+    this.client.interceptors.request.use((config) => {
+      const token = this.getAccessToken()
+      if (token) {
+        config.headers = { ...config.headers, Authorization: `Bearer ${token}` }
+      }
+      return config
+    })
 
-    // Response interceptor
     this.client.interceptors.response.use(
-      (response) => response,
+      (r) => r,
       async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
-
+        const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined
+        const status = error.response?.status
+        const url = original?.url || ''
+        // не рефрешим сам /oauth/token и избегаем циклов
+        if (
+          status === 401 &&
+          original &&
+          !original._retry &&
+          !url.startsWith('/oauth/token') &&
+          this.getRefreshToken()
+        ) {
+          original._retry = true
           try {
-            await this.refreshToken();
-            const token = this.getAccessToken();
-            if (token && originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            return this.client(originalRequest);
-          } catch (refreshError) {
-            this.clearTokens();
-            window.location.href = '/login';
-            return Promise.reject(refreshError);
+            await this.refreshToken()
+            const token = this.getAccessToken()
+            if (token && original.headers) original.headers.Authorization = `Bearer ${token}`
+            return this.client(original)
+          } catch (e) {
+            this.clearTokens()
+            window.location.href = '/login'
+            throw e
           }
         }
-
-        return Promise.reject(error);
+        throw error
       }
-    );
+    )
   }
 
-  private getAccessToken(): string | null {
-    return localStorage.getItem('access_token');
-  }
-
-  private getRefreshToken(): string | null {
-    return localStorage.getItem('refresh_token');
-  }
+  private getAccessToken() { return localStorage.getItem(TOKEN_STORAGE_KEY) }
+  private getRefreshToken() { return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) }
 
   private setTokens(tokens: TokenResponse) {
-    localStorage.setItem('access_token', tokens.access_token);
-    if (tokens.refresh_token) {
-      localStorage.setItem('refresh_token', tokens.refresh_token);
-    }
-    if (tokens.id_token) {
-      localStorage.setItem('id_token', tokens.id_token);
-    }
+    localStorage.setItem(TOKEN_STORAGE_KEY, tokens.access_token)
+    if (tokens.refresh_token) localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, tokens.refresh_token)
+    if (tokens.id_token) localStorage.setItem(ID_TOKEN_STORAGE_KEY, tokens.id_token)
   }
 
   private clearTokens() {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('id_token');
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY)
+    localStorage.removeItem(ID_TOKEN_STORAGE_KEY)
   }
 
-  private async refreshToken(): Promise<TokenResponse> {
-    if (this.refreshPromise) {
-      return this.refreshPromise;
-    }
+private async refreshToken(): Promise<TokenResponse> {
+  if (this.refreshPromise) return this.refreshPromise
+  const refreshToken = this.getRefreshToken()
+  if (!refreshToken) throw new Error('No refresh token')
 
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
-    }
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+    client_id: import.meta.env.VITE_CLIENT_ID || 'id_frontend',
+  })
 
-    this.refreshPromise = this.client
-      .post<TokenResponse>('/oauth/token', {
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        client_id: import.meta.env.VITE_CLIENT_ID || 'id_frontend',
-      })
-      .then((response) => {
-        const tokens = response.data;
-        this.setTokens(tokens);
-        this.refreshPromise = null;
-        return tokens;
-      })
-      .catch((error) => {
-        this.refreshPromise = null;
-        throw error;
-      });
+  this.refreshPromise = this.client
+    .post<TokenResponse>('/oauth/token', body, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    })
+    .then(({ data }) => { this.setTokens(data); this.refreshPromise = null; return data })
+    .catch((e) => { this.refreshPromise = null; throw e })
 
-    return this.refreshPromise;
-  }
-
-  public getClient(): AxiosInstance {
-    return this.client;
-  }
-
-  public saveTokens(tokens: TokenResponse) {
-    this.setTokens(tokens);
-  }
-
-  public logout() {
-    this.clearTokens();
-  }
+  return this.refreshPromise
 }
 
-export const apiClient = new ApiClient();
-export const api = apiClient.getClient();
+  getClient() { return this.client }
+  saveTokens(tokens: TokenResponse) { this.setTokens(tokens) }
+  logout() { this.clearTokens() }
+}
 
+export const apiClient = new ApiClient()
+export const api = apiClient.getClient()

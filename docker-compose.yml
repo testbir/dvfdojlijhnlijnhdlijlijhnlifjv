@@ -37,7 +37,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: siperup44rQVr8
-      POSTGRES_DB: team_platform_id   # создаём нужную БД сразу
+      POSTGRES_DB: team_platform_id
     command: ["postgres", "-c", "password_encryption=md5"]
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -54,9 +54,9 @@ services:
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     networks: [app-network]
 
+  # --- PROD: backend ---
   idservice:
     profiles: ["prod"]
-
     build:
       context: ./id_service
     container_name: idservice_team
@@ -84,30 +84,29 @@ services:
       - traefik.enable=true
       - traefik.http.routers.idservice.rule=Host(`id.localhost`) && PathPrefix(`/idp`)
       - traefik.http.routers.idservice.entrypoints=web
+      - traefik.http.routers.idservice.priority=20
       - traefik.http.middlewares.idservice-stripprefix.stripprefix.prefixes=/idp
       - traefik.http.routers.idservice.middlewares=idservice-stripprefix
       - traefik.http.services.idservice.loadbalancer.server.port=8000
 
+  # --- PROD: frontend (статический билд) ---
   idfrontend:
     profiles: ["prod"]
-
     build:
-    
       context: ./id_frontend
       args:
-        VITE_API_BASE: /idp   # можно оставить по умолчанию
+        VITE_API_BASE: /idp
+        VITE_CLIENT_ID: id_frontend
     container_name: id_frontend
     networks: [app-network]
     labels:
       - traefik.enable=true
       - traefik.http.routers.idfrontend.rule=Host(`id.localhost`)
       - traefik.http.routers.idfrontend.entrypoints=web
+      - traefik.http.routers.idfrontend.priority=10
       - traefik.http.services.idfrontend.loadbalancer.server.port=80
 
-
-
-
-  # --- DEV: бэкенд с авто-перезапуском ---
+  # --- DEV: backend с авто-перезапуском ---
   idservice_dev:
     profiles: ["dev"]
     build:
@@ -117,11 +116,11 @@ services:
       - ./id_service/.env
     environment:
       ISSUER: http://id.localhost/idp
-      DATABASE_URL: postgresql+asyncpg://postgres:siperup44rQVr8@db:5432/team_platform_id
+      DATABASE_URL: postgresql+asyncpg://postgres:siperup44rQVr8@postgres_team:5432/team_platform_id
       REDIS_URL: redis://redis:6379/1
       CORS_ORIGINS: "[]"
       APP_ENV: development
-      WATCHFILES_FORCE_POLLING: "true"   # для Windows/WSL
+      WATCHFILES_FORCE_POLLING: "true"
     volumes:
       - ./id_service:/id_service
     depends_on:
@@ -134,6 +133,7 @@ services:
       - traefik.enable=true
       - traefik.http.routers.idservice.rule=Host(`id.localhost`) && PathPrefix(`/idp`)
       - traefik.http.routers.idservice.entrypoints=web
+      - traefik.http.routers.idservice.priority=20
       - traefik.http.middlewares.idservice-stripprefix.stripprefix.prefixes=/idp
       - traefik.http.routers.idservice.middlewares=idservice-stripprefix
       - traefik.http.services.idservice.loadbalancer.server.port=8000
@@ -146,7 +146,8 @@ services:
     command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     environment:
       VITE_API_BASE: /idp
-      CHOKIDAR_USEPOLLING: "true"       # для Windows/WSL
+      VITE_CLIENT_ID: id_frontend
+      CHOKIDAR_USEPOLLING: "true"
     volumes:
       - ./id_frontend:/app
       - /app/node_modules
@@ -155,4 +156,5 @@ services:
       - traefik.enable=true
       - traefik.http.routers.idfrontend.rule=Host(`id.localhost`)
       - traefik.http.routers.idfrontend.entrypoints=web
+      - traefik.http.routers.idfrontend.priority=10
       - traefik.http.services.idfrontend.loadbalancer.server.port=5173

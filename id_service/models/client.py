@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 import enum
 
-from sqlalchemy import Column, String, Text, Boolean, DateTime, Enum, Index, func
+from sqlalchemy import Column, String, Text, Boolean, DateTime, Index, func, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
 
@@ -30,10 +30,24 @@ class Client(Base):
     client_id = Column(String(255), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
 
-    type = Column(Enum(ClientType), nullable=False, default=ClientType.PUBLIC)
-    token_endpoint_auth_method = Column(
-        Enum(TokenAuthMethod), nullable=False, default=TokenAuthMethod.NONE
+    type = Column(
+        SAEnum(
+            ClientType,
+            name="clienttype",
+            values_callable=lambda e: [i.value for i in e],
+        ),
+        nullable=False,
     )
+    
+    token_endpoint_auth_method = Column(
+        SAEnum(
+            TokenAuthMethod,
+            name="tokenauthmethod",
+            values_callable=lambda e: [i.value for i in e],
+        ),
+        nullable=False,
+    )
+    
     pkce_required = Column(Boolean, nullable=False, default=True)
 
     redirect_uris = Column(JSONB, nullable=False, default=list)

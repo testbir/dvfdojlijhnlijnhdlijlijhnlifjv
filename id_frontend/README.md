@@ -67,3 +67,31 @@ export default tseslint.config([
   },
 ])
 ```
+
+
+
+$out = "all_code.txt"
+Remove-Item $out -ErrorAction SilentlyContinue
+
+# все ts, tsx, scss внутри src
+$files = Get-ChildItem -Path .\src -Recurse -Include *.ts,*.tsx,*.scss -File
+
+# отдельно файлы в корне
+$core = @(
+  "vite.config.ts","index.html","nginx.conf","Dockerfile",
+  "package.json","tsconfig.json","tsconfig.app.json","tsconfig.node.json",
+  "eslint.config.js","README.md",".env.development.local"
+) | ForEach-Object { Get-Item -ErrorAction SilentlyContinue $_ }
+
+$files += $core
+
+$files = $files |
+  Where-Object { $_.FullName -notmatch '\\node_modules\\|\\dist\\|\\.git\\' -and $_.Name -ne 'package-lock.json' } |
+  Sort-Object FullName
+
+foreach ($f in $files) {
+  Add-Content -Path $out -Value "`r`n`r`n/* ===== $($f.FullName) ===== */`r`n" -Encoding utf8
+  (Get-Content $f.FullName -Raw) | Add-Content -Path $out -Encoding utf8
+}
+
+"$($files.Count) файлов объединено -> $(Resolve-Path $out)"
