@@ -8,7 +8,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useOAuth } from '../hooks/useOAuth';
 import { oauthService } from '../services/oauth.service';
 import { ROUTES } from '../utils/constants';
-import '../styles/pages.scss';
 
 export const AuthorizePage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();

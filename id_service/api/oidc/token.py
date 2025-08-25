@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.session import get_async_session
 from utils.rate_limit import rate_limiter
 from crud import client_crud
-from models import TokenAuthMethod, ClientType
+from models import TokenAuthMethod, ClientType, User
 from services.token_service import token_service
 from utils.validators import validators
 from core.config import settings
@@ -101,28 +101,34 @@ async def token(
             redirect_uri=redirect_uri,
             code_verifier=code_verifier,
         )
-        if oauth_err:
-            return _oauth_error(oauth_err, "invalid authorization code")
+        if oauth_err or not auth_code:
+            return _oauth_error("invalid_grant", "invalid authorization code")
 
-        # Получаем sid из Redis (привязали на /authorize)
+        # ЯВНО загружаем пользователя
+        user = await session.get(User, auth_code.user_id)
+        if not user:
+            return _oauth_error("invalid_grant", "user not found")
+
+        # Получаем sid из Redis (могут вернуться bytes -> декодируем)
         sid = None
         if rate_limiter.redis_client:
             sid = await rate_limiter.redis_client.get(f"authcode_sid:{code}")
+            if isinstance(sid, (bytes, bytearray)):
+                sid = sid.decode("utf-8")
 
         tokens = await token_service.create_tokens(
             session=session,
-            user=auth_code.user,
+            user=user,
             client=client,
             scope=auth_code.scope,
             nonce=auth_code.nonce,
             auth_time=auth_code.auth_time,
             session_id=sid,
-            ip_address=request.client.host,
+            ip_address=(request.client.host if request.client else None),
             user_agent=request.headers.get("User-Agent"),
         )
 
         return JSONResponse(tokens, headers={"Cache-Control": "no-store", "Pragma": "no-cache"})
-
 
     elif grant_type == "refresh_token":
         if not refresh_token:

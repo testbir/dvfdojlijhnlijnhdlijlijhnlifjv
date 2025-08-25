@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any, Tuple
 from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
+from sqlalchemy.orm import noload
 from cryptography.hazmat.primitives import serialization
 
 from db.session import async_session_maker
@@ -88,6 +89,7 @@ class TokenService:
 
         result = await session.execute(
             select(AuthCode)
+            .options(noload("*"))                      # отключаем eager-join всех связей
             .where(
                 and_(
                     AuthCode.code_hash == code_hash,
@@ -97,7 +99,7 @@ class TokenService:
                     AuthCode.used_at.is_(None),
                 )
             )
-            .with_for_update()
+            .with_for_update(of=AuthCode)              # блокируем только auth_codes
         )
         auth_code = result.scalar_one_or_none()
         if not auth_code:
@@ -340,7 +342,10 @@ class TokenService:
 
             # Связываем цепочку
             if new_tokens.get("refresh_token"):
-                new_jti = jwt.decode(new_tokens["refresh_token"], private_key_pem, algorithms=["RS256"])["jti"]
+                try:
+                    new_jti = jwt.get_unverified_claims(new_tokens["refresh_token"]).get("jti")
+                except Exception:
+                    new_jti = None
                 res2 = await session.execute(select(RefreshToken).where(RefreshToken.jti == new_jti))
                 new_refresh_obj = res2.scalar_one()
                 new_refresh_obj.parent_jti = refresh_token_obj.jti
@@ -400,7 +405,7 @@ class TokenService:
                         RefreshToken.client_id == client_id,
                     )
                 )
-                .with_for_update()
+                .with_for_update(of=RefreshToken)
             )
             root = result.scalar_one_or_none()
             if not root:

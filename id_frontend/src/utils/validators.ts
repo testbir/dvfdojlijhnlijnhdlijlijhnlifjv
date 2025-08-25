@@ -1,6 +1,6 @@
 // ============= src/utils/validators.ts =============
 
-import { PASSWORD_MIN_LENGTH, USERNAME_MIN_LENGTH, USERNAME_MAX_LENGTH } from './constants';
+import { PASSWORD_MIN_LENGTH, USERNAME_MIN_LENGTH, USERNAME_MAX_LENGTH, CODE_LENGTH } from './constants';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -43,6 +43,9 @@ export const validators = {
     if (password.length < PASSWORD_MIN_LENGTH) {
       return { isValid: false, error: `Минимум ${PASSWORD_MIN_LENGTH} символов` };
     }
+    if (/^\d+$/.test(password)) {
+      return { isValid: false, error: 'Пароль не может состоять только из цифр' };
+    }
     return { isValid: true };
   },
 
@@ -60,8 +63,9 @@ export const validators = {
     if (!code) {
       return { isValid: false, error: 'Код обязателен' };
     }
-    if (!/^\d{6}$/.test(code)) {
-      return { isValid: false, error: 'Код должен состоять из 6 цифр' };
+    const re = new RegExp(`^\\d{${CODE_LENGTH}}$`)
+    if (!re.test(code)) {
+      return { isValid: false, error: `Код должен состоять из ${CODE_LENGTH} цифр` };
     }
     return { isValid: true };
   },
@@ -97,3 +101,6 @@ export const getPasswordStrength = (password: string): {
     color: result.color,
   };
 };
+
+
+export const isWeakPassword = (_pwd: string): boolean => false;

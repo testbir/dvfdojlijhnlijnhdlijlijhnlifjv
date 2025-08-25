@@ -17,7 +17,7 @@ class EmailService:
     
     def __init__(self):
         self.smtp_host = settings.SMTP_HOST
-        self.smtp_port = settings.SMTP_PORT
+        self.smtp_port = int(settings.SMTP_PORT)
         self.smtp_user = settings.SMTP_USER
         self.smtp_password = settings.SMTP_PASSWORD
         self.smtp_tls = settings.SMTP_TLS
@@ -47,13 +47,14 @@ class EmailService:
             message.attach(html_part)
             
             # Send email
+            use_tls = int(self.smtp_port) == 465
             async with aiosmtplib.SMTP(
                 hostname=self.smtp_host,
                 port=self.smtp_port,
-                use_tls=False
+                use_tls=use_tls,
+                start_tls=bool(self.smtp_tls) and not use_tls,
             ) as smtp:
-                if self.smtp_tls:
-                    await smtp.starttls()
+
                 await smtp.login(self.smtp_user, self.smtp_password)
                 await smtp.send_message(message)
 

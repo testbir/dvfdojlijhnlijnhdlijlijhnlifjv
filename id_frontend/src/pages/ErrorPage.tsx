@@ -4,7 +4,6 @@ import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Layout } from '../components/Layout/Layout';
 import { ROUTES } from '../utils/constants';
-import '../styles/pages.scss';
 
 export const ErrorPage: React.FC = () => {
   const [searchParams] = useSearchParams();

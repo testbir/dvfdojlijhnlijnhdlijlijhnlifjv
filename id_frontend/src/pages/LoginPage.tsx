@@ -14,6 +14,11 @@ export const LoginPage: React.FC = () => {
   
   const redirectUrl = searchParams.get('redirect_uri') || ROUTES.PROFILE;
 
+  const isSafe = (u: string) => {
+    try { const url = new URL(u); return url.origin === window.location.origin }
+    catch { return u.startsWith('/') }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       navigate(redirectUrl);
@@ -21,9 +26,13 @@ export const LoginPage: React.FC = () => {
   }, [isAuthenticated, navigate, redirectUrl]);
 
   const handleSuccess = () => {
-    navigate(redirectUrl);
-  };
-
+    if (isSafe(redirectUrl)) {
+      if (/^https?:\/\//i.test(redirectUrl)) window.location.href = redirectUrl;
+      else navigate(redirectUrl);
+    } else {
+      navigate(ROUTES.PROFILE);
+    }
+  }
   return (
     <Layout>
       <LoginForm onSuccess={handleSuccess} redirectUrl={redirectUrl} />

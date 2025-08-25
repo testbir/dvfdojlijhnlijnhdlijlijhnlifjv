@@ -6,7 +6,6 @@ import { Layout } from '../components/Layout/Layout';
 import { LoadingOverlay } from '../components/LoadingOverlay/LoadingOverlay';
 import { useAuth } from '../hooks/useAuth';
 import { ROUTES } from '../utils/constants';
-import '../styles/pages.scss';
 
 export const ProfilePage: React.FC = () => {
   const { user, isLoading, isAuthenticated, logout } = useAuth();

@@ -93,9 +93,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 class JSONContentTypeMiddleware(BaseHTTPMiddleware):
     """Для /auth/** и /account/** требуем JSON на небезопасных методах."""
     def _needs_json(self, path: str) -> bool:
-        if path == "/auth/csrf":
+        if path in ("/auth/csrf", "/api/auth/csrf"):
             return False
-        return path.startswith("/auth/") or path.startswith("/account/")
+        return (
+            path.startswith("/auth/")
+            or path.startswith("/api/auth/")
+            or path.startswith("/account/")
+            or path.startswith("/api/account/")
+        )
 
     async def dispatch(self, request: Request, call_next):
         if request.method in {"POST", "PUT", "PATCH", "DELETE"} and self._needs_json(request.url.path):
@@ -121,28 +126,19 @@ class AuthCacheHeadersMiddleware(BaseHTTPMiddleware):
     """Отключаем кэш для /auth/** и OIDC-эндпоинтов.
     Исключения: discovery и jwks.
     """
+    OIDC_PATHS = {"/authorize", "/token", "/userinfo", "/logout", "/revoke"}
     DISCOVERY = "/.well-known/openid-configuration"
     JWKS = "/.well-known/jwks.json"
-    OIDC_PATHS = {
-        "/authorize",
-        "/token",
-        "/revoke",
-        "/userinfo",
-        "/logout",
-    }
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request, call_next):
         resp = await call_next(request)
-        path = request.url.path
-
-        is_auth = path.startswith("/auth/")
-        # учитываем как корневые OIDC пути, так и гипотетический префикс /oidc/
-        is_oidc = path in self.OIDC_PATHS or path.startswith("/oidc/")
-        is_static = path in {self.DISCOVERY, self.JWKS}
-
+        p = request.url.path
+        is_auth = p.startswith(("/auth/","/api/auth/","/account/","/api/account/"))
+        is_oidc = p in self.OIDC_PATHS
+        is_static = p in {self.DISCOVERY, self.JWKS}
         if (is_auth or is_oidc) and not is_static:
-            resp.headers.setdefault("Cache-Control", "no-store")
-            resp.headers.setdefault("Pragma", "no-cache")
+            resp.headers.setdefault("Cache-Control","no-store")
+            resp.headers.setdefault("Pragma","no-cache")
         return resp
 
 
@@ -177,17 +173,17 @@ app.include_router(logout.router, tags=["OIDC Logout"])
 app.include_router(revoke.router, tags=["OIDC Token"])
 
 # Auth endpoints
-app.include_router(register.router, prefix="/auth", tags=["Authentication"])
-app.include_router(login.router, prefix="/auth", tags=["Authentication"])
-app.include_router(password_reset.router, prefix="/auth", tags=["Authentication"])
-app.include_router(email_verification.router, prefix="/auth", tags=["Authentication"])
-app.include_router(csrf_api.router, prefix="/auth", tags=["Authentication"])
+app.include_router(register.router,          prefix="/api/auth", tags=["Authentication"])
+app.include_router(login.router,             prefix="/api/auth", tags=["Authentication"])
+app.include_router(password_reset.router,    prefix="/api/auth", tags=["Authentication"])
+app.include_router(email_verification.router,prefix="/api/auth", tags=["Authentication"])
+app.include_router(csrf_api.router,          prefix="/api/auth", tags=["Authentication"])
 
 # Account management endpoints
-app.include_router(profile.router, prefix="/account", tags=["Account"])
-app.include_router(email_change.router, prefix="/account", tags=["Account"])
-app.include_router(password_change.router, prefix="/account", tags=["Account"])
-app.include_router(delete_account.router, prefix="/account", tags=["Account"])
+app.include_router(profile.router,           prefix="/api/account", tags=["Account"])
+app.include_router(email_change.router,      prefix="/api/account", tags=["Account"])
+app.include_router(password_change.router,   prefix="/api/account", tags=["Account"])
+app.include_router(delete_account.router,    prefix="/api/account", tags=["Account"])
 
 # Health
 app.include_router(health.router, tags=["Health"])

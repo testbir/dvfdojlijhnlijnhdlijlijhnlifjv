@@ -1,7 +1,8 @@
 # id_service/models/email_code.py
 
 from datetime import datetime
-from sqlalchemy import Column, Text, Index, String, DateTime, ForeignKey, Integer, Enum
+from sqlalchemy import Column, Text, Index, String, DateTime, ForeignKey, Integer
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
@@ -25,7 +26,14 @@ class EmailCode(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     
     # Code details
-    purpose = Column(Enum(EmailCodePurpose), nullable=False)
+    purpose = Column(
+        SAEnum(
+            EmailCodePurpose,
+            name="emailcodepurpose",
+            values_callable=lambda e: [i.value for i in e],
+        ),
+        nullable=False,
+    )
     code_hash = Column(String(255), nullable=False)
     new_email = Column(String(255), nullable=True)  # For email change
     

@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from core.config import settings
 from core.security import security
-from models import Client, ClientType, User
+from models import Client, ClientType, User, TokenAuthMethod
 
 
 logger = logging.getLogger(__name__)
@@ -31,22 +31,24 @@ async def init_db(session: AsyncSession) -> None:
             "client_id": settings.TEACH_CLIENT_ID,
             "name": "Teach Service (Local)",
             "type": ClientType.PUBLIC,
+            "token_endpoint_auth_method": TokenAuthMethod.NONE,
             "redirect_uris": [
                 "http://localhost:3001/callback",
-                "http://teach.localhost:3001/callback"
+                "http://teach.localhost:3001/callback",
             ],
             "post_logout_redirect_uris": [
                 "http://localhost:3001",
-                "http://teach.localhost:3001"
+                "http://teach.localhost:3001",
             ],
             "backchannel_logout_uri": "http://localhost:3001/backchannel-logout",
             "frontchannel_logout_uri": "http://localhost:3001/frontchannel-logout",
-            "scopes": ["openid", "email", "profile", "offline_access"]
+            "scopes": ["openid", "email", "profile", "offline_access"],
         },
         {
             "client_id": settings.RUN_CLIENT_ID,
             "name": "Run Service (Local)",
             "type": ClientType.PUBLIC,
+            "token_endpoint_auth_method": TokenAuthMethod.NONE,
             "redirect_uris": [
                 "http://localhost:3002/callback",
                 "http://run.localhost:3002/callback"
@@ -63,6 +65,7 @@ async def init_db(session: AsyncSession) -> None:
             "client_id": settings.LEARN_CLIENT_ID,
             "name": "Learn Service (Local)",
             "type": ClientType.PUBLIC,
+            "token_endpoint_auth_method": TokenAuthMethod.NONE,
             "redirect_uris": [
                 "http://localhost:3003/callback",
                 "http://learn.localhost:3003/callback"

@@ -56,14 +56,15 @@ class RegisterRequest(BaseModel):
         if info.data.get('password') and v != info.data['password']:
             raise ValueError('Passwords do not match')
         return v
-
+    
 
 class RegisterResponse(BaseModel):
     """Ответ на регистрацию."""
     user_id: str
+    email: EmailStr
+    requires_verification: bool = True
     message: str = "Registration successful. Please check your email for verification code."
-
-
+    
 # ---------------------------
 # Подтверждение e-mail (OTP)
 # ---------------------------

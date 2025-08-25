@@ -1,6 +1,7 @@
 // ============= src/hooks/useForm.tsx =============
 
-import { useState, useCallback, ChangeEvent, FormEvent } from 'react';
+import { useState, useCallback } from 'react'
+import type { ChangeEvent, FormEvent, FocusEvent } from 'react'
 
 interface UseFormOptions<T> {
   initialValues: T;
@@ -23,20 +24,14 @@ export function useForm<T extends Record<string, any>>({
   ) => {
     const { name, value } = e.target;
     setValues(prev => ({ ...prev, [name]: value }));
-    
-    // Очищаем ошибку при изменении
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   }, [errors]);
 
   const handleBlur = useCallback((
-    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name } = e.target;
     setTouched(prev => ({ ...prev, [name]: true }));
-    
-    // Валидируем поле при потере фокуса
     if (validate) {
       const validationErrors = validate(values);
       if (validationErrors[name]) {
@@ -47,30 +42,16 @@ export function useForm<T extends Record<string, any>>({
 
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
-    
-    // Валидация всех полей
     if (validate) {
       const validationErrors = validate(values);
-      const hasErrors = Object.keys(validationErrors).length > 0;
-      
-      if (hasErrors) {
+      if (Object.keys(validationErrors).length) {
         setErrors(validationErrors);
-        // Помечаем все поля как touched
-        const allTouched = Object.keys(values).reduce(
-          (acc, key) => ({ ...acc, [key]: true }),
-          {}
-        );
-        setTouched(allTouched);
+        setTouched(Object.keys(values).reduce((acc, k) => ({ ...acc, [k]: true }), {}));
         return;
       }
     }
-    
     setIsSubmitting(true);
-    try {
-      await onSubmit(values);
-    } finally {
-      setIsSubmitting(false);
-    }
+    try { await onSubmit(values); } finally { setIsSubmitting(false); }
   }, [validate, values, onSubmit]);
 
   const reset = useCallback(() => {
@@ -88,16 +69,5 @@ export function useForm<T extends Record<string, any>>({
     setErrors(prev => ({ ...prev, [name]: error }));
   }, []);
 
-  return {
-    values,
-    errors,
-    touched,
-    isSubmitting,
-    handleChange,
-    handleBlur,
-    handleSubmit,
-    reset,
-    setFieldValue,
-    setFieldError,
-  };
+  return { values, errors, touched, isSubmitting, handleChange, handleBlur, handleSubmit, reset, setFieldValue, setFieldError };
 }

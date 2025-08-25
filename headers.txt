@@ -1,0 +1,11 @@
+HTTP/1.1 302 Found
+Cache-Control: no-store
+Content-Length: 0
+Date: Sun, 24 Aug 2025 15:28:07 GMT
+Location: http://localhost:3001/callback?code=oO8Pl833fafwz73j0KkOaJ9rIgsh_TKwdaGyfkE9IIY&state=xyz123
+Pragma: no-cache
+Referrer-Policy: no-referrer
+Server: uvicorn
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+

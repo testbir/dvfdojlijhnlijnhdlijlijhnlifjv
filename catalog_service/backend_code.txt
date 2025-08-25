@@ -1,0 +1,3229 @@
+﻿
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\__init__.py ===== */
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\alembic.ini ===== */
+
+# A generic, single database configuration.
+
+[alembic]
+# path to migration scripts.
+# this is typically a path given in POSIX (e.g. forward slashes)
+# format, relative to the token %(here)s which refers to the location of this
+# ini file
+script_location = %(here)s/alembic
+
+# template used to generate migration file names; The default value is %%(rev)s_%%(slug)s
+# Uncomment the line below if you want the files to be prepended with date and time
+# see https://alembic.sqlalchemy.org/en/latest/tutorial.html#editing-the-ini-file
+# for all available tokens
+# file_template = %%(year)d_%%(month).2d_%%(day).2d_%%(hour).2d%%(minute).2d-%%(rev)s_%%(slug)s
+
+# sys.path path, will be prepended to sys.path if present.
+# defaults to the current working directory.  for multiple paths, the path separator
+# is defined by "path_separator" below.
+prepend_sys_path = .
+
+
+# timezone to use when rendering the date within the migration file
+# as well as the filename.
+# If specified, requires the python>=3.9 or backports.zoneinfo library and tzdata library.
+# Any required deps can installed by adding `alembic[tz]` to the pip requirements
+# string value is passed to ZoneInfo()
+# leave blank for localtime
+# timezone =
+
+# max length of characters to apply to the "slug" field
+# truncate_slug_length = 40
+
+# set to 'true' to run the environment during
+# the 'revision' command, regardless of autogenerate
+# revision_environment = false
+
+# set to 'true' to allow .pyc and .pyo files without
+# a source .py file to be detected as revisions in the
+# versions/ directory
+# sourceless = false
+
+# version location specification; This defaults
+# to <script_location>/versions.  When using multiple version
+# directories, initial revisions must be specified with --version-path.
+# The path separator used here should be the separator specified by "path_separator"
+# below.
+# version_locations = %(here)s/bar:%(here)s/bat:%(here)s/alembic/versions
+
+# path_separator; This indicates what character is used to split lists of file
+# paths, including version_locations and prepend_sys_path within configparser
+# files such as alembic.ini.
+# The default rendered in new alembic.ini files is "os", which uses os.pathsep
+# to provide os-dependent path splitting.
+#
+# Note that in order to support legacy alembic.ini files, this default does NOT
+# take place if path_separator is not present in alembic.ini.  If this
+# option is omitted entirely, fallback logic is as follows:
+#
+# 1. Parsing of the version_locations option falls back to using the legacy
+#    "version_path_separator" key, which if absent then falls back to the legacy
+#    behavior of splitting on spaces and/or commas.
+# 2. Parsing of the prepend_sys_path option falls back to the legacy
+#    behavior of splitting on spaces, commas, or colons.
+#
+# Valid values for path_separator are:
+#
+# path_separator = :
+# path_separator = ;
+# path_separator = space
+# path_separator = newline
+#
+# Use os.pathsep. Default configuration used for new projects.
+path_separator = os
+
+# set to 'true' to search source files recursively
+# in each "version_locations" directory
+# new in Alembic version 1.10
+# recursive_version_locations = false
+
+# the output encoding used when revision files
+# are written from script.py.mako
+# output_encoding = utf-8
+
+# database URL.  This is consumed by the user-maintained env.py script only.
+# other means of configuring database URLs may be customized within the env.py
+# file.
+sqlalchemy.url = env:DATABASE_URL
+
+
+
+[post_write_hooks]
+# post_write_hooks defines scripts or Python functions that are run
+# on newly generated revision scripts.  See the documentation for further
+# detail and examples
+
+# format using "black" - use the console_scripts runner, against the "black" entrypoint
+# hooks = black
+# black.type = console_scripts
+# black.entrypoint = black
+# black.options = -l 79 REVISION_SCRIPT_FILENAME
+
+# lint with attempts to fix using "ruff" - use the exec runner, execute a binary
+# hooks = ruff
+# ruff.type = exec
+# ruff.executable = %(here)s/.venv/bin/ruff
+# ruff.options = check --fix REVISION_SCRIPT_FILENAME
+
+# Logging configuration.  This is also consumed by the user-maintained
+# env.py script only.
+[loggers]
+keys = root,sqlalchemy,alembic
+
+[handlers]
+keys = console
+
+[formatters]
+keys = generic
+
+[logger_root]
+level = WARNING
+handlers = console
+qualname =
+
+[logger_sqlalchemy]
+level = WARNING
+handlers =
+qualname = sqlalchemy.engine
+
+[logger_alembic]
+level = INFO
+handlers =
+qualname = alembic
+
+[handler_console]
+class = StreamHandler
+args = (sys.stderr,)
+level = NOTSET
+formatter = generic
+
+[formatter_generic]
+format = %(levelname)-5.5s [%(name)s] %(message)s
+datefmt = %H:%M:%S
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\alembic\env.py ===== */
+
+# catalog_service/alembic/env.py
+
+
+import os, sys
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from core.base import Base  # путь к вашему Base
+target_metadata = Base.metadata
+
+from core.base import Base  # аналогично для других сервисов
+
+import os
+import sys
+from logging.config import fileConfig
+
+from sqlalchemy import engine_from_config, pool
+from alembic import context
+from dotenv import load_dotenv
+
+# Загружаем .env
+load_dotenv()
+
+# Добавляем каталог сервиса в PYTHONPATH
+sys.path.insert(0, os.environ.get("PYTHONPATH", "/app"))
+
+# Alembic Config object
+config = context.config
+
+# Подставляем DATABASE_URL из окружения
+if os.getenv("DATABASE_URL"):
+    config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
+
+# Логгирование Alembic
+if config.config_file_name:
+    fileConfig(config.config_file_name)
+
+# Импортируем Base из пакета сервиса
+from core.base import Base
+target_metadata = Base.metadata
+
+
+def run_migrations_offline():
+    """Run migrations in 'offline' mode."""
+    url = config.get_main_option("sqlalchemy.url")
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online():
+    """Run migrations in 'online' mode."""
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\alembic\versions\21316c1ef0f0_baseline.py ===== */
+
+# catalog_service/alembic/versions/21316c1ef0f0_baseline.py
+
+"""baseline
+
+Revision ID: 21316c1ef0f0
+Revises: 
+Create Date: 2025-08-19 03:12:14.439687
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision = '21316c1ef0f0'
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    pass
+
+
+def downgrade() -> None:
+    pass
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\alembic\versions\86c2cc90a1d2_cascade_fks_unique.py ===== */
+
+# /catalog_service/alembic/versions/86c2cc90a1d2_cascade_fks_unique.py
+
+"""cascade fks + unique
+
+Revision ID: 86c2cc90a1d2
+Revises: 21316c1ef0f0
+Create Date: 2025-08-19 03:12:28.213324
+
+"""
+
+from alembic import op
+
+revision = '86c2cc90a1d2'
+down_revision = '21316c1ef0f0'
+branch_labels = None
+depends_on = None
+
+def upgrade():
+    # course_modals.course_id -> CASCADE + уникальность 1:1
+    op.drop_constraint("course_modals_course_id_fkey", "course_modals", type_="foreignkey")
+    op.create_foreign_key(
+        "course_modals_course_id_fkey",
+        "course_modals", "courses_course",
+        ["course_id"], ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_unique_constraint("uq_course_modal_course", "course_modals", ["course_id"])
+
+    # course_modal_blocks.modal_id -> CASCADE
+    op.drop_constraint("course_modal_blocks_modal_id_fkey", "course_modal_blocks", type_="foreignkey")
+    op.create_foreign_key(
+        "course_modal_blocks_modal_id_fkey",
+        "course_modal_blocks", "course_modals",
+        ["modal_id"], ["id"],
+        ondelete="CASCADE",
+    )
+
+    # student_works_sections.course_id -> CASCADE
+    op.drop_constraint("student_works_sections_course_id_fkey", "student_works_sections", type_="foreignkey")
+    op.create_foreign_key(
+        "student_works_sections_course_id_fkey",
+        "student_works_sections", "courses_course",
+        ["course_id"], ["id"],
+        ondelete="CASCADE",
+    )
+
+    # student_works.section_id -> CASCADE
+    op.drop_constraint("student_works_section_id_fkey", "student_works", type_="foreignkey")
+    op.create_foreign_key(
+        "student_works_section_id_fkey",
+        "student_works", "student_works_sections",
+        ["section_id"], ["id"],
+        ondelete="CASCADE",
+    )
+
+    # homepage_promo_images.course_id -> CASCADE
+    op.drop_constraint("homepage_promo_images_course_id_fkey", "homepage_promo_images", type_="foreignkey")
+    op.create_foreign_key(
+        "homepage_promo_images_course_id_fkey",
+        "homepage_promo_images", "courses_course",
+        ["course_id"], ["id"],
+        ondelete="CASCADE",
+    )
+
+def downgrade():
+    op.drop_constraint("homepage_promo_images_course_id_fkey", "homepage_promo_images", type_="foreignkey")
+    op.create_foreign_key("homepage_promo_images_course_id_fkey", "homepage_promo_images", "courses_course", ["course_id"], ["id"])
+
+    op.drop_constraint("student_works_section_id_fkey", "student_works", type_="foreignkey")
+    op.create_foreign_key("student_works_section_id_fkey", "student_works", "student_works_sections", ["section_id"], ["id"])
+
+    op.drop_constraint("student_works_sections_course_id_fkey", "student_works_sections", type_="foreignkey")
+    op.create_foreign_key("student_works_sections_course_id_fkey", "student_works_sections", "courses_course", ["course_id"], ["id"])
+
+    op.drop_constraint("course_modal_blocks_modal_id_fkey", "course_modal_blocks", type_="foreignkey")
+    op.create_foreign_key("course_modal_blocks_modal_id_fkey", "course_modal_blocks", "course_modals", ["modal_id"], ["id"])
+
+    op.drop_constraint("uq_course_modal_course", "course_modals", type_="unique")
+    op.drop_constraint("course_modals_course_id_fkey", "course_modals", type_="foreignkey")
+    op.create_foreign_key("course_modals_course_id_fkey", "course_modals", "courses_course", ["course_id"], ["id"])
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\admin\banner.py ===== */
+
+# catalog_service/api/admin/banner.py
+
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import List
+
+from schemas.banner import BannerSchema, BannerCreateSchema, BannerUpdateSchema
+from db.dependencies import get_db_session
+from models.banner import Banner
+
+router = APIRouter(prefix="/banners")
+
+@router.get("/", response_model=List[BannerSchema])
+async def list_banners(db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(Banner).order_by(Banner.order))
+    return result.scalars().all()
+
+@router.post("/")
+async def create_banner(data: BannerCreateSchema, db: AsyncSession = Depends(get_db_session)):
+    banner = Banner(**data.model_dump())
+    db.add(banner)
+    await db.commit()
+    await db.refresh(banner)
+    return {"id": banner.id, "message": "Баннер создан"}
+
+@router.get("/{banner_id}", response_model=BannerSchema)
+async def get_banner(banner_id: int, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(Banner).where(Banner.id == banner_id))
+    banner = result.scalar_one_or_none()
+    if not banner:
+        raise HTTPException(status_code=404, detail="Баннер не найден")
+    return banner
+
+@router.delete("/{banner_id}")
+async def delete_banner(banner_id: int, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(Banner).where(Banner.id == banner_id))
+    banner = result.scalar_one_or_none()
+    if not banner:
+        raise HTTPException(status_code=404, detail="Баннер не найден")
+    await db.delete(banner)
+    await db.commit()
+    return Response(status_code=204)
+
+@router.put("/{banner_id}", response_model=BannerSchema)
+async def update_banner(banner_id: int, data: BannerUpdateSchema, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(Banner).where(Banner.id == banner_id))
+    banner = result.scalar_one_or_none()
+    if not banner:
+        raise HTTPException(status_code=404, detail="Баннер не найден")
+
+    # защищаем NOT NULL для image
+    for k, v in data.model_dump(exclude_unset=True).items():
+        if k == "image" and v is None:
+            continue
+        setattr(banner, k, v)
+
+    await db.commit()
+    await db.refresh(banner)
+    return banner
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\admin\course_modal.py ===== */
+
+# catalog_service/api/admin/course_modal.py
+
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import Optional
+
+from db.dependencies import get_db_session
+from models.course_modal import CourseModal, CourseModalBlock
+from models.course import Course
+from schemas.course_modal import (
+    CourseModalCreate, 
+    CourseModalUpdate, 
+    CourseModalSchema,
+    CourseModalBlockSchema,
+)
+
+router = APIRouter(prefix="/course-modals")
+
+@router.get("/{course_id}", response_model=Optional[CourseModalSchema])
+async def get_course_modal(course_id: int, db: AsyncSession = Depends(get_db_session)):
+    """Получить модальное окно для курса"""
+    # Проверяем существование курса
+    course_result = await db.execute(select(Course).where(Course.id == course_id))
+    course = course_result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+    
+    # Получаем модальное окно
+    result = await db.execute(
+        select(CourseModal).where(CourseModal.course_id == course_id)
+    )
+    modal = result.scalar_one_or_none()
+    
+    if not modal:
+        return None
+    
+    # Получаем блоки
+    blocks_result = await db.execute(
+        select(CourseModalBlock)
+        .where(CourseModalBlock.modal_id == modal.id)
+        .order_by(CourseModalBlock.order)
+    )
+    blocks = blocks_result.scalars().all()
+    
+    return CourseModalSchema(
+        id=modal.id,
+        course_id=modal.course_id,
+        title=modal.title,
+        blocks=[CourseModalBlockSchema.model_validate(block, from_attributes=True) for block in blocks]
+    )
+
+@router.post("/{course_id}", response_model=CourseModalSchema)
+async def create_course_modal(
+    course_id: int, 
+    data: CourseModalCreate, 
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Создать модальное окно для курса"""
+    # Проверяем существование курса
+    course_result = await db.execute(select(Course).where(Course.id == course_id))
+    course = course_result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+    
+    # Проверяем, нет ли уже модального окна
+    existing_result = await db.execute(
+        select(CourseModal).where(CourseModal.course_id == course_id)
+    )
+    existing = existing_result.scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=400, detail="Модальное окно для этого курса уже существует")
+    
+    # Создаем модальное окно
+    modal = CourseModal(course_id=course_id, title=data.title)
+    db.add(modal)
+    await db.commit()
+    await db.refresh(modal)
+    
+    # Создаем блоки
+    blocks = []
+    for block_data in data.blocks:
+        block = CourseModalBlock(
+            modal_id=modal.id,
+            type=block_data.type,
+            content=block_data.content,
+            order=block_data.order
+        )
+        db.add(block)
+        blocks.append(block)
+    
+    await db.commit()
+    
+    return CourseModalSchema(
+        id=modal.id,
+        course_id=modal.course_id,
+        title=modal.title,
+        blocks=[CourseModalBlockSchema.model_validate(block, from_attributes=True) for block in blocks]
+    )
+
+@router.put("/{course_id}", response_model=CourseModalSchema)
+async def update_course_modal(
+    course_id: int, 
+    data: CourseModalUpdate, 
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Обновить модальное окно курса"""
+    # Получаем существующее модальное окно
+    result = await db.execute(
+        select(CourseModal).where(CourseModal.course_id == course_id)
+    )
+    modal = result.scalar_one_or_none()
+    if not modal:
+        raise HTTPException(status_code=404, detail="Модальное окно не найдено")
+    
+    # Обновляем заголовок
+    if data.title is not None:
+        modal.title = data.title
+    
+    # Обновляем блоки
+    if data.blocks is not None:
+        # Удаляем старые блоки
+        old_blocks_result = await db.execute(
+            select(CourseModalBlock).where(CourseModalBlock.modal_id == modal.id)
+        )
+        old_blocks = old_blocks_result.scalars().all()
+        for block in old_blocks:
+            await db.delete(block)
+        
+        # Создаем новые блоки
+        for block_data in data.blocks:
+            block = CourseModalBlock(
+                modal_id=modal.id,
+                type=block_data.type,
+                content=block_data.content,
+                order=block_data.order
+            )
+            db.add(block)
+    
+    await db.commit()
+    await db.refresh(modal)
+    
+    # Получаем обновленные блоки
+    blocks_result = await db.execute(
+        select(CourseModalBlock)
+        .where(CourseModalBlock.modal_id == modal.id)
+        .order_by(CourseModalBlock.order)
+    )
+    blocks = blocks_result.scalars().all()
+    
+    return CourseModalSchema(
+        id=modal.id,
+        course_id=modal.course_id,
+        title=modal.title,
+        blocks=[CourseModalBlockSchema.model_validate(block, from_attributes=True) for block in blocks]
+    )
+
+@router.delete("/{course_id}")
+async def delete_course_modal(course_id: int, db: AsyncSession = Depends(get_db_session)):
+    """Удалить модальное окно курса"""
+    result = await db.execute(
+        select(CourseModal).where(CourseModal.course_id == course_id)
+    )
+    modal = result.scalar_one_or_none()
+    if not modal:
+        raise HTTPException(status_code=404, detail="Модальное окно не найдено")
+    
+    await db.delete(modal)
+    await db.commit()
+    
+    return Response(status_code=204)
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\admin\courses.py ===== */
+
+# catalog_service/api/admin/courses.py
+
+from fastapi import APIRouter, Depends, HTTPException, Response, Body
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from datetime import timezone
+from typing import List
+
+from db.dependencies import get_db_session
+from models.course import Course
+from schemas.course import CourseCreate, CourseUpdate
+
+router = APIRouter(prefix="/courses")
+
+
+def _norm_aware(dt):
+    if dt and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+@router.get("/", summary="Список курсов (админ)")
+async def admin_list_courses(db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(Course).order_by(Course.order.asc()))
+    return res.scalars().all()
+
+@router.post("/", summary="Создать курс")
+async def admin_create_course(data: CourseCreate, db: AsyncSession = Depends(get_db_session)):
+    data_dict = data.model_dump(mode="python", exclude_unset=True)
+    if "discount_start" in data_dict:
+        data_dict["discount_start"] = _norm_aware(data_dict["discount_start"])
+    if "discount_until" in data_dict:
+        data_dict["discount_until"] = _norm_aware(data_dict["discount_until"])
+
+    course = Course(**data_dict)
+    db.add(course)
+    await db.commit()
+    await db.refresh(course)
+    
+    # Возвращаем полный объект курса вместо только {id, message}
+    return course
+
+@router.put("/{course_id}", summary="Обновить курс")
+async def admin_update_course(course_id: int, data: CourseUpdate, db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    course = res.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+
+    payload = data.model_dump(mode="python", exclude_unset=True)
+
+    if "discount_start" in payload:
+        payload["discount_start"] = _norm_aware(payload["discount_start"])
+    if "discount_until" in payload:
+        payload["discount_until"] = _norm_aware(payload["discount_until"])
+
+    for k, v in payload.items():
+        if isinstance(v, str) and not v.strip():
+            v = None
+        setattr(course, k, v)
+
+    await db.commit()
+    await db.refresh(course)
+    return {"id": course.id, "message": "Курс обновлён"}
+
+@router.delete("/{course_id}", summary="Удалить курс")
+async def admin_delete_course(course_id: int, db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    course = res.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+    await db.delete(course)
+    await db.commit()
+    return Response(status_code=204)
+
+@router.get("/{course_id}", response_model=CourseCreate, summary="Получить курс (админ)")
+async def admin_get_course(course_id: int, db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    course = res.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+    return course
+
+@router.patch("/{course_id}/discount/", summary="Применить скидку")
+async def apply_course_discount(course_id: int, discount: float = Body(..., embed=True), db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    course = res.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+    if not 0 <= discount <= 100:
+        raise HTTPException(status_code=400, detail="Скидка должна быть от 0 до 100")
+    course.discount = discount
+    await db.commit()
+    return {"success": True, "discount": discount}
+
+@router.patch("/{course_id}/order/", summary="Изменить порядок курса")
+async def update_course_order(course_id: int, order: int = Body(..., embed=True), db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    course = res.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+    course.order = order
+    await db.commit()
+    return {"success": True, "order": order}
+
+@router.post("/{course_id}/duplicate/", summary="Дублировать курс (метаданные)")
+async def duplicate_course(course_id: int, db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    original = res.scalar_one_or_none()
+    if not original:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+    new_course = Course(
+        title=f"{original.title} (копия)",
+        short_description=original.short_description,
+        full_description=original.full_description,
+        image=original.image,
+        is_free=original.is_free,
+        price=original.price,
+        discount=original.discount,
+        video=original.video,
+        video_preview=original.video_preview,
+        banner_text=original.banner_text,
+        banner_color_left=original.banner_color_left,
+        banner_color_right=original.banner_color_right,
+        group_title=original.group_title,
+        order=(original.order or 0) + 1
+    )
+    db.add(new_course)
+    await db.commit()
+    return {"id": new_course.id, "message": "Курс успешно дублирован"}
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\admin\lead_magnets.py ===== */
+
+# catalog_service/api/admin/lead_magnets.py
+
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from db.dependencies import get_db_session
+from models.lead_magnet import LeadMagnet
+from models.course import Course
+from schemas.lead_magnet import LeadMagnetCreate, LeadMagnetRead
+
+router = APIRouter(prefix="/lead-magnets")
+
+@router.get("/", response_model=list[LeadMagnetRead])
+async def list_lead_magnets(session: AsyncSession = Depends(get_db_session)):
+    result = await session.execute(select(LeadMagnet))
+    return result.scalars().all()
+
+@router.post("/", response_model=LeadMagnetRead)
+async def create_lead_magnet(
+    data: LeadMagnetCreate,
+    session: AsyncSession = Depends(get_db_session),
+):
+    # Проверка на одинаковые ID
+    if data.lead_course_id == data.upsell_course_id:
+        raise HTTPException(status_code=400, detail="ID курсов не должны совпадать")
+
+    # Проверка на существование курсов
+    for course_id in [data.lead_course_id, data.upsell_course_id]:
+        result = await session.execute(select(Course).where(Course.id == course_id))
+        course = result.scalar_one_or_none()
+        if not course:
+            raise HTTPException(status_code=404, detail=f"Курс с ID {course_id} не найден")
+
+    # Проверка на дубли
+    duplicate_result = await session.execute(
+        select(LeadMagnet).where(
+            LeadMagnet.lead_course_id == data.lead_course_id,
+            LeadMagnet.upsell_course_id == data.upsell_course_id,
+        )
+    )
+    duplicate = duplicate_result.scalar_one_or_none()
+    if duplicate:
+        raise HTTPException(status_code=400, detail="Такая связка уже существует")
+
+    obj = LeadMagnet(**data.model_dump())
+    session.add(obj)
+    await session.commit()
+    await session.refresh(obj)
+    return obj
+
+@router.delete("/{lead_magnet_id}", status_code=204)
+async def delete_lead_magnet(
+    lead_magnet_id: int,
+    session: AsyncSession = Depends(get_db_session),
+):
+    result = await session.execute(select(LeadMagnet).where(LeadMagnet.id == lead_magnet_id))
+    lead_magnet = result.scalar_one_or_none()
+    if not lead_magnet:
+        raise HTTPException(status_code=404, detail="Связка не найдена")
+
+    await session.delete(lead_magnet)
+    await session.commit()
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\admin\promo.py ===== */
+
+# catalog_service/api/admin/promo.py
+
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from db.dependencies import get_db_session
+from models.promo import PromoImage
+from schemas.promo import PromoSchema, PromoCreateSchema, PromoUpdateSchema
+
+from typing import List
+
+router = APIRouter(prefix="/promos")
+
+@router.get("/", response_model=List[PromoSchema])
+async def list_promos(db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(
+        select(PromoImage).order_by(PromoImage.order)
+    )
+    return result.scalars().all()
+
+@router.post("/")
+async def create_promo(data: PromoCreateSchema, db: AsyncSession = Depends(get_db_session)):
+    promo = PromoImage(**data.model_dump())
+    db.add(promo)
+    await db.commit()
+    await db.refresh(promo)
+    return {"id": promo.id, "message": "Промо добавлено"}
+
+@router.put("/{promo_id}", response_model=PromoSchema)
+async def update_promo(promo_id: int, data: PromoUpdateSchema, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(PromoImage).where(PromoImage.id == promo_id))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Промо не найдено")
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(promo, k, v)
+    await db.commit()
+    await db.refresh(promo)
+    return promo
+
+@router.put("/{promo_id}", response_model=PromoSchema)
+async def update_promo(promo_id: int, data: PromoCreateSchema, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(PromoImage).where(PromoImage.id == promo_id))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Промо не найдено")
+
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(promo, k, v)
+
+    await db.commit()
+    await db.refresh(promo)
+    return promo
+
+@router.delete("/{promo_id}")
+async def delete_promo(promo_id: int, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(PromoImage).where(PromoImage.id == promo_id))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Промо не найдено")
+    await db.delete(promo)
+    await db.commit()
+    return Response(status_code=204)
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\admin\promocodes.py ===== */
+
+# catalog_service/api/admin/promocodes.py
+
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import List, Optional
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict, Field
+
+from db.dependencies import get_db_session
+from models.promocode import PromoCode
+
+
+router = APIRouter(prefix="/promocodes")
+
+class PromoCodeCreate(BaseModel):
+    code: str
+    discount_percent: Optional[float] = None
+    discount_amount: Optional[float] = None
+    max_uses: int = 100
+    valid_from: datetime
+    valid_until: datetime
+    applicable_courses: List[int] = Field(default_factory=list)
+
+class PromoCodeUpdate(BaseModel):
+    discount_percent: Optional[float] = None
+    discount_amount: Optional[float] = None
+    max_uses: Optional[int] = None
+    valid_until: Optional[datetime] = None
+    is_active: Optional[bool] = None
+
+class PromoCodeResponse(BaseModel):
+    id: int
+    code: str
+    discount_percent: Optional[float]
+    discount_amount: Optional[float]
+    uses_left: int
+    max_uses: int
+    valid_from: datetime
+    valid_until: datetime
+    is_active: bool
+    applicable_courses: List[int]
+
+    model_config = ConfigDict(from_attributes=True)
+
+@router.get("/", response_model=List[PromoCodeResponse])
+async def list_promocodes(db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(PromoCode))
+    return result.scalars().all()
+
+@router.post("/", response_model=PromoCodeResponse)
+async def create_promocode(data: PromoCodeCreate, db: AsyncSession = Depends(get_db_session)):
+    # Проверяем уникальность кода
+    result = await db.execute(
+        select(PromoCode).where(PromoCode.code == data.code)
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=400, detail="Промокод с таким кодом уже существует")
+
+    if not data.discount_percent and not data.discount_amount:
+        raise HTTPException(status_code=400, detail="Укажите размер скидки")
+
+    if data.discount_percent and data.discount_amount:
+        raise HTTPException(status_code=400, detail="Нельзя использовать обе скидки одновременно")
+
+    if data.valid_until < data.valid_from:
+        raise HTTPException(status_code=400, detail="Дата окончания не может быть раньше даты начала")
+
+    # 🔧 Удаляем tzinfo, чтобы привести к naive datetime
+    valid_from = data.valid_from.replace(tzinfo=None)
+    valid_until = data.valid_until.replace(tzinfo=None)
+
+    promo = PromoCode(
+        code=data.code,
+        discount_percent=data.discount_percent,
+        discount_amount=data.discount_amount,
+        uses_left=data.max_uses,
+        max_uses=data.max_uses,
+        valid_from=valid_from,
+        valid_until=valid_until,
+        is_active=True,
+        applicable_courses=data.applicable_courses,
+    )
+    db.add(promo)
+    await db.commit()
+    await db.refresh(promo)
+    return promo
+
+@router.put("/{promo_id}", response_model=PromoCodeResponse)
+async def update_promocode(promo_id: int, data: PromoCodeUpdate, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(select(PromoCode).where(PromoCode.id == promo_id))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Промокод не найден")
+
+    updates = data.model_dump(exclude_unset=True)
+    if "valid_until" in updates and updates["valid_until"] is not None:
+        updates["valid_until"] = updates["valid_until"].replace(tzinfo=None)
+
+    for key, value in updates.items():
+        setattr(promo, key, value)
+
+    await db.commit()
+    await db.refresh(promo)
+    return promo
+
+
+@router.delete("/{promo_id}")
+async def delete_promocode(promo_id: int, db: AsyncSession = Depends(get_db_session)):
+    result = await db.execute(
+        select(PromoCode).where(PromoCode.id == promo_id)
+    )
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Промокод не найден")
+
+    await db.delete(promo)
+    await db.commit()
+    return Response(status_code=204)
+
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\admin\student_works.py ===== */
+
+# catalog_service/api/admin/student_works.py
+
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import List, Optional
+
+from db.dependencies import get_db_session
+from models.student_works import StudentWorksSection, StudentWork
+from models.course import Course
+from schemas.student_works import (
+    StudentWorksSectionCreate,
+    StudentWorksSectionUpdate,
+    StudentWorksSectionSchema,
+    StudentWorkSchema
+)
+
+router = APIRouter(prefix="/student-works")
+
+@router.get("/{course_id}", response_model=Optional[StudentWorksSectionSchema])
+async def get_student_works_section(course_id: int, db: AsyncSession = Depends(get_db_session)):
+    """Получить секцию работ учеников для курса"""
+    # Проверяем существование курса
+    course_result = await db.execute(select(Course).where(Course.id == course_id))
+    course = course_result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+    
+    # Получаем секцию работ
+    result = await db.execute(
+        select(StudentWorksSection).where(StudentWorksSection.course_id == course_id)
+    )
+    section = result.scalar_one_or_none()
+    
+    if not section:
+        return None
+    
+    # Получаем работы
+    works_result = await db.execute(
+        select(StudentWork)
+        .where(StudentWork.section_id == section.id)
+        .order_by(StudentWork.order)
+    )
+    works = works_result.scalars().all()
+    
+    return StudentWorksSectionSchema(
+        id=section.id,
+        course_id=section.course_id,
+        title=section.title,
+        description=section.description,
+        works=[StudentWorkSchema.model_validate(work, from_attributes=True) for work in works]
+    )
+
+@router.post("/{course_id}", response_model=StudentWorksSectionSchema)
+async def create_student_works_section(
+    course_id: int,
+    data: StudentWorksSectionCreate,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Создать секцию работ учеников для курса"""
+    # Проверяем существование курса
+    course_result = await db.execute(select(Course).where(Course.id == course_id))
+    course = course_result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+    
+    # Проверяем, нет ли уже секции
+    existing_result = await db.execute(
+        select(StudentWorksSection).where(StudentWorksSection.course_id == course_id)
+    )
+    existing = existing_result.scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=400, detail="Секция работ для этого курса уже существует")
+    
+    # Создаем секцию
+    section = StudentWorksSection(
+        course_id=course_id,
+        title=data.title,
+        description=data.description
+    )
+    db.add(section)
+    await db.commit()
+    await db.refresh(section)
+    
+    # Создаем работы
+    works = []
+    for work_data in data.works:
+        work = StudentWork(
+            section_id=section.id,
+            image=work_data.image,
+            description=work_data.description,
+            bot_tag=work_data.bot_tag,
+            order=work_data.order
+        )
+        db.add(work)
+        works.append(work)
+    
+    await db.commit()
+    
+    return StudentWorksSectionSchema(
+        id=section.id,
+        course_id=section.course_id,
+        title=section.title,
+        description=section.description,
+        works=[StudentWorkSchema.model_validate(work, from_attributes=True) for work in works]
+    )
+
+@router.put("/{course_id}", response_model=StudentWorksSectionSchema)
+async def update_student_works_section(
+    course_id: int,
+    data: StudentWorksSectionUpdate,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Обновить секцию работ учеников"""
+    # Получаем существующую секцию
+    result = await db.execute(
+        select(StudentWorksSection).where(StudentWorksSection.course_id == course_id)
+    )
+    section = result.scalar_one_or_none()
+    if not section:
+        raise HTTPException(status_code=404, detail="Секция работ не найдена")
+    
+    # Обновляем данные секции
+    if data.title is not None:
+        section.title = data.title
+    if data.description is not None:
+        section.description = data.description
+    
+    # Обновляем работы
+    if data.works is not None:
+        # Удаляем старые работы
+        old_works_result = await db.execute(
+            select(StudentWork).where(StudentWork.section_id == section.id)
+        )
+        old_works = old_works_result.scalars().all()
+        for work in old_works:
+            await db.delete(work)
+        
+        # Создаем новые работы
+        for work_data in data.works:
+            work = StudentWork(
+                section_id=section.id,
+                image=work_data.image,
+                description=work_data.description,
+                bot_tag=work_data.bot_tag,
+                order=work_data.order
+            )
+            db.add(work)
+    
+    await db.commit()
+    await db.refresh(section)
+    
+    # Получаем обновленные работы
+    works_result = await db.execute(
+        select(StudentWork)
+        .where(StudentWork.section_id == section.id)
+        .order_by(StudentWork.order)
+    )
+    works = works_result.scalars().all()
+    
+    return StudentWorksSectionSchema(
+        id=section.id,
+        course_id=section.course_id,
+        title=section.title,
+        description=section.description,
+        works=[StudentWorkSchema.model_validate(work, from_attributes=True) for work in works]
+    )
+
+@router.delete("/{course_id}")
+async def delete_student_works_section(course_id: int, db: AsyncSession = Depends(get_db_session)):
+    """Удалить секцию работ учеников"""
+    result = await db.execute(
+        select(StudentWorksSection).where(StudentWorksSection.course_id == course_id)
+    )
+    section = result.scalar_one_or_none()
+    if not section:
+        raise HTTPException(status_code=404, detail="Секция работ не найдена")
+    
+    await db.delete(section)
+    await db.commit()
+    
+    return Response(status_code=204)
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\health.py ===== */
+
+#catalog_service/health.py
+
+from fastapi import APIRouter
+router = APIRouter()
+@router.get("/health")
+async def health(): return {"ok": True}
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\internal\access.py ===== */
+
+# catalog_service/api/internal/access.py
+
+
+from fastapi import APIRouter, Depends, HTTPException, Body
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from db.dependencies import get_db_session
+from models.course import Course
+from models.access import CourseAccess
+
+router = APIRouter(prefix="/access")
+
+@router.post("/verify", summary="Проверка доступа")
+async def access_verify(payload: dict = Body(...), db: AsyncSession = Depends(get_db_session)):
+    user_id = int(payload.get("user_id"))
+    course_id = int(payload.get("course_id"))
+
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    course = res.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+
+    if course.is_free:
+        return {"has_access": True}
+
+    acc_res = await db.execute(
+        select(CourseAccess).where(
+            CourseAccess.user_id == user_id,
+            CourseAccess.course_id == course_id
+        )
+    )
+    return {"has_access": acc_res.scalar_one_or_none() is not None}
+
+@router.post("/enrollment/events", summary="Событие доступа (grant|revoke)")
+async def enrollment_event(payload: dict = Body(...)):
+    return {"accepted": True}
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\internal\statistics.py ===== */
+
+# catalog_service/api/internal/statistics.py
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, extract
+from datetime import datetime, timedelta
+
+from db.dependencies import get_db_session
+from models.course import Course
+from models.access import CourseAccess
+
+router = APIRouter(prefix="/statistics")
+
+@router.get("/courses", summary="Статистика по курсам")
+async def stats_courses(db: AsyncSession = Depends(get_db_session)):
+    total = (await db.execute(select(func.count(Course.id)))).scalar()
+    free  = (await db.execute(select(func.count(Course.id)).where(Course.is_free == True))).scalar()
+    paid  = (await db.execute(select(func.count(Course.id)).where(Course.is_free == False))).scalar()
+    return {"total": total, "free": free, "paid": paid}
+
+@router.get("/revenue", summary="Статистика доходов")
+async def stats_revenue(db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(
+        select(func.sum(func.coalesce(Course.price, 0) * (1 - func.coalesce(Course.discount, 0) / 100)))
+        .select_from(Course.__table__.join(CourseAccess.__table__, Course.id == CourseAccess.course_id))
+        .where(Course.is_free == False)
+    )
+    revenue = res.scalar()
+    return {"total": float(revenue) if revenue else 0.0}
+
+@router.get("/revenue-by-month", summary="Доходы по месяцам")
+async def stats_revenue_by_month(months: int = 12, db: AsyncSession = Depends(get_db_session)):
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=months * 30)
+    res = await db.execute(
+        select(
+            extract('year', CourseAccess.purchased_at).label('year'),
+            extract('month', CourseAccess.purchased_at).label('month'),
+            func.sum(func.coalesce(Course.price, 0) * (1 - func.coalesce(Course.discount, 0) / 100)).label('revenue')
+        )
+        .select_from(CourseAccess.__table__.join(Course.__table__, CourseAccess.course_id == Course.id))
+        .where(CourseAccess.purchased_at >= start_date, Course.is_free == False)
+        .group_by(extract('year', CourseAccess.purchased_at), extract('month', CourseAccess.purchased_at))
+        .order_by(extract('year', CourseAccess.purchased_at), extract('month', CourseAccess.purchased_at))
+    )
+    rows = res.all()
+    return [{"month": f"{int(y)}-{int(m):02d}", "revenue": float(r or 0.0)} for y, m, r in rows]
+
+@router.get("/courses/{course_id}", summary="Статистика по курсу")
+async def stats_course(course_id: int, db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    course = res.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+
+    enrollments = (await db.execute(select(func.count(CourseAccess.id)).where(CourseAccess.course_id == course_id))).scalar()
+    revenue = 0.0 if course.is_free else float((course.price or 0) * (1 - (course.discount or 0)/100) * (enrollments or 0))
+    return {
+        "course_id": course_id,
+        "title": course.title,
+        "enrollments": enrollments or 0,
+        "total_modules": 0,
+        "average_completion": 0.0,
+        "revenue": revenue,
+        "is_free": course.is_free
+    }
+
+@router.get("/recent-purchases", summary="Последние покупки")
+async def stats_recent_purchases(limit: int = 10, db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(
+        select(CourseAccess.user_id, CourseAccess.purchased_at, Course.title, Course.price, Course.discount)
+        .select_from(CourseAccess.__table__.join(Course.__table__, CourseAccess.course_id == Course.id))
+        .where(Course.is_free == False)
+        .order_by(CourseAccess.purchased_at.desc())
+        .limit(limit)
+    )
+    rows = res.all()
+    return [
+        {
+            "user_id": r.user_id,
+            "purchased_at": r.purchased_at.isoformat(),
+            "course_title": r.title,
+            "amount": float((r.price or 0) * (1 - (r.discount or 0)/100))
+        } for r in rows
+    ]
+
+@router.get("/popular-courses", summary="Популярные курсы")
+async def stats_popular(db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(
+        select(Course.id, Course.title, func.count(CourseAccess.id).label('enrollments'))
+        .select_from(Course.__table__.join(CourseAccess.__table__, Course.id == CourseAccess.course_id))
+        .group_by(Course.id, Course.title)
+        .order_by(func.count(CourseAccess.id).desc())
+        .limit(5)
+    )
+    rows = res.all()
+    return [
+        {"id": cid, "title": title, "enrollments": enr, "completion_rate": 0.0}
+        for cid, title, enr in rows
+    ]
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\internal\users.py ===== */
+
+# catalog_service/api/internal/users.py
+
+
+from fastapi import APIRouter, Depends, HTTPException, Body
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+
+from db.dependencies import get_db_session
+from models.course import Course
+from models.access import CourseAccess
+
+router = APIRouter(prefix="/users")
+
+@router.get("/{user_id}/courses", summary="Курсы пользователя")
+async def get_user_courses(user_id: int, db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(
+        select(Course.id, Course.title, CourseAccess.purchased_at)
+        .select_from(Course.__table__.join(CourseAccess.__table__, Course.id == CourseAccess.course_id))
+        .where(CourseAccess.user_id == user_id)
+    )
+    items = res.all()
+    return {"courses": [
+        {"course_id": c.id, "course_title": c.title, "purchased_at": c.purchased_at.isoformat()} for c in items
+    ]}
+
+@router.get("/{user_id}/courses-count", summary="Кол-во курсов пользователя")
+async def get_user_courses_count(user_id: int, db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(func.count(CourseAccess.id)).where(CourseAccess.user_id == user_id))
+    return {"count": res.scalar()}
+
+# internal/users.py
+@router.post("/{user_id}/grant-access", summary="Выдать доступ")
+async def grant_course_access(user_id: int, course_id: int = Body(..., embed=True), db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    if not res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Курс не найден")
+
+    async with db.begin():
+        dup = await db.execute(
+            select(CourseAccess)
+            .where(CourseAccess.user_id == user_id, CourseAccess.course_id == course_id)
+            .with_for_update()
+        )
+        if dup.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail="Доступ уже предоставлен")
+
+        db.add(CourseAccess(user_id=user_id, course_id=course_id))
+    return {"success": True}
+
+
+@router.delete("/{user_id}/remove-access/{course_id}", summary="Отозвать доступ")
+async def remove_course_access(user_id: int, course_id: int, db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(
+        select(CourseAccess).where(CourseAccess.user_id == user_id, CourseAccess.course_id == course_id)
+    )
+    access = res.scalar_one_or_none()
+    if not access:
+        raise HTTPException(status_code=404, detail="Доступ не найден")
+    await db.delete(access)
+    await db.commit()
+    return {"success": True}
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\public\accounts.py ===== */
+
+# catalog_service/api/public/accounts.py
+
+from fastapi import APIRouter, HTTPException, Request
+
+from utils.auth import get_current_user_id
+from utils.auth_client import get_user_data_from_auth
+
+router = APIRouter()
+
+
+
+
+    
+
+@router.get("/profile/", summary="Профиль пользователя")
+async def get_user_profile(request: Request):
+    """
+    Возвращает данные пользователя из auth_service
+    """
+    user_id = get_current_user_id(request)
+    
+    # Получаем токен из заголовка Authorization
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Отсутствует токен авторизации"
+        )
+    
+    access_token = auth_header.replace("Bearer ", "")
+    
+    # Запрашиваем данные пользователя из auth_service
+    user_data = await get_user_data_from_auth(user_id, access_token)
+    
+    return user_data
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\public\banners.py ===== */
+
+# catalog_service/api/public/banners.py
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import List
+
+from db.dependencies import get_db_session
+from models.banner import Banner
+from schemas.banner import BannerSchema
+
+router = APIRouter(prefix="/banners", tags=["Public - Banners"])
+
+@router.get("/", response_model=List[BannerSchema], summary="Публичные баннеры")
+async def list_public_banners(db: AsyncSession = Depends(get_db_session)):
+    res = await db.execute(select(Banner).order_by(Banner.order.asc()))
+    return res.scalars().all()
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\public\courses.py ===== */
+
+# catalog_service/api/public/courses.py
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import List
+from datetime import datetime, timezone
+
+from core.config import settings
+from db.dependencies import get_db_session
+from models.course import Course
+from models.access import CourseAccess
+from utils.auth import get_current_user_id
+from utils.rate_limit import limiter
+from schemas.course import (
+    CourseListSchema, CourseDetailSchema, 
+    BuyCourseRequest, BuyCourseResponse,
+)
+
+
+router = APIRouter(prefix="/courses")
+
+def get_discount_info(course: Course):
+    now = datetime.now(timezone.utc)
+    is_active = (
+        course.discount and float(course.discount) > 0 and
+        course.discount_start and course.discount_until and
+        course.discount_start <= now < course.discount_until
+    )
+    ends_in = ((course.discount_until - now).total_seconds() if is_active else None)
+    return is_active, ends_in
+
+@router.get("/", response_model=List[CourseListSchema], summary="Список всех курсов")
+async def list_courses(request: Request, db: AsyncSession = Depends(get_db_session)):
+    # user_id не обязателен для публичного списка
+    try:
+        user_id = get_current_user_id(request)
+    except:
+        user_id = None
+
+    # 🔽 вот это добавь перед циклом
+    user_course_ids: set[int] = set()
+    if user_id:
+        res_ids = await db.execute(
+            select(CourseAccess.course_id).where(CourseAccess.user_id == user_id)
+        )
+        user_course_ids = {cid for (cid,) in res_ids.all()}
+
+    result = await db.execute(select(Course).order_by(Course.order.asc()))
+    courses = result.scalars().all()
+    out: List[CourseListSchema] = []
+
+    for course in courses:
+        is_discount_active, _ = get_discount_info(course)
+        final_price = float(course.price or 0.0)
+        if is_discount_active:
+            final_price = final_price * (1 - float(course.discount or 0) / 100)
+
+        # 🔽 и вот так вычисляй доступ
+        has_access = True if course.is_free else (course.id in user_course_ids)
+
+        out.append(CourseListSchema(
+            id=course.id,
+            title=course.title,
+            group_title=course.group_title,
+            short_description=course.short_description,
+            image=course.image,
+            is_free=course.is_free,
+            price=float(course.price or 0.0),
+            discount=float(course.discount or 0.0),
+            final_price=round(final_price, 2),
+            has_access=has_access,
+            button_text="ОТКРЫТЬ",  # как и хотели, всегда "ОТКРЫТЬ" в каталоге
+            order=course.order,
+            is_discount_active=is_discount_active,
+        ))
+    return out
+
+
+@router.get("/{course_id}", response_model=CourseDetailSchema, summary="Детали курса")
+async def course_detail(course_id: int, request: Request, db: AsyncSession = Depends(get_db_session)):
+    try:
+        user_id = get_current_user_id(request)
+    except:
+        user_id = None
+
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    course = res.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+
+    is_discount_active, discount_ends_in = get_discount_info(course)
+    final_price = float(course.price or 0.0)
+    if is_discount_active:
+        final_price = final_price * (1 - float(course.discount or 0) / 100)
+
+    if course.is_free:
+        has_access = True
+    elif user_id:
+        acc_res = await db.execute(
+            select(CourseAccess).where(
+                CourseAccess.user_id == user_id,
+                CourseAccess.course_id == course.id
+            )
+        )
+        has_access = acc_res.scalar_one_or_none() is not None
+    else:
+        has_access = False
+
+    return CourseDetailSchema(
+        id=course.id,
+        title=course.title,
+        full_description=course.full_description,
+        short_description=course.short_description,
+        image=course.image,
+        is_free=course.is_free,
+        price=float(course.price or 0.0),
+        discount=float(course.discount or 0.0),
+        final_price=round(final_price, 2),
+        has_access=has_access,
+        button_text=("ОТКРЫТЬ" if has_access else "ПЕРЕЙТИ К ОПЛАТЕ"),
+        video=course.video,
+        video_preview=course.video_preview,
+        banner_text=course.banner_text,
+        group_title=course.group_title,  
+        banner_color_left=course.banner_color_left,
+        banner_color_right=course.banner_color_right,
+        order=course.order,
+        is_discount_active=is_discount_active,
+        discount_ends_in=discount_ends_in,
+    )
+
+
+@router.post("/{course_id}/buy/", response_model=BuyCourseResponse, summary="Приобрести курс")
+@limiter.limit(settings.BUY_COURSE_RATE_LIMIT)
+async def buy_course(
+    course_id: int,
+    request: Request,
+    response: Response,           # ← обязателен для SlowAPI
+    request_data: BuyCourseRequest,
+    db: AsyncSession = Depends(get_db_session),
+):
+    user_id = get_current_user_id(request)
+
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    course = res.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+
+    acc_res = await db.execute(
+        select(CourseAccess).where(
+            CourseAccess.user_id == user_id,
+            CourseAccess.course_id == course_id
+        )
+    )
+    if acc_res.scalar_one_or_none():
+        return BuyCourseResponse(success=True, message="Курс уже доступен")
+
+    db.add(CourseAccess(user_id=user_id, course_id=course_id))
+    await db.commit()
+
+    return BuyCourseResponse(
+        success=True,
+        message=("Бесплатный курс успешно открыт" if course.is_free else "Курс успешно приобретён")
+    )
+
+@router.post("/{course_id}/check-access/", summary="Проверка доступа (deprecated)")
+async def check_course_access(course_id: int, request: Request, db: AsyncSession = Depends(get_db_session)):
+    try:
+        user_id = get_current_user_id(request)
+    except:
+        return {"has_access": False, "requires_auth": True, "message": "Необходима регистрация"}
+
+    res = await db.execute(select(Course).where(Course.id == course_id))
+    course = res.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+
+    if course.is_free:
+        return {"has_access": True, "requires_auth": False, "course_type": "free"}
+
+    acc_res = await db.execute(
+        select(CourseAccess).where(
+            CourseAccess.user_id == user_id,
+            CourseAccess.course_id == course_id
+        )
+    )
+    has_access = acc_res.scalar_one_or_none() is not None
+    return {"has_access": has_access, "requires_auth": False, "course_type": "paid"}
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\public\extras.py ===== */
+
+
+# catalog_service/api/public/extras.py
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import Optional
+
+from db.dependencies import get_db_session
+from models.course_modal import CourseModal, CourseModalBlock
+from models.student_works import StudentWorksSection, StudentWork
+from models.course import Course
+
+router = APIRouter(prefix="/courses", tags=["Public Course Extras"])
+
+
+
+
+
+
+
+@router.get("/{course_id}/modal/", response_model=Optional[dict])
+async def get_course_modal_public(
+    course_id: int, 
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Получить модальное окно курса (публичный доступ)"""
+    # Проверяем существование курса
+    course_result = await db.execute(select(Course).where(Course.id == course_id))
+    course = course_result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+    
+    # Получаем модальное окно
+    result = await db.execute(
+        select(CourseModal).where(CourseModal.course_id == course_id)
+    )
+    modal = result.scalar_one_or_none()
+    
+    if not modal:
+        return None
+    
+    # Получаем блоки
+    blocks_result = await db.execute(
+        select(CourseModalBlock)
+        .where(CourseModalBlock.modal_id == modal.id)
+        .order_by(CourseModalBlock.order)
+    )
+    blocks = blocks_result.scalars().all()
+    
+    return {
+        "title": modal.title,
+        "blocks": [
+            {
+                "type": block.type,
+                "content": block.content,
+                "order": block.order
+            }
+            for block in blocks
+        ]
+    }
+
+@router.get("/{course_id}/student-works/", response_model=Optional[dict])
+async def get_student_works_public(
+    course_id: int, 
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Получить работы учеников курса (публичный доступ)"""
+    # Проверяем существование курса
+    course_result = await db.execute(select(Course).where(Course.id == course_id))
+    course = course_result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+    
+    # Получаем секцию работ
+    result = await db.execute(
+        select(StudentWorksSection).where(StudentWorksSection.course_id == course_id)
+    )
+    section = result.scalar_one_or_none()
+    
+    if not section:
+        return None
+    
+    # Получаем работы
+    works_result = await db.execute(
+        select(StudentWork)
+        .where(StudentWork.section_id == section.id)
+        .order_by(StudentWork.order)
+    )
+    works = works_result.scalars().all()
+    
+    return {
+        "title": section.title,
+        "description": section.description,
+        "works": [
+            {
+                "image": work.image,
+                "description": work.description,
+                "bot_tag": work.bot_tag,
+                "order": work.order
+            }
+            for work in works
+        ]
+    }
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\api\public\promocodes.py ===== */
+
+# catalog_service/api/public/promocodes.py
+
+from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import Optional
+from datetime import datetime
+
+from db.dependencies import get_db_session
+from models.promocode import PromoCode
+
+router = APIRouter(prefix="/promocodes")
+
+@router.post("/check/")
+async def check_promocode(
+    code: str = Body(..., embed=True),
+    course_id: Optional[int] = Body(None, embed=True),
+    db: AsyncSession = Depends(get_db_session),
+):
+    result = await db.execute(select(PromoCode).where(PromoCode.code == code, PromoCode.is_active == True))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Промокод не найден или неактивен")
+    now = datetime.utcnow()
+    if now < promo.valid_from or now > promo.valid_until:
+        raise HTTPException(status_code=400, detail="Срок действия промокода истек")
+    if promo.uses_left <= 0:
+        raise HTTPException(status_code=400, detail="Промокод больше не может быть использован")
+    if course_id and promo.applicable_courses and course_id not in promo.applicable_courses:
+        raise HTTPException(status_code=400, detail="Промокод не применим к данному курсу")
+    return {"valid": True, "discount_percent": promo.discount_percent, "discount_amount": promo.discount_amount}
+
+@router.post("/use/")
+async def use_promocode(
+    code: str = Body(..., embed=True),
+    course_id: Optional[int] = Body(None, embed=True),
+    db: AsyncSession = Depends(get_db_session),
+):
+
+    async with db.begin():  # открываем транзакцию
+        result = await db.execute(
+            select(PromoCode)
+            .where(PromoCode.code == code, PromoCode.is_active == True)
+            .with_for_update()  # 🔒 блокируем строку до конца транзакции
+        )
+        promo = result.scalar_one_or_none()
+        if not promo:
+            raise HTTPException(status_code=404, detail="Промокод не найден")
+
+        now = datetime.utcnow()
+        if now < promo.valid_from or now > promo.valid_until:
+            raise HTTPException(status_code=400, detail="Срок действия промокода истек")
+
+        if course_id and promo.applicable_courses and course_id not in promo.applicable_courses:
+            raise HTTPException(status_code=400, detail="Промокод не применим к данному курсу")
+
+        if promo.uses_left <= 0:
+            raise HTTPException(status_code=400, detail="Промокод больше не может быть использован")
+
+        promo.uses_left -= 1
+        # commit произойдёт автоматически при выходе из async with
+
+    return {
+        "success": True,
+        "discount_percent": promo.discount_percent,
+        "discount_amount": promo.discount_amount
+    }
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\core\__init__.py ===== */
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\core\base.py ===== */
+
+#catalog_service/core/base.py
+
+
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\core\config.py ===== */
+
+# catalog_service/core/config.py
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    FASTAPI_ENV: str = "development"
+    DATABASE_URL: str
+    JWT_SECRET_KEY: str = "fallback-dev-key"
+
+    GLOBAL_RATE_LIMIT: str = "30/2minute"
+    BUY_COURSE_RATE_LIMIT: str = "3/minute"
+    COMPLETE_MODULE_RATE_LIMIT: str = "10/minute"
+
+    POSTGRES_HOST: str = "db"
+    POSTGRES_PORT: str = "5432"
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str
+    POSTGRES_DB: str
+
+    INTERNAL_TOKEN: str
+    LEARNING_SERVICE_URL: str
+
+    DEBUG: bool = True
+
+    class Config:
+        env_file = ".env"
+
+
+
+settings = Settings()
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\crud\__init__.py ===== */
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\crud\course.py ===== */
+
+# catalog_service/crud/course.py
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from models.course import Course
+from models.access import CourseAccess
+
+
+async def has_course_access(db: AsyncSession, user_id: int, course_id: int) -> bool:
+    result = await db.execute(select(Course).where(Course.id == course_id))
+    course = result.scalar_one_or_none()
+    if not course:
+        return False
+    if course.is_free:
+        return True
+    
+    result = await db.execute(
+        select(CourseAccess).where(
+            CourseAccess.user_id == user_id,
+            CourseAccess.course_id == course_id
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\db\__init__.py ===== */
+
+from .init_db import async_session_maker
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\db\dependencies.py ===== */
+
+# catalog_service/db/dependencies.py
+
+from db.init_db import async_session_maker
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import AsyncGenerator
+
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_maker() as session:
+        yield session
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\db\init_db.py ===== */
+
+# catalog_service/db/init_db.py
+
+
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+
+from core.base import Base
+from core.config import settings
+
+from urllib.parse import urlparse, urlunparse
+
+def get_async_pg_url(url: str) -> str:
+    parsed = urlparse(url)
+    if '+asyncpg' in parsed.scheme:
+        return url
+    async_scheme = parsed.scheme + '+asyncpg'
+    return urlunparse(parsed._replace(scheme=async_scheme))
+
+DATABASE_URL = get_async_pg_url(settings.DATABASE_URL)
+engine = create_async_engine(DATABASE_URL, echo=settings.DEBUG)
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+async def init_db():
+    """Создание всех таблиц в БД при старте"""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("✅ [DB] Таблицы успешно созданы")
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\Dockerfile ===== */
+
+# catalog_service/Dockerfile
+
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/catalog_service \
+    DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /catalog_service
+
+RUN set -eux; \
+    # переключим http->https где бы ни лежали источники
+    if [ -f /etc/apt/sources.list ]; then \
+      sed -i -E 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list; \
+    fi; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -i -E 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates curl postgresql-client \
+    || (sleep 2; apt-get update && apt-get install -y --no-install-recommends --fix-missing ca-certificates curl postgresql-client); \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN [ -f ./init_db.sh ] && sed -i 's/\r$//' ./init_db.sh && chmod +x ./init_db.sh || true
+
+RUN if [ -f pyproject.toml ] || [ -f setup.py ]; then pip install -e .; fi
+
+CMD ["sh","-lc","set -e; ./init_db.sh; python -m uvicorn main:app --host 0.0.0.0 --port 8001"]
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\init_db.sh ===== */
+
+#!/usr/bin/env sh
+set -e
+export PYTHONPATH=/catalog_service
+
+: "${POSTGRES_USER:=postgres}"
+: "${POSTGRES_DB:=team_platform}"
+: "${POSTGRES_HOST:=db}"
+: "${POSTGRES_PORT:=5432}"
+
+# ожидание БД
+until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" >/dev/null 2>&1; do
+  echo "Waiting for PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}..."
+  sleep 1
+done
+
+# миграции
+if [ -f manage.py ]; then
+  python manage.py migrate
+fi
+
+if command -v alembic >/dev/null 2>&1 && [ -f alembic.ini ]; then
+  alembic upgrade head
+fi
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\main.py ===== */
+
+# catalog_service/main.py
+
+from fastapi import FastAPI, Depends
+from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
+
+from api.public import courses as public_courses, accounts as public_accounts, promocodes as public_promocodes, extras as public_extras
+from api.admin import courses as admin_courses, lead_magnets as admin_lead_magnets, banner as admin_banner, promo as admin_promo, promocodes as admin_promocodes, course_modal as admin_course_modal, student_works as admin_student_works
+from api.internal import access as internal_access, users as internal_users, statistics as internal_statistics
+from api.public import banners as public_banners
+from api import health as health_api
+from utils.admin_auth import AdminAuth
+
+# ⬇️ подключаем лимитер
+from slowapi.errors import RateLimitExceeded
+from utils.rate_limit import limiter, custom_rate_limit_handler
+
+load_dotenv()
+app = FastAPI(title="Catalog Service")
+
+# ⬇️ wiring для slowapi
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ... остальное без изменений
+
+
+# public
+app.include_router(public_courses.router,   prefix="/v1/public", tags=["Public - Courses"])
+app.include_router(public_accounts.router,  prefix="/v1/public", tags=["Public - Accounts"])
+app.include_router(public_promocodes.router,prefix="/v1/public", tags=["Public - Promocodes"])
+app.include_router(public_extras.router,    prefix="/v1/public", tags=["Public - Extras"])
+app.include_router(public_banners.router,    prefix="/v1/public", tags=["Public - Banners"])
+
+# admin (защита INTERNAL_TOKEN)
+deps = [Depends(AdminAuth())]
+app.include_router(admin_courses.router,      prefix="/v1/admin", tags=["Admin - Courses"],       dependencies=deps)
+app.include_router(admin_lead_magnets.router, prefix="/v1/admin", tags=["Admin - Lead Magnets"],  dependencies=deps)
+app.include_router(admin_banner.router,       prefix="/v1/admin", tags=["Admin - Banners"],       dependencies=deps)
+app.include_router(admin_promo.router,        prefix="/v1/admin", tags=["Admin - Promo"],         dependencies=deps)
+app.include_router(admin_promocodes.router,   prefix="/v1/admin", tags=["Admin - Promocodes"],    dependencies=deps)
+app.include_router(admin_course_modal.router, prefix="/v1/admin", tags=["Admin - Course Modals"], dependencies=deps)
+app.include_router(admin_student_works.router,prefix="/v1/admin", tags=["Admin - Student Works"], dependencies=deps)
+
+# internal
+app.include_router(internal_access.router,     prefix="/v1/internal", tags=["Internal - Access"])
+app.include_router(internal_users.router,      prefix="/v1/internal", tags=["Internal - Users"])
+app.include_router(internal_statistics.router, prefix="/v1/internal", tags=["Internal - Statistics"])
+
+# health
+app.include_router(health_api.router, tags=["Health"])
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\models\__init__.py ===== */
+
+from .access import CourseAccess
+from .banner import Banner
+from .promo import PromoImage
+from .promocode import PromoCode
+from .course_modal import CourseModal
+from .student_works import StudentWorksSection, StudentWork
+from .lead_magnet import LeadMagnet
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\models\access.py ===== */
+
+# catalog_service/models/access.py
+
+from sqlalchemy import UniqueConstraint, Column, Integer, ForeignKey, DateTime
+from datetime import datetime
+
+from core.base import Base
+
+class CourseAccess(Base):
+    __tablename__ = "courses_courseaccess"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False)
+    course_id = Column(Integer, ForeignKey("courses_course.id", ondelete="CASCADE"), nullable=False)
+    purchased_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("user_id", "course_id", name="uq_user_course"),)
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\models\banner.py ===== */
+
+# catalog_service/models/banner.py
+
+from sqlalchemy import Column, Integer, String
+
+from core.base import Base
+
+class Banner(Base):
+    __tablename__ = "homepage_banners"
+
+    id = Column(Integer, primary_key=True)
+    image = Column(String, nullable=False)
+    order = Column(Integer, default=0)
+    link = Column(String, nullable=True)
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\models\course.py ===== */
+
+# catalog_service/models/course.py
+
+from sqlalchemy import Column, Integer, String, Text, Boolean, DECIMAL
+from sqlalchemy import DateTime
+from sqlalchemy.orm import relationship
+
+from core.base import Base
+
+class Course(Base):
+    __tablename__ = "courses_course"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    short_description = Column(Text, nullable=False)
+    full_description = Column(Text, nullable=True)
+    image = Column(Text, nullable=True)
+    is_free = Column(Boolean, default=False)
+    price = Column(DECIMAL(10, 2), nullable=True)
+    discount = Column(DECIMAL(5, 2), default=0.0)
+
+    # 🎬 Новые поля
+    video = Column(Text, nullable=True)
+    video_preview = Column(Text, nullable=True)
+    
+    banner_text = Column(Text, nullable=True)
+    banner_color_left = Column(String(20), nullable=True)
+    banner_color_right = Column(String(20), nullable=True)
+    order = Column(Integer, default=0)
+        
+    discount_start = Column(DateTime(timezone=True), nullable=True)
+    discount_until = Column(DateTime(timezone=True), nullable=True)
+    
+    
+    group_title = Column(String(100), nullable=True)
+    
+    modal = relationship(
+        "CourseModal",
+        back_populates="course",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    student_works_sections = relationship(
+        "StudentWorksSection",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\models\course_modal.py ===== */
+
+# catalog_service/models/course_modal.py
+
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import relationship
+from core.base import Base
+
+class CourseModal(Base):
+    __tablename__ = "course_modals"
+    __table_args__ = (UniqueConstraint("course_id", name="uq_course_modal_course"),)
+
+    id = Column(Integer, primary_key=True)
+    course_id = Column(Integer, ForeignKey("courses_course.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=False)
+
+    course = relationship("Course", back_populates="modal")   # ← было backref="modals"
+
+class CourseModalBlock(Base):
+    __tablename__ = "course_modal_blocks"
+
+    id = Column(Integer, primary_key=True)
+    modal_id = Column(Integer, ForeignKey("course_modals.id", ondelete="CASCADE"), nullable=False)
+    type = Column(String(20), nullable=False)
+    content = Column(Text, nullable=False)
+    order = Column(Integer, default=0)
+
+    modal = relationship("CourseModal", back_populates="blocks")
+
+# если блока blocks нет — добавь/оставь так:
+CourseModal.blocks = relationship(
+    "CourseModalBlock",
+    back_populates="modal",
+    cascade="all, delete-orphan",
+    passive_deletes=True,
+)
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\models\lead_magnet.py ===== */
+
+# catalog_service/models/lead_magnet.py
+
+from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from core.base import Base
+
+class LeadMagnet(Base):
+    __tablename__ = "marketing_lead_magnets"
+    __table_args__ = (
+        UniqueConstraint('lead_course_id', 'upsell_course_id', name='uq_lead_upsell_pair'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    lead_course_id = Column(Integer, ForeignKey("courses_course.id", ondelete="CASCADE"), nullable=False)
+    upsell_course_id = Column(Integer, ForeignKey("courses_course.id", ondelete="CASCADE"), nullable=False)
+
+    lead_course = relationship("Course", foreign_keys=[lead_course_id])
+    upsell_course = relationship("Course", foreign_keys=[upsell_course_id])
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\models\promo.py ===== */
+
+# catalog_service/models/promo.py
+
+from sqlalchemy import Column, Integer, String, ForeignKey
+
+from core.base import Base
+
+class PromoImage(Base):
+    __tablename__ = "homepage_promo_images"
+
+    id = Column(Integer, primary_key=True)
+    image = Column(String, nullable=False)
+    course_id = Column(Integer, ForeignKey("courses_course.id", ondelete="CASCADE"), nullable=False)
+    order = Column(Integer, default=0)
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\models\promocode.py ===== */
+
+# catalog_service/models/promocode.py
+
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, JSON
+from datetime import datetime
+
+from core.base import Base
+
+class PromoCode(Base):
+    __tablename__ = "promocodes"
+
+    id = Column(Integer, primary_key=True)
+    code = Column(String(50), unique=True, nullable=False)
+    discount_percent = Column(Float, nullable=True)
+    discount_amount = Column(Float, nullable=True)
+    uses_left = Column(Integer, default=0)
+    max_uses = Column(Integer, default=0)
+    valid_from = Column(DateTime, default=datetime.utcnow)
+    valid_until = Column(DateTime, nullable=False)
+    is_active = Column(Boolean, default=True)
+    applicable_courses = Column(JSON, default=list)
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\models\student_works.py ===== */
+
+# catalog_service/models/student_works.py
+
+from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy.orm import relationship
+
+from core.base import Base
+
+class StudentWorksSection(Base):
+    __tablename__ = "student_works_sections"
+
+    id = Column(Integer, primary_key=True)
+    course_id = Column(Integer, ForeignKey("courses_course.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=False)  # "Работы учеников нашего курса"
+    description = Column(Text, nullable=False)  # Описание секции
+    
+    course = relationship("Course", back_populates="student_works_sections")
+    works = relationship(
+        "StudentWork",
+        back_populates="section",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+class StudentWork(Base):
+    __tablename__ = "student_works"
+
+    id = Column(Integer, primary_key=True)
+    section_id = Column(Integer, ForeignKey("student_works_sections.id", ondelete="CASCADE"), nullable=False)
+    image = Column(String(500), nullable=False)
+    description = Column(Text, nullable=True)
+    bot_tag = Column(String(100), nullable=True)
+    order = Column(Integer, default=0)
+
+    section = relationship("StudentWorksSection", back_populates="works")
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\requirements.txt ===== */
+
+# catalog_service/requirements.txt
+
+uvicorn
+fastapi
+python-dotenv
+sqlalchemy
+pydantic-settings
+python-jose
+psycopg2-binary
+asyncpg
+slowapi
+alembic
+httpx
+redis
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\schemas\__init__.py ===== */
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\schemas\banner.py ===== */
+
+#catalog_service/schemas/banner.py
+
+from pydantic import BaseModel, ConfigDict
+from typing import Optional
+
+class BannerCreateSchema(BaseModel):
+    image: str
+    order: int = 0
+    link: Optional[str] = ""
+
+class BannerSchema(BannerCreateSchema):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BannerUpdateSchema(BaseModel):
+    image: Optional[str] = None
+    order: Optional[int] = None
+    link: Optional[str] = None
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\schemas\course.py ===== */
+
+# catalog_service/schemas/course.py
+
+from pydantic import BaseModel, ConfigDict, field_validator, ValidationInfo
+from typing import Optional
+from datetime import datetime
+
+
+
+class CourseListSchema(BaseModel):
+    id: int
+    title: str
+    short_description: str
+    image: Optional[str]
+    is_free: bool
+    price: float
+    discount: float
+    final_price: float
+    has_access: bool
+    button_text: str
+    
+    group_title: Optional[str] = None
+    
+    order: Optional[int] = 0
+    
+    
+    discount_start: Optional[datetime] = None
+    discount_until: Optional[datetime] = None
+    discount_ends_in: Optional[float] = None
+    is_discount_active: Optional[bool] = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CourseDetailSchema(BaseModel):
+    id: int
+    title: str
+    full_description: Optional[str]
+    short_description: Optional[str]
+    image: Optional[str]
+    is_free: bool
+    price: float
+    discount: float
+    final_price: float
+    has_access: bool
+    button_text: str
+
+    video: Optional[str] = None
+    video_preview: Optional[str] = None
+    banner_text: Optional[str] = None
+    banner_color_left: Optional[str] = None
+    banner_color_right: Optional[str] = None
+    
+    group_title: Optional[str] = None
+
+    discount_start: Optional[datetime] = None # начало скидки
+    discount_until: Optional[datetime] = None # конец скидки
+    discount_ends_in: Optional[float] = None
+    is_discount_active: Optional[bool] = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+
+class CourseAccessSchema(BaseModel):
+    has_access: bool
+    reason: str 
+    
+
+class BuyCourseResponse(BaseModel):
+    success: bool
+    message: str
+
+
+class BuyCourseRequest(BaseModel):
+    payment_id: Optional[str] = None
+
+
+
+class CourseBuyRequest(BaseModel):
+    payment_id: Optional[str] = None  # пока не обрабатываем, но пригодится
+
+
+
+class CourseAccessResponse(BaseModel):
+    has_access: bool
+    reason: str
+
+
+#  Схема создания курса
+class CourseCreate(BaseModel):
+    title: str
+    short_description: Optional[str] = ""
+    full_description: Optional[str] = None
+    image: Optional[str] = None
+    is_free: bool = False
+    price: Optional[float] = None
+    discount: Optional[float] = 0.0
+
+    video: Optional[str] = None
+    video_preview: Optional[str] = None
+    banner_text: Optional[str] = None
+    banner_color_left: Optional[str] = None
+    banner_color_right: Optional[str] = None
+    order: int = 0
+    group_title: Optional[str] = None
+
+    discount_start: Optional[datetime] = None
+    discount_until: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("price")
+    @classmethod
+    def validate_price(cls, v, info: ValidationInfo):
+        # В Pydantic v2 используем info.data для получения других полей
+        if info.data.get("is_free") is False and v is None:
+            raise ValueError("Цена обязательна для платного курса")
+        return v
+
+    @field_validator("discount_until")
+    @classmethod
+    def validate_discount_range(cls, v, info: ValidationInfo):
+        discount_start = info.data.get("discount_start")
+        if discount_start and v and v <= discount_start:
+            raise ValueError("Окончание скидки не может быть раньше начала")
+        return v
+    
+class CourseUpdate(BaseModel):
+    title: Optional[str] = None
+    short_description: Optional[str] = None
+    full_description: Optional[str] = None
+    image: Optional[str] = None
+    is_free: Optional[bool] = None
+    price: Optional[float] = None
+    discount: Optional[float] = None
+
+    video: Optional[str] = None
+    video_preview: Optional[str] = None
+    banner_text: Optional[str] = None
+    banner_color_left: Optional[str] = None
+    banner_color_right: Optional[str] = None
+    order: Optional[int] = None
+    group_title: Optional[str] = None
+
+    discount_start: Optional[datetime] = None
+    discount_until: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("discount_until")
+    @classmethod
+    def validate_discount_range(cls, v, info: ValidationInfo):
+        ds = info.data.get("discount_start")
+        if ds and v and v <= ds:
+            raise ValueError("Окончание скидки не может быть раньше начала")
+        return v
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\schemas\course_modal.py ===== */
+
+# catalog_service/schemas/course_modal.py
+
+from pydantic import BaseModel, ConfigDict
+from typing import List, Optional
+
+
+
+class CourseModalBlockCreate(BaseModel):
+    type: str  # 'text' или 'image'
+    content: str
+    order: int = 0
+
+class CourseModalBlockSchema(BaseModel):
+    id: int
+    type: str
+    content: str
+    order: int
+
+    model_config = ConfigDict(from_attributes=True)
+    
+        
+
+class CourseModalCreate(BaseModel):
+    title: str
+    blocks: List[CourseModalBlockCreate] = []
+
+class CourseModalUpdate(BaseModel):
+    title: Optional[str] = None
+    blocks: Optional[List[CourseModalBlockCreate]] = None
+
+class CourseModalSchema(BaseModel):
+    id: int
+    course_id: int
+    title: str
+    blocks: List[CourseModalBlockSchema]
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\schemas\dashboard.py ===== */
+
+# catalog_service/schemas/dashboard.py
+
+from typing import List, Optional
+from pydantic import BaseModel
+from datetime import datetime
+
+class UserCourseSchema(BaseModel):
+    """Упрощенная схема курса для dashboard"""
+    course_id: int
+    course_title: str
+    image: Optional[str] = None
+    purchased_at: datetime
+    progress_percent: float
+    is_completed: bool
+    
+    class Config:
+        # Добавить для всех datetime полей
+        json_encoders = {
+            datetime: lambda dt: dt.isoformat()
+        }
+
+class UserStatsSchema(BaseModel):
+    """Общая статистика пользователя"""
+    total_courses: int
+    completed_courses: int
+    total_progress_percent: float
+    total_study_time: Optional[int] = None  # в минутах, если будете трекать
+
+class UserDashboardSchema(BaseModel):
+    """Основная схема для dashboard"""
+    user_id: int
+    stats: UserStatsSchema
+    courses: List[UserCourseSchema]
+
+    class Config:
+        json_encoders = {
+            datetime: lambda dt: dt.isoformat()
+        }
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\schemas\lead_magnet.py ===== */
+
+# catalog_service/schemas/lead_magnet.py
+
+from pydantic import BaseModel, ConfigDict, model_validator
+
+class LeadMagnetCreate(BaseModel):
+    title: str
+    lead_course_id: int
+    upsell_course_id: int
+
+    @model_validator(mode="after")
+    def check_ids(self):
+        if self.lead_course_id == self.upsell_course_id:
+            raise ValueError("Курс-лид и курс-апселл не могут совпадать")
+        return self
+
+
+
+class LeadMagnetRead(BaseModel):
+    id: int
+    title: str
+    lead_course_id: int
+    upsell_course_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\schemas\promo.py ===== */
+
+# catalog_service/schemas/promo.py
+
+
+from pydantic import BaseModel, ConfigDict
+from typing import Optional
+
+class PromoCreateSchema(BaseModel):
+    image: str
+    course_id: int
+    order: int = 0
+
+class PromoSchema(PromoCreateSchema):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+class PromoUpdateSchema(BaseModel):
+    image: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    course_id: Optional[int] = None
+    order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\schemas\student_works.py ===== */
+
+# catalog_service/schemas/student_works.py
+
+from pydantic import BaseModel, ConfigDict
+from typing import List, Optional
+
+class StudentWorkCreate(BaseModel):
+    image: str
+    description: Optional[str] = None
+    bot_tag: Optional[str] = None
+    order: int = 0
+
+class StudentWorkSchema(BaseModel):
+    id: int
+    image: str
+    description: Optional[str]
+    bot_tag: Optional[str]
+    order: int
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StudentWorksSectionCreate(BaseModel):
+    title: str
+    description: str
+    works: List[StudentWorkCreate] = []
+
+class StudentWorksSectionUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    works: Optional[List[StudentWorkCreate]] = None
+
+class StudentWorksSectionSchema(BaseModel):
+    id: int
+    course_id: int
+    title: str
+    description: str
+    works: List[StudentWorkSchema]
+
+    model_config = ConfigDict(from_attributes=True) 
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\scripts\__init__.py ===== */
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\scripts\init_db_async.py ===== */
+
+
+# catalog_service/scripts/init_db_async.py
+
+
+
+import asyncio
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
+
+from core.base import Base
+from core.config import settings
+
+from urllib.parse import urlparse, urlunparse
+
+def get_async_pg_url(url: str) -> str:
+    parsed = urlparse(url)
+    if '+asyncpg' in parsed.scheme:
+        return url
+    async_scheme = parsed.scheme + '+asyncpg'
+    return urlunparse(parsed._replace(scheme=async_scheme))
+
+DATABASE_URL = get_async_pg_url(settings.DATABASE_URL)
+engine = create_async_engine(DATABASE_URL, echo=True)
+
+async def sync_table_schema():
+    """Синхронизирует схему таблиц - добавляет недостающие колонки"""
+    async with engine.begin() as conn:
+        print("🔄 Синхронизируем схему базы данных...")
+        
+        # Получаем информацию о существующих таблицах и колонках
+        result = await conn.execute(text("""
+            SELECT table_name, column_name, data_type, is_nullable, column_default
+            FROM information_schema.columns 
+            WHERE table_schema = 'public'
+            ORDER BY table_name, ordinal_position
+        """))
+        
+        existing_schema = {}
+        for row in result:
+            table_name = row.table_name
+            if table_name not in existing_schema:
+                existing_schema[table_name] = {}
+            existing_schema[table_name][row.column_name] = {
+                'data_type': row.data_type,
+                'is_nullable': row.is_nullable,
+                'column_default': row.column_default
+            }
+        
+        # Проходим по всем моделям SQLAlchemy
+        for table_name, table in Base.metadata.tables.items():
+            print(f"📋 Проверяем таблицу: {table_name}")
+            
+            # Если таблица не существует, создадим её целиком
+            if table_name not in existing_schema:
+                print(f"➕ Создаем новую таблицу: {table_name}")
+                await conn.run_sync(lambda sync_conn: table.create(sync_conn, checkfirst=True))
+                continue
+            
+            # Проверяем каждую колонку в модели
+            for column in table.columns:
+                column_name = column.name
+                
+                if column_name not in existing_schema[table_name]:
+                    print(f"➕ Добавляем колонку {table_name}.{column_name}")
+                    
+                    # Определяем тип колонки
+                    column_type = column.type.compile(dialect=conn.dialect)
+                    
+                    # Определяем nullable
+                    nullable = "NULL" if column.nullable else "NOT NULL"
+                    
+                    # Определяем default значение
+                    default_clause = ""
+                    if column.default is not None:
+                        if column.default.is_scalar:
+                            default_value = column.default.arg
+                            if isinstance(default_value, str):
+                                default_clause = f"DEFAULT '{default_value}'"
+                            else:
+                                default_clause = f"DEFAULT {default_value}"
+                        elif hasattr(column.default, 'arg'):
+                            default_clause = f"DEFAULT '{column.default.arg}'"
+                    
+                    # Создаем SQL для добавления колонки
+                    add_column_sql = f"""
+                        ALTER TABLE {table_name} 
+                        ADD COLUMN {column_name} {column_type} {default_clause} {nullable}
+                    """
+                    
+                    try:
+                        await conn.execute(text(add_column_sql))
+                        print(f"✅ Колонка {table_name}.{column_name} успешно добавлена!")
+                    except Exception as e:
+                        print(f"❌ Ошибка при добавлении колонки {table_name}.{column_name}: {e}")
+                        # Продолжаем выполнение несмотря на ошибку
+                        continue
+                else:
+                    print(f"✅ Колонка {table_name}.{column_name} уже существует")
+        
+        print("🎉 Синхронизация схемы завершена!")
+
+async def create_missing_tables():
+    """Создает отсутствующие таблицы"""
+    async with engine.begin() as conn:
+        print("📋 Создаем недостающие таблицы...")
+        await conn.run_sync(Base.metadata.create_all)
+
+async def init_db():
+    """Инициализация базы данных с автоматической синхронизацией схемы"""
+    try:
+        print("🚀 Начинаем инициализацию базы данных...")
+        
+        # Сначала создаем недостающие таблицы
+        await create_missing_tables()
+        
+        # Затем синхронизируем схему (добавляем недостающие колонки)
+        await sync_table_schema()
+        
+        print("✅ Инициализация базы данных завершена успешно!")
+        
+    except Exception as e:
+        print(f"❌ Ошибка при инициализации базы данных: {e}")
+        raise
+
+if __name__ == "__main__":
+    asyncio.run(init_db())
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\services\__init__.py ===== */
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\services\access.py ===== */
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\services\lead_magnet_stats.py ===== */
+
+# catalog_service/services/lead_magnet_stats.py
+
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from catalog_service.models.lead_magnet import LeadMagnet
+
+
+async def fetch_user_course_ids(user_id: int, client: AsyncClient) -> list[int]:
+    resp = await client.get(f"http://adminservice/internal/users/{user_id}/courses")
+    resp.raise_for_status()
+    payload = resp.json()
+    return [c["course_id"] for c in payload.get("courses", [])]
+
+
+async def calculate_lead_magnet_stats(
+    lead_magnet_id: int,
+    session: AsyncSession,
+    client: AsyncClient,
+) -> dict:
+    # Получаем связку
+    result = await session.execute(select(LeadMagnet).where(LeadMagnet.id == lead_magnet_id))
+    lead_magnet = result.scalar_one_or_none()
+    if not lead_magnet:
+        raise ValueError("Связка не найдена")
+
+    lead_course_id = lead_magnet.lead_course_id
+    upsell_course_id = lead_magnet.upsell_course_id
+
+    # Получаем пользователей, купивших лид-курс
+    resp = await client.get(f"http://adminservice/internal/analytics/users-with-course/{lead_course_id}")
+    resp.raise_for_status()
+    user_ids = resp.json()  # список user_id
+
+    total_leads = len(user_ids)
+    bought_upsell = 0
+
+    for user_id in user_ids:
+        try:
+            course_ids = await fetch_user_course_ids(user_id, client)
+            if upsell_course_id in course_ids:
+                bought_upsell += 1
+        except Exception:
+            continue  # пропускаем ошибки по пользователю
+
+    conversion = round(bought_upsell / total_leads, 2) if total_leads > 0 else 0.0
+
+    return {
+        "total_leads": total_leads,
+        "viewed_upsell_page": None,  # пока не реализовано
+        "bought_upsell": bought_upsell,
+        "conversion": conversion,
+    }
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\services\progress.py ===== */
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\utils\__init__.py ===== */
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\utils\admin_auth.py ===== */
+
+# catalog_service/utils/admin_auth.py
+
+from fastapi import Request, HTTPException, status
+import os
+ADMIN_TOKEN = os.getenv("INTERNAL_TOKEN", "change-me")
+
+class AdminAuth:
+    def __call__(self, request: Request):
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing bearer token")
+        token = auth.split(" ", 1)[1]
+        if token != ADMIN_TOKEN:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
+        return True
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\utils\auth.py ===== */
+
+# catalog_service/utils/auth.py
+
+from jose import JWTError, jwt
+from fastapi import Request, HTTPException
+from starlette.status import HTTP_401_UNAUTHORIZED
+from typing import Optional
+
+from core.config import settings
+
+JWT_SECRET_KEY = settings.JWT_SECRET_KEY
+ALGORITHM = "HS256"
+
+
+def get_current_user_id(request: Request) -> Optional[int]:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Нет токена")
+
+    token = auth_header.split(" ")[1]
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[ALGORITHM])
+        return payload.get("user_id")  # Django кладёт user_id
+    except JWTError:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Недействительный токен")
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\utils\auth_client.py ===== */
+
+# catalog_service/utils/auth_client.py
+
+import httpx
+from fastapi import HTTPException
+from typing import Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
+
+# URL auth_service (в Docker контейнере)
+AUTH_SERVICE_URL = "http://authservice:8000"
+
+async def get_user_data_from_auth(user_id: int, access_token: str) -> Dict[str, Any]:
+    """
+    Получает данные пользователя из auth_service
+    
+    Args:
+        user_id: ID пользователя 
+        access_token: JWT токен для авторизации
+        
+    Returns:
+        Dict с данными пользователя (id, username, email)
+        
+    Raises:
+        HTTPException: При ошибке запроса к auth_service
+    """
+    try:
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{AUTH_SERVICE_URL}/api/user/",
+                headers=headers
+            )
+            
+            if response.status_code == 200:
+                user_data = response.json()
+                logger.info(f"Получены данные пользователя {user_id} из auth_service")
+                return user_data
+            elif response.status_code == 401:
+                logger.warning(f"Неавторизованный запрос для пользователя {user_id}")
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Не авторизован"
+                )
+            else:
+                logger.error(f"Ошибка auth_service: {response.status_code} - {response.text}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Ошибка получения данных пользователя"
+                )
+                
+    except httpx.TimeoutException:
+        logger.error(f"Таймаут при запросе к auth_service для пользователя {user_id}")
+        raise HTTPException(
+            status_code=500,
+            detail="Сервис авторизации недоступен"
+        )
+    except httpx.RequestError as e:
+        logger.error(f"Ошибка соединения с auth_service: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Ошибка соединения с сервисом авторизации"
+        )
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\utils\cache.py ===== */
+
+# catalog_service/utils/cache.py
+
+import json
+import hashlib
+from functools import wraps
+import redis
+
+try:
+    redis_client = redis.Redis(
+        host="redis", port=6379, db=0,
+        decode_responses=True, socket_connect_timeout=5, socket_timeout=5,
+        retry_on_timeout=True
+    )
+    redis_client.ping()
+    REDIS_AVAILABLE = True
+except Exception:
+    redis_client = None
+    REDIS_AVAILABLE = False
+
+def _gen_key(prefix: str, fname: str, args, kwargs) -> str:
+    raw = str(args) + str(sorted(kwargs.items()))
+    return f"{prefix}:{fname}:{hashlib.md5(raw.encode()).hexdigest()}"
+
+def cache_result(ttl: int = 300, key_prefix: str = ""):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            if not REDIS_AVAILABLE:
+                return await func(*args, **kwargs)
+            key = _gen_key(key_prefix, func.__name__, args, kwargs)
+            try:
+                cached = redis_client.get(key)
+                if cached is not None:
+                    return json.loads(cached)
+            except Exception:
+                pass
+            result = await func(*args, **kwargs)
+            try:
+                redis_client.setex(key, ttl, json.dumps(result, default=str))
+            except Exception:
+                pass
+            return result
+        return wrapper
+    return decorator
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\utils\jwt.py ===== */
+
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\utils\monitoring.py ===== */
+
+# catalog_service/utils/monitoring.py
+
+
+import time
+import logging
+from fastapi import Request
+
+logger = logging.getLogger(__name__)
+
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    
+    response = await call_next(request)
+    
+    process_time = time.time() - start_time
+    
+    # Логируем медленные запросы
+    if process_time > 1.0:
+        logger.warning(
+            f"Slow request: {request.method} {request.url.path} "
+            f"took {process_time:.2f}s"
+        )
+    
+    # Логируем ошибки
+    if response.status_code >= 400:
+        logger.error(
+            f"Error: {request.method} {request.url.path} "
+            f"returned {response.status_code}"
+        )
+    
+    return response
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\utils\payments.py ===== */
+
+# catalog_service/utils/payments.py
+
+from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+async def verify_payment(payment_id: str, expected_amount: float, course_id: int) -> bool:
+    """
+    Проверка платежа через платежную систему
+    """
+    # В разработке - принимаем тестовые ID
+    if payment_id.startswith("test_"):
+        logger.info(f"Тестовый платеж {payment_id} для курса {course_id}")
+        return True
+    
+    # TODO: Когда подключите реальную платежную систему:
+    # try:
+    #     payment = await yookassa_client.get_payment(payment_id)
+    #     return (payment.status == "succeeded" and 
+    #             payment.amount.value == expected_amount)
+    # except Exception as e:
+    #     logger.error(f"Ошибка проверки платежа: {e}")
+    #     return False
+    
+    # Пока что для продакшена возвращаем False (безопасно)
+    logger.warning(f"Попытка оплаты без настроенной платежной системы: {payment_id}")
+    return False
+
+async def create_payment(course_id: int, amount: float, user_id: int) -> Optional[str]:
+    """
+    Создание платежа
+    """
+    # TODO: Интеграция с платежной системой
+    # payment = await yookassa_client.create_payment({
+    #     "amount": {"value": str(amount), "currency": "RUB"},
+    #     "description": f"Курс {course_id}",
+    #     "metadata": {"user_id": user_id, "course_id": course_id}
+    # })
+    # return payment.id
+    
+    return f"test_payment_{course_id}_{user_id}"
+
+
+/* ===== C:\Users\icipa\team-platform-public\catalog_service\utils\rate_limit.py ===== */
+
+#catalog_service/utils/rate_limit.py
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from utils.auth import get_current_user_id
+from fastapi.responses import JSONResponse
+
+from core.config import settings
+
+def user_id_or_ip(request):
+    try:
+        return str(get_current_user_id(request))
+    except:
+        return get_remote_address(request)
+
+limiter = Limiter(
+    key_func=user_id_or_ip,
+    default_limits=[settings.GLOBAL_RATE_LIMIT],
+    headers_enabled=True,
+    storage_uri="memory://",
+    strategy="fixed-window"
+)
+
+async def custom_rate_limit_handler(request, exc):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "⛔ Слишком много запросов. Вы временно заблокированы на 6 минут."},
+    )
+

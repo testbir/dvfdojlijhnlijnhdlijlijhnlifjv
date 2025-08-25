@@ -1,7 +1,6 @@
 // ============= src/components/LoadingOverlay/LoadingOverlay.tsx =============
 
 import React from 'react';
-import './LoadingOverlay.scss';
 
 interface LoadingOverlayProps {
   message?: string;

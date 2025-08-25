@@ -1,13 +1,10 @@
 # id_service/utils/otp.py
 
-import hashlib
-import hmac
-import secrets
-import string
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from sqlalchemy.orm import noload
 
 from models import EmailCode, EmailCodePurpose, User
 from core.config import settings
@@ -93,16 +90,21 @@ class OTPService:
         now = datetime.now(timezone.utc)
         
         # Find active code
-        result = await session.execute(
-            select(EmailCode).where(
+        stmt = (
+            select(EmailCode)
+            .options(noload(EmailCode.user))  # опционально: уберёт LEFT OUTER JOIN
+            .where(
                 and_(
                     EmailCode.user_id == user_id,
                     EmailCode.purpose == purpose,
                     EmailCode.expires_at > now,
-                    EmailCode.used_at.is_(None)
+                    EmailCode.used_at.is_(None),
                 )
-            ).with_for_update()
+            )
+            .order_by(EmailCode.expires_at.desc())
+            .with_for_update(of=[EmailCode])
         )
+        result = await session.execute(stmt)
         email_code = result.scalar_one_or_none()
         
         if not email_code:

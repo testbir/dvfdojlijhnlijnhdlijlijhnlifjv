@@ -11,7 +11,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { VerifyEmailPage } from './pages/VerifyEmailPage'
 import OAuthCallbackPage from './pages/OAuthCallbackPage'
-import './styles/global.scss'
+import './styles/app.scss'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

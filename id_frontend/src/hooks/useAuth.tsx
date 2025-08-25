@@ -4,8 +4,7 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 import { authService } from '../services/auth.service';
 import { storageService } from '../services/storage.service';
 import { type User } from '../types/auth.types';
-import { TOKEN_STORAGE_KEY, REFRESH_TOKEN_STORAGE_KEY } from '../utils/constants'
-
+import { TOKEN_STORAGE_KEY, REFRESH_TOKEN_STORAGE_KEY, ID_TOKEN_STORAGE_KEY } from '../utils/constants'
 
 interface AuthContextType {
   user: User | null;
@@ -24,15 +23,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
 const checkAuth = async () => {
+  setIsLoading(true)
   try {
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY)
-    if (!token) { setIsLoading(false); return }
-    const userData = await authService.getCurrentUser()
+    const userData = await authService.getCurrentUser() // по cookie или по Bearer
     setUser(userData)
-  } catch (error) {
-    console.error('Auth check failed:', error)
+  } catch {
     localStorage.removeItem(TOKEN_STORAGE_KEY)
     localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY)
+    localStorage.removeItem(ID_TOKEN_STORAGE_KEY)
+    setUser(null)
   } finally {
     setIsLoading(false)
   }

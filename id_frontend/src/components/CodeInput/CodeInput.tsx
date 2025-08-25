@@ -1,8 +1,6 @@
 // ============= src/components/CodeInput/CodeInput.tsx =============
 
 import React, { useState, useRef, useEffect } from 'react';
-import './CodeInput.scss';
-
 interface CodeInputProps {
   length?: number;
   onChange: (code: string) => void;
@@ -13,7 +11,7 @@ interface CodeInputProps {
 }
 
 export const CodeInput: React.FC<CodeInputProps> = ({
-  length = 6,
+  length = 4,
   onChange,
   onComplete,
   error = false,
@@ -92,7 +90,7 @@ export const CodeInput: React.FC<CodeInputProps> = ({
       {values.map((value, index) => (
         <input
           key={index}
-          ref={(el) => (inputRefs.current[index] = el)}
+          ref={(el) => { inputRefs.current[index] = el; }}  
           type="text"
           inputMode="numeric"
           maxLength={1}

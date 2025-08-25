@@ -2,11 +2,10 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { authService } from '../../services/auth.service';
 import { validators } from '../../utils/validators';
 import { handleApiError } from '../../utils/errors';
 import { ROUTES } from '../../utils/constants';
-import './AuthForm.scss';
+import { useAuth } from '../../hooks/useAuth'
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -21,6 +20,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectUrl }) 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState('');
+  const { login } = useAuth();
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -59,19 +59,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectUrl }) 
     setGeneralError('');
     
     try {
-      await authService.login(formData);
-      
-      if (onSuccess) {
-        onSuccess();
-      } else if (redirectUrl) {
-        window.location.href = redirectUrl;
-      } else {
-        window.location.href = ROUTES.PROFILE;
-      }
+      await login(formData.email, formData.password)   // было: authService.login(formData)
+      if (onSuccess) onSuccess()
+      else if (redirectUrl) window.location.href = redirectUrl
+      else window.location.href = ROUTES.PROFILE
     } catch (error) {
-      setGeneralError(handleApiError(error));
+      setGeneralError(handleApiError(error))
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   };
 
@@ -88,13 +83,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectUrl }) 
       <div className="auth-form__field">
         <input
           type="email"
-          placeholder="Email"
+          placeholder=" "
           value={formData.email}
           onChange={(e) => handleChange('email', e.target.value)}
           className={`auth-form__input ${errors.email ? 'auth-form__input--error' : ''}`}
           disabled={isLoading}
           autoFocus
         />
+        <span className="auth-form__placeholder">Email</span>
         {errors.email && (
           <span className="auth-form__field-error">{errors.email}</span>
         )}
@@ -103,21 +99,27 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectUrl }) 
       <div className="auth-form__field">
         <input
           type="password"
-          placeholder="Пароль"
+          placeholder=" "
           value={formData.password}
           onChange={(e) => handleChange('password', e.target.value)}
           className={`auth-form__input ${errors.password ? 'auth-form__input--error' : ''}`}
           disabled={isLoading}
         />
+        <span className="auth-form__placeholder">Пароль</span>
         {errors.password && (
           <span className="auth-form__field-error">{errors.password}</span>
         )}
       </div>
       
-      <Link to={ROUTES.FORGOT_PASSWORD} className="auth-form__link">
-        Забыли пароль?
-      </Link>
-      
+      <div className="auth-form__links">
+        <Link to={ROUTES.REGISTER} className="auth-form__link auth-form__link--register">
+          Создать аккаунт
+        </Link>
+        <Link to={ROUTES.FORGOT_PASSWORD} className="auth-form__link auth-form__link--forgot">
+          Забыли пароль?
+        </Link>
+      </div>
+            
       <button
         type="submit"
         className="auth-form__submit"
@@ -129,13 +131,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectUrl }) 
           'Войти'
         )}
       </button>
-      
-      <div className="auth-form__footer">
-        <span>Нет аккаунта?</span>
-        <Link to={ROUTES.REGISTER} className="auth-form__link">
-          Зарегистрироваться
-        </Link>
-      </div>
+    
     </form>
   );
 };

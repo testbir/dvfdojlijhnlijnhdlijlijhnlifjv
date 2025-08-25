@@ -7,7 +7,7 @@ export const PASSWORD_MIN_LENGTH = 8;
 export const USERNAME_MIN_LENGTH = 3;
 export const USERNAME_MAX_LENGTH = 20;
 
-export const CODE_LENGTH = 6;
+export const CODE_LENGTH = 4;
 export const CODE_RESEND_TIMEOUT = 60; // seconds
 
 export const TOKEN_STORAGE_KEY = 'access_token';

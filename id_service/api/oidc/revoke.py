@@ -45,4 +45,4 @@ async def revoke(
         # не палим детали наружу
         pass
 
-    return JSONResponse({}, status_code=200)
+    return JSONResponse({}, status_code=200, headers={"Cache-Control": "no-store", "Pragma": "no-cache"})

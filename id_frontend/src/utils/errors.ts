@@ -1,7 +1,6 @@
 // ============= src/utils/errors.ts =============
 
 import { AxiosError } from 'axios';
-import type { ApiError } from '../types/auth.types';
 import { ERROR_MESSAGES } from './constants';
 
 export class AppError extends Error {
@@ -16,45 +15,42 @@ export class AppError extends Error {
   }
 }
 
+// replace handleApiError with:
 export const handleApiError = (error: unknown): string => {
   if (error instanceof AxiosError) {
-    const apiError = error.response?.data as ApiError;
-    
-    if (apiError?.message) {
-      return apiError.message;
-    }
-    
-    if (apiError?.error) {
-      return apiError.error;
-    }
-    
+    const data = error.response?.data as any;
+
+    const flatten = (v: any): string => {
+      if (!v) return '';
+      if (typeof v === 'string') return v;
+      if (Array.isArray(v)) return v.map(flatten).filter(Boolean).join('\n');
+      if (typeof v === 'object') return Object.values(v).map(flatten).filter(Boolean).join('\n') || JSON.stringify(v);
+      return String(v);
+    };
+
+    const msg =
+      flatten(data?.message) ||
+      flatten(data?.error) ||
+      flatten(data?.details);
+
+    if (msg) return msg;
+
     switch (error.response?.status) {
-      case 400:
-        return ERROR_MESSAGES.VALIDATION_ERROR;
-      case 401:
-        return ERROR_MESSAGES.UNAUTHORIZED;
-      case 403:
-        return ERROR_MESSAGES.FORBIDDEN;
-      case 404:
-        return ERROR_MESSAGES.NOT_FOUND;
+      case 400: return ERROR_MESSAGES.VALIDATION_ERROR;
+      case 401: return ERROR_MESSAGES.UNAUTHORIZED;
+      case 403: return ERROR_MESSAGES.FORBIDDEN;
+      case 404: return ERROR_MESSAGES.NOT_FOUND;
       case 500:
       case 502:
-      case 503:
-        return ERROR_MESSAGES.SERVER_ERROR;
+      case 503: return ERROR_MESSAGES.SERVER_ERROR;
       default:
-        if (!error.response) {
-          return ERROR_MESSAGES.NETWORK_ERROR;
-        }
-        return ERROR_MESSAGES.UNKNOWN_ERROR;
+        return error.response ? ERROR_MESSAGES.UNKNOWN_ERROR : ERROR_MESSAGES.NETWORK_ERROR;
     }
   }
-  
-  if (error instanceof Error) {
-    return error.message;
-  }
-  
+  if (error instanceof Error) return error.message;
   return ERROR_MESSAGES.UNKNOWN_ERROR;
 };
+
 
 export const isNetworkError = (error: unknown): boolean => {
   if (error instanceof AxiosError) {

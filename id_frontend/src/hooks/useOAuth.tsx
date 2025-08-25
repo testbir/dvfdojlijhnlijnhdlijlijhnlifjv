@@ -13,45 +13,46 @@ export const useOAuth = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const random = (len = 32) =>
+    Array.from(crypto.getRandomValues(new Uint8Array(len)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+
   const initializeAuthorization = useCallback(async () => {
-    // Получаем параметры из URL
-    const clientId = searchParams.get('client_id');
-    const redirectUri = searchParams.get('redirect_uri');
-    const responseType = searchParams.get('response_type') || 'code';
-    const scope = searchParams.get('scope') || 'openid profile email';
-    const state = searchParams.get('state') || undefined;
-    const nonce = searchParams.get('nonce') || undefined;
-    const prompt = searchParams.get('prompt') as any || undefined;
+    const clientId = searchParams.get('client_id')
+    const redirectUri = searchParams.get('redirect_uri')
+    const responseType = (searchParams.get('response_type') || 'code') as 'code' | 'token'
+    const scope = searchParams.get('scope') || 'openid profile email'
+    const state = searchParams.get('state') || random()
+    const nonce = searchParams.get('nonce') || random()
+    const prompt = (searchParams.get('prompt') as any) || undefined
 
     if (!clientId || !redirectUri) {
-      setError('Отсутствуют обязательные параметры');
-      return null;
+      setError('Отсутствуют обязательные параметры')
+      return null
     }
 
-    // Генерируем PKCE
-    const pkce = await oauthService.generatePKCE();
-    
-    // Сохраняем данные для последующего использования
+    const pkce = await oauthService.generatePKCE()
+
     const authRequest: AuthorizationRequest = {
       client_id: clientId,
       redirect_uri: redirectUri,
-      response_type: responseType as 'code' | 'token',
+      response_type: responseType,
       scope,
-      state,
+      state,                         // <= всегда есть
       code_challenge: pkce.challenge,
       code_challenge_method: 'S256',
       nonce,
       prompt,
-    };
-
-    // Сохраняем в storage
-    if (state) {
-      storageService.saveOAuthState(state, authRequest);
-      storageService.savePKCEVerifier(state, pkce.verifier);
     }
 
-    return authRequest;
-  }, [searchParams]);
+    // всегда сохраняем по state
+    storageService.saveOAuthState(state, authRequest)
+    storageService.savePKCEVerifier(state, pkce.verifier)
+
+    return authRequest
+  }, [searchParams])
+
 
   const authorizeWithConsent = useCallback(async (
     authRequest: AuthorizationRequest,

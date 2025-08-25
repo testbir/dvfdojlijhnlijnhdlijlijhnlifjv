@@ -13,12 +13,15 @@ export interface LoginRequest { email: string; password: string; }
 export interface RegisterRequest { username: string; email: string; password: string; password_confirm: string; }
 export interface VerifyEmailRequest { user_id: string; code: string; }
 export interface ForgotPasswordRequest { email: string; }
-export interface ResetPasswordRequest {
-  user_id: string;
+export interface ResetPasswordRequestBase {
   code: string;
   new_password: string;
   new_password_confirm: string;
 }
+
+export type ResetPasswordRequest =
+  | (ResetPasswordRequestBase & { user_id: string })
+  | (ResetPasswordRequestBase & { email: string });
 
 export interface LoginResponse {
   access_token: string;

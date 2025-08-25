@@ -61,7 +61,8 @@ class OAuthService {
     if (params.prompt) searchParams.append('prompt', params.prompt);
     if (params.max_age) searchParams.append('max_age', params.max_age.toString());
 
-    return `${API_ENDPOINTS.OAUTH.AUTHORIZE}?${searchParams.toString()}`;
+    const base = import.meta.env.VITE_API_BASE || '';
+    return `${base}${API_ENDPOINTS.OAUTH.AUTHORIZE}?${searchParams.toString()}`;
   }
 
   /**
@@ -114,10 +115,13 @@ async refreshTokens(refreshToken: string): Promise<TokenResponse> {
   /**
    * Отзыв токена
    */
-  async revokeToken(token: string, tokenType: 'access_token' | 'refresh_token' = 'access_token'): Promise<void> {
-    await api.post(API_ENDPOINTS.OAUTH.REVOKE, {
-      token,
-      token_type_hint: tokenType,
+  async revokeToken(
+    token: string,
+    tokenType: 'access_token' | 'refresh_token' = 'access_token'
+  ): Promise<void> {
+    const body = new URLSearchParams({ token, token_type_hint: tokenType });
+    await api.post(API_ENDPOINTS.OAUTH.REVOKE, body, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
   }
 
@@ -128,7 +132,7 @@ async refreshTokens(refreshToken: string): Promise<TokenResponse> {
     authRequest: AuthorizationRequest,
     consent: boolean
   ): Promise<{ redirect_url: string }> {
-    const response = await api.post<{ redirect_url: string }>('/oauth/authorize/consent', {
+    const response = await api.post<{ redirect_url: string }>(API_ENDPOINTS.OAUTH.CONSENT, {
       ...authRequest,
       consent,
     });

@@ -106,7 +106,12 @@ class BackchannelLogoutService:
         session_id: Optional[str] = None,
         only_client_id: Optional[str] = None
     ) -> List[Client]:
-        """Get all clients with active sessions or tokens for a user"""
+        """Get all clients with active sessions or tokens for a user.
+        Если передан only_client_id — вернуть клиента даже без активных токенов."""
+        if only_client_id:
+            cres = await session.execute(select(Client).where(Client.client_id == only_client_id))
+            client = cres.scalar_one_or_none()
+            return [client] if client else []
         client_ids: set[str] = set()
         clients: list[Client] = []
 

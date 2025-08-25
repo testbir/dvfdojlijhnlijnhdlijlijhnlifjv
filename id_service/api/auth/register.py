@@ -18,74 +18,74 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=RegisterResponse)
-async def register(
-    request: Request,
-    register_data: RegisterRequest,
-    session: AsyncSession = Depends(get_async_session)
-):
-    """Register new user"""
-    
-    # Rate limit
+async def register(request: Request, register_data: RegisterRequest, session: AsyncSession = Depends(get_async_session)):
     await rate_limiter.check_rate_limit(request, "register", max_requests=5)
-    
-    # Check if email already exists
-    if await user_crud.check_email_exists(session, register_data.email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+
+    # смотрим существующий email
+    existing = await user_crud.get_by_email(session, register_data.email)
+    if existing:
+        if existing.email_verified:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        # email есть, но не подтверждён — возвращаем user_id и (по возможности) переотправляем код
+        try:
+            otp_code, _ = await otp_service.create_otp(
+                session=session,
+                user=existing,
+                purpose=EmailCodePurpose.REGISTER,
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("User-Agent"),
+            )
+            await email_service.send_verification_code(
+                to_email=existing.email,
+                username=existing.username,
+                code=otp_code,
+                purpose="registration",
+            )
+            msg = "Verification code sent"
+        except ValueError:
+            # кулдаун — всё равно возвращаем успешный ответ, чтобы фронт ушёл на страницу кода
+            msg = "Verification code was sent recently. Please check your email."
+        return RegisterResponse(
+            user_id=str(existing.id),
+            email=existing.email,
+            requires_verification=True,
+            message=msg,
         )
-    
-    # Check if username already exists
+
+    # проверка уникальности username только для новых
     if await user_crud.check_username_exists(session, register_data.username):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already taken"
-        )
-    
-    # Create user
-    user_create = UserCreate(
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken")
+
+    # создаём пользователя
+    user = await user_crud.create(session, UserCreate(
         email=register_data.email,
         username=register_data.username,
         password=register_data.password,
-        email_verified=False
-    )
-    
-    user = await user_crud.create(session, user_create)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create user"
-        )
-    
-    # Generate and send verification code
+        email_verified=False,
+    ))
+
+    # шлём код (ошибки отправки не валят регистрацию)
+    msg = "Registration successful. Please check your email for verification code."
     try:
-        otp_code, email_code = await otp_service.create_otp(
+        otp_code, _ = await otp_service.create_otp(
             session=session,
             user=user,
             purpose=EmailCodePurpose.REGISTER,
-            ip_address=request.client.host,
-            user_agent=request.headers.get("User-Agent")
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("User-Agent"),
         )
-        
-        # Send verification email
         await email_service.send_verification_code(
             to_email=user.email,
             username=user.username,
             code=otp_code,
-            purpose="registration"
+            purpose="registration",
         )
-        
-    except ValueError as e:
-        # OTP creation failed (cooldown)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=str(e)
-        )
-    except Exception as e:
-        logger.error(f"Failed to send verification email: {e}")
-        # Don't reveal email sending issues
-    
+    except Exception:
+        pass
+
     return RegisterResponse(
         user_id=str(user.id),
-        message="Registration successful. Please check your email for verification code."
+        email=user.email,
+        requires_verification=True,
+        message=msg,
     )

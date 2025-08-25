@@ -1,0 +1,779 @@
+/* =========================================
+   src/styles/app.scss
+   Стилевой монолит: глобальные токены, база, утилиты, компоненты, страницы.
+   Пишем сверху-вниз внутри блоков (иерархия), без адаптивов.
+========================================= */
+
+/* ========== ШРИФТЫ (глобальные подключения) ========== */
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&family=Sora:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+/* ========== ДИЗАЙН-ТОКЕНЫ (цвета, типографика, размеры, z-index) ========== */
+$primary-color: #258DFF;
+$primary-dark: #1976d2;
+$primary-light: #69A2FF;
+
+$error-color: #ff4444;
+$success-color: #00cc00;
+$warning-color: #ffbb00;
+
+$text-primary: #333333;
+$text-secondary: #666666;
+$text-light: rgba(0, 0, 0, 0.5);
+
+$background: #f5f7fa;
+$background-light: #ffffff;
+$background-glass: rgba(255, 255, 255, 0.95);
+
+$font-primary: 'Open Sans', sans-serif;
+$font-secondary: 'Sora', sans-serif;
+$font-mono: 'Space Grotesk', monospace;
+
+$mobile: 480px;
+$tablet: 768px;
+$desktop: 1024px;
+$wide: 1440px;
+
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-xxl: 48px;
+
+$radius-sm: 8px;
+$radius-md: 12px;
+$radius-lg: 16px;
+$radius-xl: 20px;
+$radius-xxl: 30px;
+
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.1);
+$shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.15);
+
+$transition-fast: 0.15s ease;
+$transition-base: 0.2s ease;
+$transition-slow: 0.3s ease;
+
+$z-dropdown: 100;
+$z-modal: 1000;
+$z-overlay: 9999;
+$z-notification: 10000;
+
+/* ========== БАЗА (reset и общие глобали) ========== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: $font-primary;
+  color: $text-primary;
+  background: $background;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+a {
+  color: $primary-color;
+  text-decoration: none;
+  transition: color $transition-base;
+  &:hover { color: $primary-dark; }
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  transition: all $transition-base;
+  &:disabled { cursor: not-allowed; opacity: 0.6; }
+}
+
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  &:disabled { cursor: not-allowed; opacity: 0.6; }
+}
+
+/* ========== ИКОНКИ ========== */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: normal;
+  font-display: block;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ========== СКРОЛЛБАР (WebKit) ========== */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); }
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  &:hover { background: rgba(0, 0, 0, 0.3); }
+}
+
+/* ========== АНИМАЦИИ ========== */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  10%,30%,50%,70%,90% { transform: translateX(-2px); }
+  20%,40%,60%,80% { transform: translateX(2px); }
+}
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ========== УТИЛИТЫ ========== */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 $spacing-md;
+}
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+.mt-1 { margin-top: $spacing-xs; } .mt-2 { margin-top: $spacing-sm; } .mt-3 { margin-top: $spacing-md; } .mt-4 { margin-top: $spacing-lg; } .mt-5 { margin-top: $spacing-xl; }
+.mb-1 { margin-bottom: $spacing-xs; } .mb-2 { margin-bottom: $spacing-sm; } .mb-3 { margin-bottom: $spacing-md; } .mb-4 { margin-bottom: $spacing-lg; } .mb-5 { margin-bottom: $spacing-xl; }
+.p-1 { padding: $spacing-xs; } .p-2 { padding: $spacing-sm; } .p-3 { padding: $spacing-md; } .p-4 { padding: $spacing-lg; } .p-5 { padding: $spacing-xl; }
+
+/* ===== COMPONENTS ===== */
+
+/* ========== LAYOUT ========== */
+.layout {
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+
+  &-background {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #EFF2F7 0%, #E1ECFE 100%);
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(37,141,255,0) 0%, rgba(225,236,254,0.5) 100%);
+      pointer-events: none;
+    }
+  }
+
+  &-container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 470px;
+  }
+
+  &-content {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+  }
+}
+
+/* ========== ID BADGE ========== */
+.id-badge {
+  position: absolute;
+  top: 41px;
+  left: 47px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 82px;
+  height: 40px;
+  padding: 1px 5px 1px 7px;
+  background: linear-gradient(180deg, rgba(50,50,50,0.9) 0%, rgba(0,0,0,0.9) 100%);
+  border-radius: 19px;
+  transform: scale(0.85);
+  transform-origin: top left;
+  z-index: 10;
+
+  .id-icon { width: 22px; height: 21px; display: flex; align-items: center; justify-content: center; svg { width: 100%; height: 100%; } }
+  .id-text { font-family: 'Open Sans', sans-serif; font-weight: 700; font-size: 27px; line-height: 26px; color: #fff; display: flex; align-items: center; }
+}
+
+/* ========== LOGOUT BUTTON ========== */
+.logout-btn {
+  position: absolute;
+  top: 41px;
+  right: 47px;
+  width: 45px;
+  height: 45px;
+  background: #E9EDF1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  &:hover { background: #dce0e5; }
+
+  .material-symbols-outlined {
+    font-size: 35px;
+    color: #333333d2;
+    font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 48;
+  }
+}
+
+/* ========== AUTH FORM (полный блок) ========== */
+.auth-form {
+  --control-h: 50px;   /* высота инпута */
+  --border-w: 2px;     /* толщина бордера */
+
+  width: 100%;
+
+  /* Верх: заголовок и общая ошибка */
+  &__title {
+    font-family: 'Open Sans', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: #258DFF;
+    text-align: center;
+    margin: 0 0 32px;
+  }
+
+  &__error {
+    background: linear-gradient(135deg, rgba(255,94,94,.1), rgba(255,36,36,.1));
+    border: 1px solid rgba(255,94,94,.3);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    color: #d32f2f;
+    font-size: 14px;
+    font-family: 'Open Sans', sans-serif;
+    text-align: center;
+  }
+
+  /* Поля */
+  &__field { position: relative; margin-bottom: 18px; }
+
+  &__input {
+    width: 100%;
+    height: var(--control-h);
+    padding: 0 20px;
+    font: 500 16px 'Open Sans', sans-serif;
+    color: #333;
+    background: #F5F7FA;
+    border: var(--border-w) solid transparent;
+    border-radius: 12px;
+    outline: none;
+    transition: all .2s ease;
+
+    &::placeholder { color: rgba(0,0,0,.4); }
+
+    &:hover { border-color: rgba(0,0,0,.08); }
+
+    &:focus {
+      background: #fff;
+      border-color: #258DFF;
+      box-shadow: 0 0 0 3px rgba(37,141,255,.1);
+    }
+
+    &--error {
+      border-color: #ff4444;                /* только бордер */
+      box-shadow: 0 0 0 3px rgba(255,68,68,.08);
+    }
+    &--error:focus {
+      border-color: #258DFF;               /* при фокусе снова синий */
+      box-shadow: 0 0 0 3px rgba(37,141,255,.12);
+    }
+    &:disabled { opacity: .6; cursor: not-allowed; }
+  }
+
+  /* Плавающий лейбл */
+  &__placeholder {
+    position: absolute;
+    left: 12px;
+    top: calc(var(--control-h) / 2);
+    transform: translateY(-50%);
+    padding: 0 8px;
+    border-radius: 8px;
+    background: #F5F7FA;                   /* совпадает с фоном инпута до фокуса */
+    font-weight: 600;
+    font-size: 17px;
+    color: rgba(0,0,0,.5);
+    pointer-events: none;
+    transition: all .18s ease;
+  }
+
+  /* Поднятие лейбла */
+  &__input:focus + &__placeholder,
+  &__input:not(:placeholder-shown) + &__placeholder,
+  &__input:-webkit-autofill + &__placeholder {
+    top: 0;
+    left: 10px;
+    transform: translateY(-50%);
+    font-size: 12px;
+    padding: 0 4px;
+    background: #fff;                       /* как у инпута в фокусе */
+    color: #258DFF;
+  }
+
+  /* Сохранение синего бордера у заполненного поля (без ошибки) */
+  &__input:not(:placeholder-shown):not(.auth-form__input--error),
+  &__input:-webkit-autofill:not(.auth-form__input--error) {
+    border-color: #258DFF;
+    background: #F9FAFC;
+  }
+
+  /* Текст ошибки под полем, не двигает лейбл */
+  &__field-error {
+    min-height: 16px;
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #ff4444;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity .15s ease, transform .15s ease;
+  }
+  &__input--error ~ &__field-error { opacity: 1; transform: none; }
+
+  /* Низ: ссылки и кнопка */
+  &__links {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    gap: 16px;
+  }
+
+  &__link {
+    color: #258DFF;
+    font-size: 16px;
+    font-family: 'Open Sans', sans-serif;
+    text-decoration: none;
+    transition: color .2s ease;
+    &:hover { color: #1976d2; text-decoration: underline; }
+    &--register { font-weight: 700; }
+    &--forgot { font-weight: 500; }
+  }
+
+  &__submit {
+    width: 100%;
+    height: 50px;
+    background: linear-gradient(135deg, #258DFF, #1976d2);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Sora', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s ease;
+    margin-top: 15px;
+
+    &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(37,141,255,.3); }
+    &:active:not(:disabled) { transform: translateY(0); }
+    &:disabled { opacity: .7; }
+  }
+  &--submitted .auth-form__field--password.is-weak {
+    .auth-form__input {
+      border-color: $error-color;
+      box-shadow: 0 0 0 3px rgba($error-color,.08);
+    }
+    .auth-form__field-error {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+
+/* ========== LOADING OVERLAY ========== */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  border-radius: inherit;
+
+  &--fullscreen { position: fixed; border-radius: 0; background: rgba(0, 0, 0, 0.5); }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 32px;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  }
+
+  &__spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(37, 141, 255, 0.2);
+    border-top-color: #258DFF;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  &__message {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+    font-family: 'Open Sans', sans-serif;
+  }
+}
+
+/* ========== PASSWORD STRENGTH ========== */
+/*
+.password-strength {
+  margin-top: 8px;
+  margin-bottom: 16px;
+
+  &__bars {
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+
+  &__bar { height: 100%; border-radius: 2px; transition: all 0.3s ease; }
+  &__label { font-size: 12px; font-weight: 500; font-family: 'Open Sans', sans-serif; }
+}*/
+
+/* ===== PAGES ===== */
+
+/* ========== VERIFY EMAIL PAGE ========== */
+.verify-page {
+  text-align: center;
+
+  &__title { font-size: 28px; font-weight: 700; color: $primary-color; margin-bottom: $spacing-md; }
+  &__description { font-size: 16px; color: $text-secondary; margin-bottom: $spacing-xl; }
+
+  &__error {
+    background: rgba($error-color, 0.1);
+    border: 1px solid rgba($error-color, 0.3);
+    border-radius: $radius-md;
+    padding: $spacing-md;
+    margin: $spacing-lg 0;
+    color: $error-color;
+    font-size: 14px;
+  }
+
+  &__resend { margin-top: $spacing-xl; }
+  &__timer { color: $text-secondary; font-size: 14px; }
+
+  &__resend-btn {
+    background: none;
+    border: none;
+    color: $primary-color;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: underline;
+    &:hover:not(:disabled) { color: $primary-dark; }
+  }
+}
+
+/* ========== FORGOT PASSWORD PAGE ========== */
+.forgot-page {
+  &__title { font-size: 28px; font-weight: 700; color: $primary-color; text-align: center; margin-bottom: $spacing-xs; }
+  &__description { text-align: center; color: $text-light; margin-bottom: $spacing-xl; }
+  &__form { display: flex; flex-direction: column; gap: $spacing-md; }
+
+  &__input {
+    width: 100%;
+    height: 50px;
+    padding: 0 $spacing-lg;
+    font-size: 16px;
+    background: $background;
+    border: 2px solid transparent;
+    border-radius: $radius-md;
+    transition: all $transition-base;
+
+    &:focus {
+      outline: none;
+      background: #fff;
+      border-color: $primary-color;
+      box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+    }
+    &--error { border-color: $error-color; }
+  }
+
+  &__error { color: $error-color; font-size: 14px; }
+
+  &__submit {
+    height: 50px;
+    background: linear-gradient(135deg, $primary-color, $primary-dark);
+    color: #fff;
+    border: none;
+    border-radius: $radius-md;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all $transition-base;
+    &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba($primary-color, 0.3); }
+  }
+
+  &__link { display: block; text-align: center; margin-top: $spacing-lg; color: $primary-color; font-size: 14px; }
+  &__success { text-align: center; h2 { color: $success-color; margin-bottom: $spacing-md; } p { color: $text-secondary; margin-bottom: $spacing-xl; } }
+}
+
+/* ========== RESET PASSWORD PAGE ========== */
+.reset-page {
+  &__title { font-size: 28px; font-weight: 700; color: $primary-color; text-align: center; margin-bottom: $spacing-xl; }
+  &__form { display: flex; flex-direction: column; gap: $spacing-lg; }
+  &__field { position: relative; }
+
+  &__input {
+    width: 100%;
+    height: 50px;
+    padding: 0 $spacing-lg;
+    font-size: 16px;
+    background: $background;
+    border: 2px solid transparent;
+    border-radius: $radius-md;
+    transition: all $transition-base;
+
+    &:focus {
+      outline: none;
+      background: #fff;
+      border-color: $primary-color;
+      box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+    }
+    &--error { border-color: $error-color; }
+  }
+
+  &__error {
+    display: block;
+    color: $error-color;
+    font-size: 12px;
+    margin-top: $spacing-xs;
+
+    &--general {
+      background: rgba($error-color, 0.1);
+      border: 1px solid rgba($error-color, 0.3);
+      border-radius: $radius-md;
+      padding: $spacing-md;
+      font-size: 14px;
+    }
+  }
+
+  &__submit {
+    height: 50px;
+    background: linear-gradient(135deg, $primary-color, $primary-dark);
+    color: #fff;
+    border: none;
+    border-radius: $radius-md;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all $transition-base;
+    &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba($primary-color, 0.3); }
+  }
+}
+
+/* ========== PROFILE PAGE ========== */
+.profile-page {
+  &__title { font-size: 28px; font-weight: 700; color: $primary-color; text-align: center; margin-bottom: $spacing-xl; }
+
+  &__card {
+    background: #fff;
+    border-radius: $radius-lg;
+    padding: $spacing-xl;
+    box-shadow: $shadow-md;
+  }
+
+  &__info { margin-bottom: $spacing-xl; }
+
+  &__field {
+    display: flex;
+    justify-content: space-between;
+    padding: $spacing-md 0;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    &:last-child { border-bottom: none; }
+  }
+
+  &__label { font-weight: 500; color: $text-secondary; }
+  &__value { font-weight: 600; color: $text-primary; display: flex; align-items: center; gap: $spacing-sm; }
+  &__verified { color: $success-color; font-size: 18px; }
+
+  &__logout {
+    width: 100%;
+    height: 45px;
+    background: linear-gradient(135deg, #ff4444, #cc0000);
+    color: #fff;
+    border: none;
+    border-radius: $radius-md;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all $transition-base;
+    &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3); }
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+}
+
+/* ========== AUTHORIZE PAGE (OAuth) ========== */
+.authorize-page {
+  &__card { background: #fff; border-radius: $radius-lg; padding: $spacing-xl; box-shadow: $shadow-md; text-align: center; }
+  &__logo { width: 64px; height: 64px; object-fit: contain; margin-bottom: $spacing-md; }
+  &__title { font-size: 22px; font-weight: 700; color: $text-primary; margin-bottom: $spacing-md; }
+
+  &__scopes {
+    text-align: left;
+    margin: $spacing-md 0 $spacing-lg;
+    p { color: $text-secondary; margin-bottom: $spacing-sm; }
+    ul { padding-left: $spacing-lg; }
+  }
+
+  &__actions { display: flex; gap: $spacing-md; justify-content: center; }
+
+  &__deny, &__approve {
+    min-width: 140px;
+    height: 44px;
+    border-radius: $radius-md;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all $transition-base;
+  }
+
+  &__deny { background: #eef1f6; color: $text-primary; &:hover:not(:disabled) { transform: translateY(-2px); } }
+  &__approve { background: linear-gradient(135deg, $primary-color, $primary-dark); color: #fff; &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba($primary-color, 0.3); } }
+}
+
+/* ========== ERROR PAGE ========== */
+.error-page {
+  &__content { background: #fff; border-radius: $radius-lg; padding: $spacing-xl; box-shadow: $shadow-md; text-align: center; }
+  &__title { font-size: 24px; font-weight: 700; color: $error-color; margin-bottom: $spacing-md; }
+  &__message { color: $text-secondary; margin-bottom: $spacing-lg; }
+  &__link { color: $primary-color; text-decoration: underline; &:hover { color: $primary-dark; } }
+}
+
+/* ========== AUTH INPUT (универсальный паттерн) ========== */
+.auth-field {
+  position: relative;
+  margin-bottom: 20px;
+
+  .auth-input {
+    width: 100%;
+    height: 47px;
+    padding: 10px 20px;
+    font-family: $font-primary;
+    font-size: 18px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.5);
+    background: #E9EDF1;
+    border-radius: 15px;
+    outline: none;
+    border: 1.5px solid transparent;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+
+    &:hover:not(:focus) { border-color: rgba(0, 0, 0, 0.08); }
+    &:disabled { opacity: .6; cursor: not-allowed; }
+  }
+
+  .auth-placeholder {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: $font-primary;
+    font-weight: 600;
+    font-size: 17px;
+    color: rgba(0, 0, 0, 0.5);
+    background: #E9EDF1;
+    padding: 0 8px;
+    pointer-events: none;
+    transition: all 0.18s ease;
+    border-radius: 8px;
+  }
+
+  &.focused {
+    .auth-input {
+      font-family: $font-mono;
+      letter-spacing: 1.1px;
+      background: #F5F7FA;
+      color: rgba(0, 0, 0, 0.85);
+      border-color: $primary-color;
+      box-shadow: 0 0 0 3px rgba(37, 141, 255, 0.12);
+    }
+    .auth-placeholder {
+      top: 0;
+      left: 10px;
+      padding: 0 4px;
+      font-size: 12px;
+      background: #F5F7FA;
+      color: $primary-color;
+      transform: translateY(-50%);
+    }
+  }
+
+  &.filled {
+    .auth-input {
+      font-family: $font-mono;
+      background: #F9FAFC;
+      color: rgba(0, 0, 0, 0.7);
+      border-color: $primary-color;
+      letter-spacing: 1.1px;
+    }
+    .auth-placeholder {
+      top: 0;
+      left: 10px;
+      font-size: 12px;
+      background: #F9FAFC;
+      color: $primary-color;
+      padding: 0 4px;
+    }
+  }
+
+  &.error {
+    .auth-input { border-color: $error-color; box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.10); }
+    .auth-placeholder { color: $error-color; }
+    .auth-field__error {
+      display: block;
+      color: $error-color;
+      font-size: 12px;
+      margin-top: 6px;
+      font-family: $font-primary;
+    }
+  }
+}
+
+
+
+/* 1) вырубаем индикатор силы пароля */
+.password-strength { display: none !important; }
+
+/* 2) подчёркиваем поле пароля только ПОСЛЕ сабмита, если слабый */
+.auth-form {
+  &--submitted .auth-form__field--password.is-weak .auth-form__input {
+    border-color: transparent;            /* сохраняем «обычную» рамку */
+    box-shadow: inset 0 -2px 0 $error-color; /* тонкое красное подчёркивание */
+    background: #F5F7FA;                  /* как было до фокуса */
+  }
+
+  /* на всякий — скрыть возможный текст ошибки у пароля */
+  &--submitted .auth-form__field--password.is-weak .auth-form__field-error {
+    display: none;
+  }
+}

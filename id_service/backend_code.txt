@@ -1,67 +1,5 @@
 ﻿
 
-/* ===== C:\Users\icipa\team-platform-public\id_service\.env ===== */
-
-# id_service/.env
-
-# Application
-APP_NAME=ID Service
-APP_ENV=development
-ISSUER=http://localhost:8000
-CORS_ORIGINS=["http://localhost:3000","http://localhost:3001","http://localhost:5174","http://localhost:8001","http://localhost:8002","http://localhost:8003","http://localhost:8010"]
-
-# Database - РёСЃРїРѕР»СЊР·СѓРµРј СЃСѓС‰РµСЃС‚РІСѓСЋС‰СѓСЋ Р‘Р” РёР· docker-compose
-DATABASE_URL=postgresql+asyncpg://postgres:siperup44rQVr8@postgres_team:5432/team_platform_id
-DB_ECHO=false
-
-# Redis - РёСЃРїРѕР»СЊР·СѓРµРј СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ Redis
-REDIS_URL=redis://redis:6379/1
-
-# Security
-SECRET_KEY=dev-secret-key-pepTkzpoJ20y6gM6EsGVoQe8rFa9OO6PJnnViahsC_RN2W8Cszqe0CmYHIScj8Wd6Q
-PEPPER_SECRET=dev-pepper-secret-Jn2W8Cszqe0CmYHIScj8Wd6Q
-COOKIE_SECRET=dev-cookie-secret-aB3dE5fG7hI9jK1lM3nO5pQ7
-JWT_PRIVATE_KEY_PASSWORD=dev-jwt-password-xY9zA1bC3dE5fG7h
-
-# Token TTL (seconds)
-ACCESS_TOKEN_TTL=600
-REFRESH_TOKEN_TTL=2592000
-AUTH_CODE_TTL=600
-SSO_IDLE_TTL=1800
-SSO_MAX_TTL=86400
-
-# OTP Settings
-OTP_TTL=300
-OTP_RESEND_SECONDS=60
-OTP_MAX_ATTEMPTS=5
-
-# Email - РёСЃРїРѕР»СЊР·СѓРµРј РІР°С€ Gmail
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=asyncteach.auth@gmail.com
-SMTP_PASSWORD=hbhwgatkxikpxaqm
-SMTP_TLS=true
-EMAIL_FROM=Asynq ID <asyncteach.auth@gmail.com>
-
-# Rate Limiting
-RATE_LIMIT_ENABLED=true
-RATE_LIMIT_REQUESTS_PER_MINUTE=60
-
-# Password Policy
-PASSWORD_MIN_LENGTH=8
-PASSWORD_REQUIRE_UPPERCASE=true
-PASSWORD_REQUIRE_LOWERCASE=true
-PASSWORD_REQUIRE_DIGIT=true
-PASSWORD_REQUIRE_SPECIAL=false
-
-# Local development clients - РґР»СЏ РёРЅС‚РµРіСЂР°С†РёРё СЃ РґСЂСѓРіРёРјРё СЃРµСЂРІРёСЃР°РјРё
-TEACH_CLIENT_ID=teach-service
-RUN_CLIENT_ID=run-service
-LEARN_CLIENT_ID=learn-service
-CATALOG_CLIENT_ID=catalog-service
-ADMIN_CLIENT_ID=admin-service
-
-
 /* ===== C:\Users\icipa\team-platform-public\id_service\alembic.ini ===== */
 
 # A generic, single database configuration.
@@ -207,7 +145,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # --- ENUM types: СЃРѕР·РґР°С‘Рј РѕРґРёРЅ СЂР°Р· РІСЂСѓС‡РЅСѓСЋ Рё РїРµСЂРµРёСЃРїРѕР»СЊР·СѓРµРј ---
+    # --- ENUM types: создаём один раз вручную и переиспользуем ---
    
     client_type = psql.ENUM("public", "confidential", name="clienttype", create_type=False)
     token_auth_method = psql.ENUM("none", "client_secret_post", "client_secret_basic", name="tokenauthmethod", create_type=False)
@@ -375,7 +313,7 @@ def downgrade() -> None:
     op.drop_index("ux_users_username", table_name="users")
     op.drop_table("users")
 
-    # enums (РґСЂРѕРїР°РµРј РІ РєРѕРЅС†Рµ)
+    # enums (дропаем в конце)
     bind = op.get_bind()
     psql.ENUM(name="emailcodepurpose").drop(bind, checkfirst=True)
     psql.ENUM(name="tokenauthmethod").drop(bind, checkfirst=True)
@@ -403,7 +341,7 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
-    # СѓР±СЂР°С‚СЊ РґРµС„РѕР»С‚С‹ РЅР° РІСЂРµРјСЏ РёР·РјРµРЅРµРЅРёСЏ enum
+    # убрать дефолты на время изменения enum
     op.alter_column("clients", "type", server_default=None)
     op.alter_column("clients", "token_endpoint_auth_method", server_default=None)
 
@@ -459,7 +397,7 @@ def upgrade() -> None:
     END$$;
     """)
 
-    # РІРµСЂРЅСѓС‚СЊ РґРµС„РѕР»С‚С‹ РІ РЅРёР¶РЅРµРј СЂРµРіРёСЃС‚СЂРµ
+    # вернуть дефолты в нижнем регистре
     op.alter_column("clients", "type", server_default=sa.text("'public'::clienttype"))
     op.alter_column(
         "clients",
@@ -551,7 +489,7 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
-    # РџРµСЂРµРёРјРµРЅРѕРІР°С‚СЊ Р·РЅР°С‡РµРЅРёСЏ enum'РѕРІ, РµСЃР»Рё РѕРЅРё РµС‰С‘ РІ UPPERCASE
+    # Переименовать значения enum'ов, если они ещё в UPPERCASE
     op.execute("""
     DO $$
     BEGIN
@@ -592,7 +530,7 @@ def upgrade() -> None:
     END$$;
     """)
 
-    # РћР±РЅРѕРІРёС‚СЊ server_default'С‹
+    # Обновить server_default'ы
     op.alter_column(
         "clients", "type",
         server_default=sa.text("'public'::clienttype"),
@@ -606,7 +544,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # РћС‚РєР°С‚РёС‚СЊ Р·РЅР°С‡РµРЅРёСЏ enum'РѕРІ РѕР±СЂР°С‚РЅРѕ РІ UPPERCASE (РЅР° СЃР»СѓС‡Р°Р№ РґР°СѓРЅРіСЂРµР№РґР°)
+    # Откатить значения enum'ов обратно в UPPERCASE (на случай даунгрейда)
     op.execute("""
     DO $$
     BEGIN
@@ -681,7 +619,7 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
-    # РџРµСЂРµРёРјРµРЅРѕРІР°С‚СЊ Р·РЅР°С‡РµРЅРёСЏ ENUM, РµСЃР»Рё РѕРЅРё РµС‰С‘ РІ РІРµСЂС…РЅРµРј СЂРµРіРёСЃС‚СЂРµ
+    # Переименовать значения ENUM, если они ещё в верхнем регистре
     op.execute("""
     DO $$
     BEGIN
@@ -722,7 +660,7 @@ def upgrade() -> None:
     END $$;
     """)
 
-    # РћР±РЅРѕРІРёС‚СЊ РґРµС„РѕР»С‚С‹ РІ С‚Р°Р±Р»РёС†Рµ clients
+    # Обновить дефолты в таблице clients
     op.execute("ALTER TABLE clients ALTER COLUMN type SET DEFAULT 'public'::clienttype")
     op.execute("""
         ALTER TABLE clients ALTER COLUMN token_endpoint_auth_method
@@ -731,14 +669,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Р’РµСЂРЅСѓС‚СЊ РґРµС„РѕР»С‚С‹
+    # Вернуть дефолты
     op.execute("""
         ALTER TABLE clients ALTER COLUMN token_endpoint_auth_method
         SET DEFAULT 'NONE'::tokenauthmethod
     """)
     op.execute("ALTER TABLE clients ALTER COLUMN type SET DEFAULT 'PUBLIC'::clienttype")
 
-    # Р’РµСЂРЅСѓС‚СЊ Р·РЅР°С‡РµРЅРёСЏ ENUM РІ РІРµСЂС…РЅРёР№ СЂРµРіРёСЃС‚СЂ (РµСЃР»Рё РІРґСЂСѓРі Р±С‹Р»Рё РїРѕРЅРёР¶РµРЅС‹)
+    # Вернуть значения ENUM в верхний регистр (если вдруг были понижены)
     op.execute("""
     DO $$
     BEGIN
@@ -833,7 +771,7 @@ async def delete_account(
     # Revoke all sessions
     _ = await session_service.revoke_all_user_sessions(session, str(current_user.id))
 
-    # РћС‡РёСЃС‚РёС‚СЊ SSO cookie
+    # Очистить SSO cookie
     if response is not None:
         session_service.clear_session_cookie(response)
 
@@ -1000,7 +938,7 @@ async def confirm_email_change(
     # Revoke SSO sessions
     _ = await session_service.revoke_all_user_sessions(session, str(current_user.id))
 
-    # РћС‡РёСЃС‚РёС‚СЊ SSO cookie
+    # Очистить SSO cookie
     if response is not None:
         session_service.clear_session_cookie(response)
 
@@ -1083,7 +1021,7 @@ async def change_password(
     # Revoke all sessions
     _ = await session_service.revoke_all_user_sessions(session, str(current_user.id))
 
-    # РћС‡РёСЃС‚РёС‚СЊ SSO cookie
+    # Очистить SSO cookie
     if response is not None:
         session_service.clear_session_cookie(response)
 
@@ -1204,12 +1142,12 @@ async def get_csrf():
 
 # id_service/api/auth/email_verification.py
 """
-РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ e-mail вЂ” JSON-only.
+Подтверждение e-mail — JSON-only.
 
-РР·РјРµРЅРµРЅРёСЏ:
-- РЈР±СЂР°РЅС‹ Р»СЋР±С‹Рµ RedirectResponse.
-- РџСЂРё РЅР°Р»РёС‡РёРё РІР°Р»РёРґРЅРѕРіРѕ pending state РІ Redis С„РѕСЂРјРёСЂСѓРµРј redirect_to СЃС‚СЂРѕРєРѕР№ Р±РµР· 302.
-- Р’СЃРµРіРґР° СЃС‚Р°РІРёРј SSO-cookie РЅР° JSON-РѕС‚РІРµС‚.
+Изменения:
+- Убраны любые RedirectResponse.
+- При наличии валидного pending state в Redis формируем redirect_to строкой без 302.
+- Всегда ставим SSO-cookie на JSON-ответ.
 """
 
 import logging
@@ -1242,22 +1180,22 @@ async def verify_email(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ e-mail РїРѕ OTP РєРѕРґСѓ.
-    РџРѕРІРµРґРµРЅРёРµ:
-      - Р•СЃР»Рё РµСЃС‚СЊ pending /authorize РїРѕ state Рё redirect РІР°Р»РёРґРµРЅ вЂ” РІС‹РїСѓСЃРєР°РµРј code,
-        РїСЂРёРІСЏР·С‹РІР°РµРј sid, СѓРґР°Р»СЏРµРј pending, РІРѕР·РІСЂР°С‰Р°РµРј JSON СЃ redirect_to.
-      - РРЅР°С‡Рµ РѕР±С‹С‡РЅС‹Р№ JSON Р±РµР· redirect_to.
-      - Р’Рћ Р’РЎР•РҐ СЃР»СѓС‡Р°СЏС… СЃС‚Р°РІРёРј SSO-cookie РЅР° СЌС‚РѕС‚ JSON-РѕС‚РІРµС‚.
+    Подтверждение e-mail по OTP коду.
+    Поведение:
+      - Если есть pending /authorize по state и redirect валиден — выпускаем code,
+        привязываем sid, удаляем pending, возвращаем JSON с redirect_to.
+      - Иначе обычный JSON без redirect_to.
+      - ВО ВСЕХ случаях ставим SSO-cookie на этот JSON-ответ.
     """
     # 1) Rate limit
     await rate_limiter.check_rate_limit(request, "verify_email", max_requests=10)
 
-    # 2) РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ
+    # 2) Пользователь
     user = await user_crud.get_by_id(session, verify_data.user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # 3) РџСЂРѕРІРµСЂРєР° OTP
+    # 3) Проверка OTP
     success, email_code, error = await otp_service.verify_otp(
         session=session,
         user_id=verify_data.user_id,
@@ -1268,14 +1206,14 @@ async def verify_email(
         await rate_limiter.add_failed_attempt(verify_data.user_id, "otp_verify", max_attempts=5)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error or "Invalid verification code")
 
-    # 4) РћС‚РјРµС‚РёС‚СЊ e-mail РєР°Рє РІРµСЂРёС„РёС†РёСЂРѕРІР°РЅРЅС‹Р№ Рё РѕС‡РёСЃС‚РёС‚СЊ СЃС‡С‘С‚С‡РёРє
+    # 4) Отметить e-mail как верифицированный и очистить счётчик
     await user_crud.verify_email(session, user)
     await rate_limiter.clear_failed_attempts(verify_data.user_id, "otp_verify")
 
-    # 5) РЎРѕР·РґР°С‚СЊ IdP-СЃРµСЃСЃРёСЋ
+    # 5) Создать IdP-сессию
     idp_session = await session_service.create_session(session=session, user=user, request=request)
 
-    # 6) OIDC-РїСЂРѕРґРѕР»Р¶РµРЅРёРµ: СЃРѕР±СЂР°С‚СЊ redirect_to, РµСЃР»Рё РµСЃС‚СЊ РІР°Р»РёРґРЅС‹Р№ pending РїРѕ state
+    # 6) OIDC-продолжение: собрать redirect_to, если есть валидный pending по state
     redirect_to: str | None = None
     if verify_data.state and rate_limiter.redis_client:
         raw = await rate_limiter.redis_client.get(f"authreq:{verify_data.state}")
@@ -1284,7 +1222,7 @@ async def verify_email(
             client = await client_crud.get_by_client_id(session, data.get("client_id"))
             redirect_uri = data.get("redirect_uri")
             if client and validators.validate_redirect_uri(redirect_uri, client.redirect_uris or []):
-                # Р’С‹РїСѓСЃС‚РёС‚СЊ authorization code
+                # Выпустить authorization code
                 code = await token_service.create_auth_code(
                     session=session,
                     user=user,
@@ -1297,7 +1235,7 @@ async def verify_email(
                     ip_address=request.client.host,
                     user_agent=request.headers.get("User-Agent"),
                 )
-                # РџСЂРёРІСЏР·Р°С‚СЊ sid Рє РєРѕРґСѓ Рё СѓРґР°Р»РёС‚СЊ pending
+                # Привязать sid к коду и удалить pending
                 await rate_limiter.redis_client.setex(
                     f"authcode_sid:{code}", settings.AUTH_CODE_TTL, idp_session.session_id
                 )
@@ -1306,7 +1244,7 @@ async def verify_email(
                 params = {"code": code, "state": verify_data.state}
                 redirect_to = f"{redirect_uri}?{urlencode(params)}"
 
-    # 7) РљСѓРєР° SSO вЂ” РЅР° С‚РµРєСѓС‰РёР№ JSON-РѕС‚РІРµС‚
+    # 7) Кука SSO — на текущий JSON-ответ
     session_service.set_session_cookie(response, idp_session.session_id)
 
     logger.info(f"Email verified for user {user.id}")
@@ -1318,13 +1256,13 @@ async def verify_email(
 
 # id_service/api/auth/login.py
 """
-Р›РѕРіРёРЅ РїРѕ РїР°СЂРѕР»СЋ вЂ” JSON-only.
-Р¦РµР»Рё:
-- РџСЂРёРЅРёРјР°РµРј JSON (РЅРёРєР°РєРёС… Form(...)).
-- РџСЂРѕРІРµСЂРєР° CSRF СѓР¶Рµ РІ CSRFMiddleware РїРѕ Р·Р°РіРѕР»РѕРІРєСѓ X-CSRF-Token.
-- РќР° СѓСЃРїРµС…Рµ РІСЃРµРіРґР° СЃС‚Р°РІРёРј SSO-cookie РЅР° JSON-РѕС‚РІРµС‚.
-- Р•СЃР»Рё РµСЃС‚СЊ РІР°Р»РёРґРЅС‹Рµ state+client_id РІ Redis (pending /authorize) вЂ” СЃРѕР·РґР°С‘Рј code Рё
-  РІРѕР·РІСЂР°С‰Р°РµРј redirect_to СЃС‚СЂРѕРєРѕР№ Р±РµР· 302. РРЅР°С‡Рµ redirect_to = null.
+Логин по паролю — JSON-only.
+Цели:
+- Принимаем JSON (никаких Form(...)).
+- Проверка CSRF уже в CSRFMiddleware по заголовку X-CSRF-Token.
+- На успехе всегда ставим SSO-cookie на JSON-ответ.
+- Если есть валидные state+client_id в Redis (pending /authorize) — создаём code и
+  возвращаем redirect_to строкой без 302. Иначе redirect_to = null.
 """
 
 import logging
@@ -1358,18 +1296,18 @@ async def login_password(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Р›РѕРіРёРЅ РїРѕ РїР°СЂРѕР»СЋ СЃ JSON-С‚РµР»РѕРј.
-    РџРѕРІРµРґРµРЅРёРµ:
-      - РЈСЃРїРµС… Р±РµР· state: { ok:true, redirect_to:null } + СѓСЃС‚Р°РЅРѕРІРєР° SSO-cookie.
-      - РЈСЃРїРµС… СЃ РІР°Р»РёРґРЅС‹РјРё state+client_id (pending РІ Redis): РІС‹РґР°С‘Рј code, СѓРґР°Р»СЏРµРј pending,
-        РІРѕР·РІСЂР°С‰Р°РµРј { ok:true, redirect_to:"<redirect_uri>?code=...&state=..." } + cookie.
-    РћС€РёР±РєРё: С‡РµСЂРµР· HTTPException, РёС… РїРµСЂРµС…РІР°С‚РёС‚ РіР»РѕР±Р°Р»СЊРЅС‹Р№ С…РµРЅРґР»РµСЂ.
+    Логин по паролю с JSON-телом.
+    Поведение:
+      - Успех без state: { ok:true, redirect_to:null } + установка SSO-cookie.
+      - Успех с валидными state+client_id (pending в Redis): выдаём code, удаляем pending,
+        возвращаем { ok:true, redirect_to:"<redirect_uri>?code=...&state=..." } + cookie.
+    Ошибки: через HTTPException, их перехватит глобальный хендлер.
     """
 
     # 1) Rate limit
     await rate_limiter.check_rate_limit(request, "login", max_requests=10)
 
-    # 2) РџРѕРёСЃРє РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ Рё Р±Р°Р·РѕРІС‹Рµ РїСЂРѕРІРµСЂРєРё
+    # 2) Поиск пользователя и базовые проверки
     user = await user_crud.get_by_email(session, login_data.email)
     if not user:
         await rate_limiter.add_failed_attempt(login_data.email, "login")
@@ -1380,40 +1318,40 @@ async def login_password(
         await rate_limiter.add_failed_attempt(login_data.email, "login")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
-    # РћРїС†РёРѕРЅР°Р»СЊРЅР°СЏ С‚РёС…Р°СЏ РїРµСЂРµ-РІС‹С‡РёСЃР»СЏРµРјРѕСЃС‚СЊ С…СЌС€Р°
+    # Опциональная тихая пере-вычисляемость хэша
     if security.needs_rehash(user.password_hash):
         await user_crud.rehash_password(session, user, login_data.password)
 
     if not user.email_verified:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please verify your email first")
 
-    # 3) РЈСЃРїРµС€РЅС‹Р№ РІС…РѕРґ: Р°СѓРґРёС‚ Рё РѕС‡РёСЃС‚РєР° СЃС‡С‘С‚С‡РёРєРѕРІ
+    # 3) Успешный вход: аудит и очистка счётчиков
     await rate_limiter.clear_failed_attempts(login_data.email, "login")
     await user_crud.update_login_info(session, user, success=True)
 
-    # 4) РЎРѕР·РґР°С‚СЊ IdP-СЃРµСЃСЃРёСЋ
+    # 4) Создать IdP-сессию
     idp_session = await session_service.create_session(
         session=session,
         user=user,
         request=request,
         remember_me=login_data.remember_me,
     )
-    # Р’С‹С‡РёСЃР»РёС‚СЊ max_age РґР»СЏ РєСѓРєРё РёР· hard-max TTL СЃРµСЃСЃРёРё
+    # Вычислить max_age для куки из hard-max TTL сессии
     max_age = int((idp_session.max_expires_at - datetime.now(timezone.utc)).total_seconds())
 
-    # 5) OIDC-РїСЂРѕРґРѕР»Р¶РµРЅРёРµ, РµСЃР»Рё РїСЂРёС€Р»Рё client_id+state Рё РІ Redis РµСЃС‚СЊ pending authreq
+    # 5) OIDC-продолжение, если пришли client_id+state и в Redis есть pending authreq
     redirect_to: Optional[str] = None
     if login_data.client_id and login_data.state and rate_limiter.redis_client:
         raw = await rate_limiter.redis_client.get(f"authreq:{login_data.state}")
         if raw:
             data = json.loads(raw)
 
-            # Р’Р°Р»РёРґР°С†РёСЏ РєР»РёРµРЅС‚Р° Рё redirect_uri
+            # Валидация клиента и redirect_uri
             client = await client_crud.get_by_client_id(session, login_data.client_id)
             if client and data.get("client_id") == login_data.client_id and validators.validate_redirect_uri(
                 data.get("redirect_uri"), client.redirect_uris or []
             ):
-                # Р’С‹РїСѓСЃРєР°РµРј РѕРґРЅРѕСЂР°Р·РѕРІС‹Р№ authorization code
+                # Выпускаем одноразовый authorization code
                 code = await token_service.create_auth_code(
                     session=session,
                     user=user,
@@ -1427,18 +1365,18 @@ async def login_password(
                     user_agent=request.headers.get("User-Agent"),
                 )
 
-                # РџСЂРёРІСЏР¶РµРј sid Рє РєРѕРґСѓ РЅР° TTL РєРѕРґР° Рё СѓРґР°Р»РёРј pending
+                # Привяжем sid к коду на TTL кода и удалим pending
                 await rate_limiter.redis_client.setex(f"authcode_sid:{code}", settings.AUTH_CODE_TTL, idp_session.session_id)
                 await rate_limiter.redis_client.delete(f"authreq:{login_data.state}")
 
-                # РЎС„РѕСЂРјРёСЂРѕРІР°С‚СЊ redirect_to СЃС‚СЂРѕРєСѓ РґР»СЏ С„СЂРѕРЅС‚Р°
+                # Сформировать redirect_to строку для фронта
                 params = {"code": code, "state": login_data.state}
                 redirect_to = f'{data["redirect_uri"]}?{urlencode(params)}'
 
-    # 6) РЈСЃС‚Р°РЅРѕРІРёС‚СЊ SSO-cookie РЅР° СЃР°Рј JSON-РѕС‚РІРµС‚
+    # 6) Установить SSO-cookie на сам JSON-ответ
     session_service.set_session_cookie(response, idp_session.session_id, max_age=max_age)
 
-    # 7) Р’РµСЂРЅСѓС‚СЊ СѓРЅРёС„РёС†РёСЂРѕРІР°РЅРЅС‹Р№ JSON-РѕС‚РІРµС‚ Р±РµР· 302
+    # 7) Вернуть унифицированный JSON-ответ без 302
     return LoginPasswordResponse(ok=True, message="Login successful", redirect_to=redirect_to)
 
 
@@ -1530,7 +1468,7 @@ async def verify_reset(
     # Find user
     user = await user_crud.get_by_email(session, verify_data.email)
     if not user:
-        # РѕРґРёРЅР°РєРѕРІС‹Р№ РѕС‚РІРµС‚, Р±РµР· СѓС‚РµС‡РєРё РЅР°Р»РёС‡РёСЏ e-mail
+        # одинаковый ответ, без утечки наличия e-mail
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid email or code"
@@ -1558,7 +1496,7 @@ async def verify_reset(
     
     # Generate temporary reset token
     reset_token = secrets.token_urlsafe(32)
-    # Store reset token in Redis (15 РјРёРЅСѓС‚)
+    # Store reset token in Redis (15 минут)
     if rate_limiter.redis_client:
         await rate_limiter.redis_client.setex(
             f"pwdreset:{user.id}", 900, reset_token
@@ -1605,7 +1543,7 @@ async def set_new_password(
     # Revoke all sessions
     _ = await session_service.revoke_all_user_sessions(session, str(user.id))
 
-    # РћС‡РёСЃС‚РёС‚СЊ SSO cookie
+    # Очистить SSO cookie
     if response is not None:
         session_service.clear_session_cookie(response)
 
@@ -1653,76 +1591,76 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=RegisterResponse)
-async def register(
-    request: Request,
-    register_data: RegisterRequest,
-    session: AsyncSession = Depends(get_async_session)
-):
-    """Register new user"""
-    
-    # Rate limit
+async def register(request: Request, register_data: RegisterRequest, session: AsyncSession = Depends(get_async_session)):
     await rate_limiter.check_rate_limit(request, "register", max_requests=5)
-    
-    # Check if email already exists
-    if await user_crud.check_email_exists(session, register_data.email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+
+    # смотрим существующий email
+    existing = await user_crud.get_by_email(session, register_data.email)
+    if existing:
+        if existing.email_verified:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        # email есть, но не подтверждён — возвращаем user_id и (по возможности) переотправляем код
+        try:
+            otp_code, _ = await otp_service.create_otp(
+                session=session,
+                user=existing,
+                purpose=EmailCodePurpose.REGISTER,
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("User-Agent"),
+            )
+            await email_service.send_verification_code(
+                to_email=existing.email,
+                username=existing.username,
+                code=otp_code,
+                purpose="registration",
+            )
+            msg = "Verification code sent"
+        except ValueError:
+            # кулдаун — всё равно возвращаем успешный ответ, чтобы фронт ушёл на страницу кода
+            msg = "Verification code was sent recently. Please check your email."
+        return RegisterResponse(
+            user_id=str(existing.id),
+            email=existing.email,
+            requires_verification=True,
+            message=msg,
         )
-    
-    # Check if username already exists
+
+    # проверка уникальности username только для новых
     if await user_crud.check_username_exists(session, register_data.username):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already taken"
-        )
-    
-    # Create user
-    user_create = UserCreate(
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken")
+
+    # создаём пользователя
+    user = await user_crud.create(session, UserCreate(
         email=register_data.email,
         username=register_data.username,
         password=register_data.password,
-        email_verified=False
-    )
-    
-    user = await user_crud.create(session, user_create)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create user"
-        )
-    
-    # Generate and send verification code
+        email_verified=False,
+    ))
+
+    # шлём код (ошибки отправки не валят регистрацию)
+    msg = "Registration successful. Please check your email for verification code."
     try:
-        otp_code, email_code = await otp_service.create_otp(
+        otp_code, _ = await otp_service.create_otp(
             session=session,
             user=user,
             purpose=EmailCodePurpose.REGISTER,
-            ip_address=request.client.host,
-            user_agent=request.headers.get("User-Agent")
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("User-Agent"),
         )
-        
-        # Send verification email
         await email_service.send_verification_code(
             to_email=user.email,
             username=user.username,
             code=otp_code,
-            purpose="registration"
+            purpose="registration",
         )
-        
-    except ValueError as e:
-        # OTP creation failed (cooldown)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=str(e)
-        )
-    except Exception as e:
-        logger.error(f"Failed to send verification email: {e}")
-        # Don't reveal email sending issues
-    
+    except Exception:
+        pass
+
     return RegisterResponse(
         user_id=str(user.id),
-        message="Registration successful. Please check your email for verification code."
+        email=user.email,
+        requires_verification=True,
+        message=msg,
     )
 
 
@@ -1820,7 +1758,7 @@ def _oauth_error_redirect(redirect_uri: Optional[str], state: Optional[str], err
             status_code=302,
             headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
         )
-    # Fallback: JSON РІРјРµСЃС‚Рѕ HTML
+    # Fallback: JSON вместо HTML
     body = {"error": error, "error_description": desc}
     if state is not None:
         body["state"] = state
@@ -1840,7 +1778,7 @@ async def authorize(
     code_challenge: Optional[str] = Query(None),
     code_challenge_method: Optional[str] = Query(None),
 ):
-    # Р‘Р°Р·РѕРІР°СЏ РІР°Р»РёРґР°С†РёСЏ Р·Р°РїСЂРѕСЃР°
+    # Базовая валидация запроса
     if response_type != "code":
         return _oauth_error_redirect(redirect_uri, state, "unsupported_response_type", "Only response_type=code is supported")
 
@@ -1863,13 +1801,13 @@ async def authorize(
     if not ok:
         return _oauth_error_redirect(redirect_uri, state, "invalid_request", err)
 
-    # PKCE С‚СЂРµР±РѕРІР°РЅРёСЏ
+    # PKCE требования
     require_pkce = client.type == ClientType.PUBLIC or (getattr(client, "pkce_required", True) is True)
     if require_pkce:
         if code_challenge is None or (code_challenge_method or "S256") != "S256":
             return _oauth_error_redirect(redirect_uri, state, "invalid_request", "PKCE S256 is required")
 
-    # Р•СЃР»Рё РµСЃС‚СЊ SSO вЂ” РІС‹РґР°РµРј code Рё СЂРµРґРёСЂРµРєС‚РёРј СЃСЂР°Р·Сѓ
+    # Если есть SSO — выдаем code и редиректим сразу
     idp_session = await session_service.get_session_from_cookie(session, request)
     if idp_session:
         user = await user_crud.get_by_id(session, idp_session.user_id)
@@ -1884,12 +1822,12 @@ async def authorize(
             scope=scope,
             state=state,
             nonce=nonce,
-            code_challenge=code_challenge,  # СЃРѕС…СЂР°РЅСЏРµРј РєР°Рє РµСЃС‚СЊ, РІРµСЂРёС„РёС†РёСЂСѓРµРј РЅР° /token
+            code_challenge=code_challenge,  # сохраняем как есть, верифицируем на /token
             ip_address=request.client.host,
             user_agent=request.headers.get("User-Agent"),
         )
 
-        # РџСЂРёРІСЏР¶РµРј sid Рє РєРѕРґСѓ С‡РµСЂРµР· Redis, С‡С‚РѕР±С‹ РїРѕС‚РѕРј РґРѕР±Р°РІРёС‚СЊ РІ id_token
+        # Привяжем sid к коду через Redis, чтобы потом добавить в id_token
         if rate_limiter.redis_client:
             await rate_limiter.redis_client.setex(
                 f"authcode_sid:{code}", settings.AUTH_CODE_TTL, idp_session.session_id
@@ -1898,7 +1836,7 @@ async def authorize(
         params = {"code": code, "state": state}
         return RedirectResponse(url=f"{redirect_uri}?{urlencode(params)}", status_code=302)
 
-    # РќРµС‚ SSO вЂ” СЃРѕС…СЂР°РЅРёРј pending Рё СЂРµРґРёСЂРµРєС‚РёРј РЅР° SPA /login
+    # Нет SSO — сохраним pending и редиректим на SPA /login
     if not rate_limiter.redis_client:
         return _oauth_error_redirect(redirect_uri, state, "server_error", "Redis unavailable")
 
@@ -1915,7 +1853,7 @@ async def authorize(
     }
     await rate_limiter.redis_client.setex(f"authreq:{state}", settings.AUTH_CODE_TTL, json.dumps(payload))
 
-    # Р±Р°Р·РѕРІС‹Р№ origin С‚РµРєСѓС‰РµРіРѕ С…РѕСЃС‚Р° (id.localhost РёР»Рё id.asynq.ru)
+    # базовый origin текущего хоста (id.localhost или id.asynq.ru)
     host = request.headers.get("host") or request.url.netloc
     origin = f"{request.url.scheme}://{host.split(',')[0].strip()}"
     login_qs = urlencode({
@@ -1935,9 +1873,9 @@ async def authorize(
 """
 OIDC Discovery (.well-known/openid-configuration)
 
-РћР±РЅРѕРІР»РµРЅРѕ:
-- frontchannel_logout_supported = False, С‚.Рє. С„СЂРѕРЅС‚-РєР°РЅР°Р» СѓР±СЂР°РЅ.
-- backchannel_logout_supported = True (РєР°Рє Рё Р±С‹Р»Рѕ).
+Обновлено:
+- frontchannel_logout_supported = False, т.к. фронт-канал убран.
+- backchannel_logout_supported = True (как и было).
 """
 
 from fastapi import APIRouter, Request
@@ -1972,7 +1910,7 @@ async def openid_configuration(request: Request):
             "sub", "email", "email_verified", "preferred_username",
             "auth_time", "iss", "aud", "exp", "iat", "nonce", "at_hash", "sid"
         ],
-        frontchannel_logout_supported=False,   # С„СЂРѕРЅС‚-РєР°РЅР°Р» РѕС‚РєР»СЋС‡С‘РЅ
+        frontchannel_logout_supported=False,   # фронт-канал отключён
         backchannel_logout_supported=True,
         backchannel_logout_session_supported=True,
     )
@@ -2010,13 +1948,13 @@ async def jwks():
 """
 OIDC RP-Initiated Logout.
 
-РР·РјРµРЅРµРЅРёСЏ:
-- Р”РѕР±Р°РІР»РµРЅ JSON-Р»РѕРіР°СѓС‚: POST /logout СЃ С‚РµР»РѕРј LogoutRequest Рё РѕС‚РІРµС‚РѕРј LogoutResponse.
-- GET /logout СѓРїСЂРѕС‰С‘РЅ: Р±РѕР»СЊС€Рµ РќР•Рў HTML/iframes. РўРѕР»СЊРєРѕ:
-    - 302 РЅР° РІР°Р»РёРґРЅС‹Р№ post_logout_redirect_uri (РµСЃР»Рё РѕРЅ РІР°Р»РёРґРµРЅ РґР»СЏ РєР»РёРµРЅС‚Р° РёР· id_token_hint)
-    - РёРЅР°С‡Рµ 204 No Content.
-- Back-channel РѕСЃС‚Р°С‘С‚СЃСЏ. Р¤СЂРѕРЅС‚-РєР°РЅР°Р» СѓРґР°Р»С‘РЅ.
-- РћС‡РёСЃС‚РєР° cookie Рё РѕС‚Р·С‹РІ IdP-СЃРµСЃСЃРёРё вЂ” С‚РѕР»СЊРєРѕ РІ POST-РІР°СЂРёР°РЅС‚Рµ (РїРѕ РўР—).
+Изменения:
+- Добавлен JSON-логаут: POST /logout с телом LogoutRequest и ответом LogoutResponse.
+- GET /logout упрощён: больше НЕТ HTML/iframes. Только:
+    - 302 на валидный post_logout_redirect_uri (если он валиден для клиента из id_token_hint)
+    - иначе 204 No Content.
+- Back-channel остаётся. Фронт-канал удалён.
+- Очистка cookie и отзыв IdP-сессии — только в POST-варианте (по ТЗ).
 """
 
 import logging
@@ -2047,9 +1985,9 @@ async def _parse_id_token_hint(
     session: AsyncSession,
 ) -> tuple[Optional[str], Optional[str]]:
     """
-    Р Р°Р·Р±РѕСЂ id_token_hint.
-    Р’РѕР·РІСЂР°С‰Р°РµС‚ (client_id, user_id) РµСЃР»Рё С‚РѕРєРµРЅ РєРѕСЂСЂРµРєС‚РµРЅ. РРЅР°С‡Рµ (None, None).
-    РђСѓРґРёС‚РѕСЂРёСЋ (aud) РІР°Р»РёРґРёСЂСѓРµРј РєР°Рє СЃС‚СЂРѕРєСѓ РѕРґРЅРѕРіРѕ РєР»РёРµРЅС‚Р°.
+    Разбор id_token_hint.
+    Возвращает (client_id, user_id) если токен корректен. Иначе (None, None).
+    Аудиторию (aud) валидируем как строку одного клиента.
     """
     if not id_token_hint:
         return None, None
@@ -2061,7 +1999,7 @@ async def _parse_id_token_hint(
             raise JWTError("unknown kid")
         public_key = jwk_service.load_public_key(jwk.public_pem)
 
-        # aud РїСЂРѕРІРµСЂСЏС‚СЊ РєР°Рє hint: verify_aud=False, РЅРѕ issuer РїСЂРѕРІРµСЂСЏРµРј
+        # aud проверять как hint: verify_aud=False, но issuer проверяем
         claims = jwt.decode(
             id_token_hint,
             public_key,
@@ -2079,7 +2017,7 @@ async def _parse_id_token_hint(
 
 
 def _build_redirect(redirect_uri: Optional[str], state: Optional[str]) -> Optional[str]:
-    """РЎРѕР±РёСЂР°РµС‚ redirect_to СЃС‚СЂРѕРєСѓ СЃ ?state=... РµСЃР»Рё Р·Р°РґР°РЅРѕ."""
+    """Собирает redirect_to строку с ?state=... если задано."""
     if not redirect_uri:
         return None
     if state:
@@ -2095,22 +2033,22 @@ async def logout_post(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    JSON-Р»РѕРіР°СѓС‚.
-    Р”РµР№СЃС‚РІРёСЏ:
-      - Р•СЃР»Рё РµСЃС‚СЊ IdP-СЃРµСЃСЃРёСЏ: РѕС‚РѕР·РІР°С‚СЊ, РѕС‡РёСЃС‚РёС‚СЊ cookie, РґРµСЂРЅСѓС‚СЊ back-channel.
-      - Р’Р°Р»РёРґР°С†РёСЏ post_logout_redirect_uri РёРґС‘С‚ РїРѕ РєР»РёРµРЅС‚Сѓ РёР· id_token_hint.
-      - Р’РѕР·РІСЂР°С‰Р°РµРј { ok: true, redirect_to: <uri>|null }. 302 РЅРµС‚.
+    JSON-логаут.
+    Действия:
+      - Если есть IdP-сессия: отозвать, очистить cookie, дернуть back-channel.
+      - Валидация post_logout_redirect_uri идёт по клиенту из id_token_hint.
+      - Возвращаем { ok: true, redirect_to: <uri>|null }. 302 нет.
     """
-    # 1) Р Р°Р·РѕР±СЂР°С‚СЊ id_token_hint, С‡С‚РѕР±С‹ РїРѕРЅСЏС‚СЊ РєР»РёРµРЅС‚Р° Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ (РґР»СЏ back-channel)
+    # 1) Разобрать id_token_hint, чтобы понять клиента и пользователя (для back-channel)
     client_id_from_hint, user_id_from_hint = await _parse_id_token_hint(body.id_token_hint, session)
 
-    # 2) РЎС‡РёС‚Р°С‚СЊ С‚РµРєСѓС‰СѓСЋ IdP-СЃРµСЃСЃРёСЋ РёР· cookie
+    # 2) Считать текущую IdP-сессию из cookie
     idp_session = await session_service.get_session_from_cookie(session, request)
     current_user = None
 
-    # 3) Р•СЃР»Рё СЃРµСЃСЃРёСЏ РµСЃС‚СЊ вЂ” РѕС‚Р·С‹РІР°РµРј Рё РѕС‡РёС‰Р°РµРј cookie
+    # 3) Если сессия есть — отзываем и очищаем cookie
     if idp_session:
-        # Р•СЃР»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РµС‰С‘ РЅРµ Р·РЅР°РµРј вЂ” Р·Р°РіСЂСѓР·РёРј
+        # Если пользователя ещё не знаем — загрузим
         if not user_id_from_hint:
             user_id_from_hint = str(idp_session.user_id)
         current_user = await user_crud.get_by_id(session, user_id_from_hint) if user_id_from_hint else None
@@ -2118,25 +2056,25 @@ async def logout_post(
         await session_service.revoke_session(session, idp_session)
         session_service.clear_session_cookie(response)
 
-        # 4) Back-channel РґР»СЏ Р°РєС‚РёРІРЅС‹С… RP (РєР°Рє СЂР°РЅСЊС€Рµ)
+        # 4) Back-channel для активных RP (как раньше)
         if current_user:
             asyncio.create_task(
                 backchannel_logout_service.initiate_backchannel_logout(
-                    session=None,  # СЃРµСЂРІРёСЃ СЃР°Рј РѕС‚РєСЂРѕРµС‚ СЃРµСЃСЃРёСЋ
+                    session=None,  # сервис сам откроет сессию
                     user=current_user,
                     session_id=idp_session.session_id,
                     reason="rp_logout",
                 )
             )
 
-    # 5) Р’Р°Р»РёРґР°С†РёСЏ post_logout_redirect_uri РїРѕ РєР»РёРµРЅС‚Сѓ РёР· id_token_hint
+    # 5) Валидация post_logout_redirect_uri по клиенту из id_token_hint
     redirect_to: Optional[str] = None
     if body.post_logout_redirect_uri and client_id_from_hint:
         client = await client_crud.get_by_client_id(session, client_id_from_hint)
         if client and validators.validate_redirect_uri(body.post_logout_redirect_uri, client.post_logout_redirect_uris):
             redirect_to = _build_redirect(body.post_logout_redirect_uri, body.state)
 
-    # 6) JSON-РѕС‚РІРµС‚
+    # 6) JSON-ответ
     return LogoutResponse(ok=True, redirect_to=redirect_to)
 
 
@@ -2149,10 +2087,10 @@ async def logout_get(
     state: Optional[str] = Query(None),
 ):
     """
-    РЈРїСЂРѕС‰С‘РЅРЅС‹Р№ GET-РІР°СЂРёР°РЅС‚.
-    РќРёРєР°РєРёС… HTML/iframes. Р‘РµР· РѕС‡РёСЃС‚РєРё cookie Рё Р±РµР· СЂРµРІРѕРєР°С†РёРё.
-    Р•СЃР»Рё redirect РІР°Р»РёРґРµРЅ РїРѕ РєР»РёРµРЅС‚Сѓ РёР· id_token_hint вЂ” 302 С‚СѓРґР° (РґРѕР±Р°РІРёРј state).
-    РРЅР°С‡Рµ вЂ” 204 No Content.
+    Упрощённый GET-вариант.
+    Никаких HTML/iframes. Без очистки cookie и без ревокации.
+    Если redirect валиден по клиенту из id_token_hint — 302 туда (добавим state).
+    Иначе — 204 No Content.
     """
     client_id_from_hint, _ = await _parse_id_token_hint(id_token_hint, session)
 
@@ -2162,7 +2100,7 @@ async def logout_get(
             url = _build_redirect(post_logout_redirect_uri, state)
             return RedirectResponse(url=url, status_code=302)
 
-    # РќРёС‡РµРіРѕ РЅРµ РґРµР»Р°РµРј, РґР°С‘Рј 204
+    # Ничего не делаем, даём 204
     return Response(status_code=204)
 
 
@@ -2179,7 +2117,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.session import get_async_session
-from .token import _get_client_and_auth  # РёСЃРїРѕР»СЊР·СѓРµРј С‚РѕС‚ Р¶Рµ helper
+from .token import _get_client_and_auth  # используем тот же helper
 from services.token_service import token_service
 
 logger = logging.getLogger(__name__)
@@ -2194,17 +2132,17 @@ async def revoke(
     client_id: Optional[str] = Form(None),
     client_secret: Optional[str] = Form(None),
 ):
-    # РђСѓС‚РµРЅС‚РёС„РёС†РёСЂСѓРµРј РєР»РёРµРЅС‚Р° С‚Р°Рє Р¶Рµ, РєР°Рє РЅР° /token
+    # Аутентифицируем клиента так же, как на /token
     client, err = await _get_client_and_auth(request, session, client_id, client_secret)
     if err:
-        return err  # 401 invalid_client РїСЂРё РѕС€РёР±РєРµ
+        return err  # 401 invalid_client при ошибке
 
-    # РџРѕРґРґРµСЂР¶РёРІР°РµРј С‚РѕР»СЊРєРѕ refresh_token (access вЂ” СЃР°РјРѕРґРѕСЃС‚Р°С‚РѕС‡РЅС‹Р№ JWT)
+    # Поддерживаем только refresh_token (access — самодостаточный JWT)
     if token_type_hint and token_type_hint not in ("refresh_token", "access_token"):
-        # РїРѕ RFC РїСЂРѕСЃС‚Рѕ РёРіРЅРѕСЂРёСЂСѓРµРј hint Рё РїСЂРѕРґРѕР»Р¶Р°РµРј
+        # по RFC просто игнорируем hint и продолжаем
         pass
 
-    # РџРѕ RFC: РІСЃРµРіРґР° 200 OK РґР°Р¶Рµ РµСЃР»Рё С‚РѕРєРµРЅ РЅРµРІР°Р»РёРґРµРЅ/РЅРµ РЅР°Р№РґРµРЅ
+    # По RFC: всегда 200 OK даже если токен невалиден/не найден
     try:
         await token_service.revoke_refresh_token(
             session=session,
@@ -2213,10 +2151,10 @@ async def revoke(
             reason="revoked_by_client",
         )
     except Exception:
-        # РЅРµ РїР°Р»РёРј РґРµС‚Р°Р»Рё РЅР°СЂСѓР¶Сѓ
+        # не палим детали наружу
         pass
 
-    return JSONResponse({}, status_code=200)
+    return JSONResponse({}, status_code=200, headers={"Cache-Control": "no-store", "Pragma": "no-cache"})
 
 
 
@@ -2236,7 +2174,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.session import get_async_session
 from utils.rate_limit import rate_limiter
 from crud import client_crud
-from models import TokenAuthMethod, ClientType
+from models import TokenAuthMethod, ClientType, User
 from services.token_service import token_service
 from utils.validators import validators
 from core.config import settings
@@ -2311,7 +2249,7 @@ async def token(
         if not code or not redirect_uri:
             return _oauth_error("invalid_request", "code and redirect_uri are required")
 
-        # PKCE: РґР»СЏ public/required вЂ” РѕР±СЏР·Р°С‚РµР»РµРЅ РєРѕСЂСЂРµРєС‚РЅС‹Р№ verifier
+        # PKCE: для public/required — обязателен корректный verifier
         require_pkce = client.type == ClientType.PUBLIC or (getattr(client, "pkce_required", True) is True)
         if require_pkce:
             ok, errtxt = validators.validate_pkce_verifier(code_verifier or "")
@@ -2325,28 +2263,34 @@ async def token(
             redirect_uri=redirect_uri,
             code_verifier=code_verifier,
         )
-        if oauth_err:
-            return _oauth_error(oauth_err, "invalid authorization code")
+        if oauth_err or not auth_code:
+            return _oauth_error("invalid_grant", "invalid authorization code")
 
-        # РџРѕР»СѓС‡Р°РµРј sid РёР· Redis (РїСЂРёРІСЏР·Р°Р»Рё РЅР° /authorize)
+        # ЯВНО загружаем пользователя
+        user = await session.get(User, auth_code.user_id)
+        if not user:
+            return _oauth_error("invalid_grant", "user not found")
+
+        # Получаем sid из Redis (могут вернуться bytes -> декодируем)
         sid = None
         if rate_limiter.redis_client:
             sid = await rate_limiter.redis_client.get(f"authcode_sid:{code}")
+            if isinstance(sid, (bytes, bytearray)):
+                sid = sid.decode("utf-8")
 
         tokens = await token_service.create_tokens(
             session=session,
-            user=auth_code.user,
+            user=user,
             client=client,
             scope=auth_code.scope,
             nonce=auth_code.nonce,
             auth_time=auth_code.auth_time,
             session_id=sid,
-            ip_address=request.client.host,
+            ip_address=(request.client.host if request.client else None),
             user_agent=request.headers.get("User-Agent"),
         )
 
         return JSONResponse(tokens, headers={"Cache-Control": "no-store", "Pragma": "no-cache"})
-
 
     elif grant_type == "refresh_token":
         if not refresh_token:
@@ -3153,8 +3097,8 @@ class UserCRUD:
         raw_password: str
     ) -> User:
         """
-        РўРёС…РёР№ СЂРµ-С…СЌС€ РїР°СЂРѕР»СЏ (Р±РµР· РїРѕРјРµС‚РєРё last_password_change_at).
-        РњРµРЅСЏРµС‚ С‚РѕР»СЊРєРѕ password_hash/updated_at/failed_login_attempts.
+        Тихий ре-хэш пароля (без пометки last_password_change_at).
+        Меняет только password_hash/updated_at/failed_login_attempts.
         """
         user.password_hash = security.hash_password(raw_password)
         user.updated_at = datetime.now(timezone.utc)
@@ -3178,7 +3122,7 @@ from __future__ import annotations
 from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase
 
-# РЎС‚СЂРѕРіР°СЏ СЃС…РµРјР° РёРјРµРЅ вЂ” РІР°Р¶РЅРѕ РґР»СЏ Alembic Рё РІРѕСЃРїСЂРѕРёР·РІРѕРґРёРјРѕСЃС‚Рё РјРёРіСЂР°С†РёР№
+# Строгая схема имен — важно для Alembic и воспроизводимости миграций
 naming_convention = {
     "ix": "ix_%(table_name)s_%(column_0_N_name)s",
     "uq": "uq_%(table_name)s_%(column_0_N_name)s",
@@ -3189,7 +3133,7 @@ naming_convention = {
 
 
 class Base(DeclarativeBase):
-    """Р‘Р°Р·РѕРІС‹Р№ РєР»Р°СЃСЃ РјРѕРґРµР»РµР№ SQLAlchemy СЃ РµРґРёРЅС‹Рј MetaData Рё РєРѕРЅРІРµРЅС†РёРµР№ РёРјРµРЅ."""
+    """Базовый класс моделей SQLAlchemy с единым MetaData и конвенцией имен."""
     metadata = MetaData(naming_convention=naming_convention)
 
     def __repr__(self) -> str:
@@ -3211,14 +3155,14 @@ from sqlalchemy import select
 
 from core.config import settings
 from core.security import security
-from models import Client, ClientType, User
+from models import Client, ClientType, User, TokenAuthMethod
 
 
 logger = logging.getLogger(__name__)
 
 
 async def init_db(session: AsyncSession) -> None:
-    """Seed С‚РѕР»СЊРєРѕ РґР»СЏ dev. Р’ РїСЂРѕРґРµ вЂ” РјРёРіСЂР°С†РёРё Alembic Рё РЅРёРєР°РєРѕРіРѕ create_all."""
+    """Seed только для dev. В проде — миграции Alembic и никакого create_all."""
     if settings.APP_ENV != "development":
         return
 
@@ -3235,22 +3179,24 @@ async def init_db(session: AsyncSession) -> None:
             "client_id": settings.TEACH_CLIENT_ID,
             "name": "Teach Service (Local)",
             "type": ClientType.PUBLIC,
+            "token_endpoint_auth_method": TokenAuthMethod.NONE,
             "redirect_uris": [
                 "http://localhost:3001/callback",
-                "http://teach.localhost:3001/callback"
+                "http://teach.localhost:3001/callback",
             ],
             "post_logout_redirect_uris": [
                 "http://localhost:3001",
-                "http://teach.localhost:3001"
+                "http://teach.localhost:3001",
             ],
             "backchannel_logout_uri": "http://localhost:3001/backchannel-logout",
             "frontchannel_logout_uri": "http://localhost:3001/frontchannel-logout",
-            "scopes": ["openid", "email", "profile", "offline_access"]
+            "scopes": ["openid", "email", "profile", "offline_access"],
         },
         {
             "client_id": settings.RUN_CLIENT_ID,
             "name": "Run Service (Local)",
             "type": ClientType.PUBLIC,
+            "token_endpoint_auth_method": TokenAuthMethod.NONE,
             "redirect_uris": [
                 "http://localhost:3002/callback",
                 "http://run.localhost:3002/callback"
@@ -3267,6 +3213,7 @@ async def init_db(session: AsyncSession) -> None:
             "client_id": settings.LEARN_CLIENT_ID,
             "name": "Learn Service (Local)",
             "type": ClientType.PUBLIC,
+            "token_endpoint_auth_method": TokenAuthMethod.NONE,
             "redirect_uris": [
                 "http://localhost:3003/callback",
                 "http://learn.localhost:3003/callback"
@@ -3389,17 +3336,17 @@ CMD ["sh","-lc","alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 
 
 # id_service/main.py
 """
-Р“Р»Р°РІРЅС‹Р№ РјРѕРґСѓР»СЊ FastAPI.
+Главный модуль FastAPI.
 
-Р”РѕР±Р°РІР»РµРЅРѕ:
-- Р“Р»РѕР±Р°Р»СЊРЅС‹Рµ JSON-С…РµРЅРґР»РµСЂС‹ РѕС€РёР±РѕРє:
-  * HTTPException в†’ {"error":{"code", "message", "details?"}}
-  * RequestValidationError в†’ {"error":{"code":422, "message":"Validation error", "details":[...]}}
-- JSONContentTypeMiddleware: РґР»СЏ РЅРµР±РµР·РѕРїР°СЃРЅС‹С… РјРµС‚РѕРґРѕРІ РїРѕРґ /auth/** Рё /account/** С‚СЂРµР±СѓРµРј Content-Type: application/json
-  (РёСЃРєР»СЋС‡РµРЅРёРµ: /auth/csrf).
-- AuthCacheHeadersMiddleware: РЅР° /auth/** Рё /oidc/** РІС‹СЃС‚Р°РІР»СЏРµРј Cache-Control: no-store Рё Pragma: no-cache
-  (РёСЃРєР»СЋС‡РµРЅРёСЏ: discovery Рё jwks).
-РџРѕСЂСЏРґРѕРє middleware: SecurityHeaders в†’ JSONContentType в†’ CSRF в†’ AuthCacheHeaders в†’ CORS в†’ TrustedHost(prod).
+Добавлено:
+- Глобальные JSON-хендлеры ошибок:
+  * HTTPException → {"error":{"code", "message", "details?"}}
+  * RequestValidationError → {"error":{"code":422, "message":"Validation error", "details":[...]}}
+- JSONContentTypeMiddleware: для небезопасных методов под /auth/** и /account/** требуем Content-Type: application/json
+  (исключение: /auth/csrf).
+- AuthCacheHeadersMiddleware: на /auth/** и /oidc/** выставляем Cache-Control: no-store и Pragma: no-cache
+  (исключения: discovery и jwks).
+Порядок middleware: SecurityHeaders → JSONContentType → CSRF → AuthCacheHeaders → CORS → TrustedHost(prod).
 """
 
 import logging
@@ -3436,10 +3383,10 @@ logger = setup_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РїСЂРёР»РѕР¶РµРЅРёСЏ РЅР° СЃС‚Р°СЂС‚Рµ."""
+    """Инициализация приложения на старте."""
     logger.info("Starting ID Service...")
 
-    # РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ Р‘Р”/СЃРµСЂРІРёСЃРѕРІ
+    # Инициализация БД/сервисов
     async with async_session_maker() as session:
         await init_db(session)
     await jwk_service.ensure_active_key()
@@ -3468,7 +3415,7 @@ app = FastAPI(
 # ---------------------------
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Р‘Р°Р·РѕРІС‹Рµ security-Р·Р°РіРѕР»РѕРІРєРё РЅР° РІСЃРµ РѕС‚РІРµС‚С‹."""
+    """Базовые security-заголовки на все ответы."""
     async def dispatch(self, request, call_next):
         resp = await call_next(request)
         resp.headers.setdefault("X-Frame-Options", "DENY")
@@ -3480,17 +3427,22 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 class JSONContentTypeMiddleware(BaseHTTPMiddleware):
-    """Р”Р»СЏ /auth/** Рё /account/** С‚СЂРµР±СѓРµРј JSON РЅР° РЅРµР±РµР·РѕРїР°СЃРЅС‹С… РјРµС‚РѕРґР°С…."""
+    """Для /auth/** и /account/** требуем JSON на небезопасных методах."""
     def _needs_json(self, path: str) -> bool:
-        if path == "/auth/csrf":
+        if path in ("/auth/csrf", "/api/auth/csrf"):
             return False
-        return path.startswith("/auth/") or path.startswith("/account/")
+        return (
+            path.startswith("/auth/")
+            or path.startswith("/api/auth/")
+            or path.startswith("/account/")
+            or path.startswith("/api/account/")
+        )
 
     async def dispatch(self, request: Request, call_next):
         if request.method in {"POST", "PUT", "PATCH", "DELETE"} and self._needs_json(request.url.path):
             ct = request.headers.get("content-type", "")
             if "application/json" not in ct.lower():
-                # 415 Unsupported Media Type вЂ” СЏРІРЅС‹Р№ СЃРёРіРЅР°Р» РєР»РёРµРЅС‚Сѓ
+                # 415 Unsupported Media Type — явный сигнал клиенту
                 return JSONResponse(
                     {"error": {"code": 415, "message": "Content-Type must be application/json", "details": {"required": "application/json"}}},
                     status_code=415,
@@ -3499,7 +3451,7 @@ class JSONContentTypeMiddleware(BaseHTTPMiddleware):
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):
-    """РџСЂРѕРІРµСЂРєР° CSRF РїРѕ Р·Р°РіРѕР»РѕРІРєСѓ X-CSRF-Token (double-submit cookie)."""
+    """Проверка CSRF по заголовку X-CSRF-Token (double-submit cookie)."""
     async def dispatch(self, request, call_next):
         if csrf_protection.should_check_csrf(request):
             await csrf_protection.validate_token(request)
@@ -3507,36 +3459,27 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
 
 class AuthCacheHeadersMiddleware(BaseHTTPMiddleware):
-    """РћС‚РєР»СЋС‡Р°РµРј РєСЌС€ РґР»СЏ /auth/** Рё OIDC-СЌРЅРґРїРѕРёРЅС‚РѕРІ.
-    РСЃРєР»СЋС‡РµРЅРёСЏ: discovery Рё jwks.
+    """Отключаем кэш для /auth/** и OIDC-эндпоинтов.
+    Исключения: discovery и jwks.
     """
+    OIDC_PATHS = {"/authorize", "/token", "/userinfo", "/logout", "/revoke"}
     DISCOVERY = "/.well-known/openid-configuration"
     JWKS = "/.well-known/jwks.json"
-    OIDC_PATHS = {
-        "/authorize",
-        "/token",
-        "/revoke",
-        "/userinfo",
-        "/logout",
-    }
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request, call_next):
         resp = await call_next(request)
-        path = request.url.path
-
-        is_auth = path.startswith("/auth/")
-        # СѓС‡РёС‚С‹РІР°РµРј РєР°Рє РєРѕСЂРЅРµРІС‹Рµ OIDC РїСѓС‚Рё, С‚Р°Рє Рё РіРёРїРѕС‚РµС‚РёС‡РµСЃРєРёР№ РїСЂРµС„РёРєСЃ /oidc/
-        is_oidc = path in self.OIDC_PATHS or path.startswith("/oidc/")
-        is_static = path in {self.DISCOVERY, self.JWKS}
-
+        p = request.url.path
+        is_auth = p.startswith(("/auth/","/api/auth/","/account/","/api/account/"))
+        is_oidc = p in self.OIDC_PATHS
+        is_static = p in {self.DISCOVERY, self.JWKS}
         if (is_auth or is_oidc) and not is_static:
-            resp.headers.setdefault("Cache-Control", "no-store")
-            resp.headers.setdefault("Pragma", "no-cache")
+            resp.headers.setdefault("Cache-Control","no-store")
+            resp.headers.setdefault("Pragma","no-cache")
         return resp
 
 
 
-# РџРѕСЂСЏРґРѕРє РёРјРµРµС‚ Р·РЅР°С‡РµРЅРёРµ
+# Порядок имеет значение
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(JSONContentTypeMiddleware)
 app.add_middleware(CSRFMiddleware)
@@ -3566,17 +3509,17 @@ app.include_router(logout.router, tags=["OIDC Logout"])
 app.include_router(revoke.router, tags=["OIDC Token"])
 
 # Auth endpoints
-app.include_router(register.router, prefix="/auth", tags=["Authentication"])
-app.include_router(login.router, prefix="/auth", tags=["Authentication"])
-app.include_router(password_reset.router, prefix="/auth", tags=["Authentication"])
-app.include_router(email_verification.router, prefix="/auth", tags=["Authentication"])
-app.include_router(csrf_api.router, prefix="/auth", tags=["Authentication"])
+app.include_router(register.router,          prefix="/api/auth", tags=["Authentication"])
+app.include_router(login.router,             prefix="/api/auth", tags=["Authentication"])
+app.include_router(password_reset.router,    prefix="/api/auth", tags=["Authentication"])
+app.include_router(email_verification.router,prefix="/api/auth", tags=["Authentication"])
+app.include_router(csrf_api.router,          prefix="/api/auth", tags=["Authentication"])
 
 # Account management endpoints
-app.include_router(profile.router, prefix="/account", tags=["Account"])
-app.include_router(email_change.router, prefix="/account", tags=["Account"])
-app.include_router(password_change.router, prefix="/account", tags=["Account"])
-app.include_router(delete_account.router, prefix="/account", tags=["Account"])
+app.include_router(profile.router,           prefix="/api/account", tags=["Account"])
+app.include_router(email_change.router,      prefix="/api/account", tags=["Account"])
+app.include_router(password_change.router,   prefix="/api/account", tags=["Account"])
+app.include_router(delete_account.router,    prefix="/api/account", tags=["Account"])
 
 # Health
 app.include_router(health.router, tags=["Health"])
@@ -3594,9 +3537,9 @@ async def root():
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """
-    РЈРЅРёС„РёС†РёСЂРѕРІР°РЅРЅС‹Рµ JSON-РѕС€РёР±РєРё РґР»СЏ РІСЃРµС… РЅРµ-OAuth СЂСѓС‡РµРє.
-    /oidc/token Рё /oidc/revoke СЃР°РјРё С„РѕСЂРјРёСЂСѓСЋС‚ RFC-РѕС€РёР±РєРё Рё СЃСЋРґР° РЅРµ РїРѕРїР°РґСѓС‚,
-    С‚.Рє. РІРѕР·РІСЂР°С‰Р°СЋС‚ JSONResponse РЅР°РїСЂСЏРјСѓСЋ.
+    Унифицированные JSON-ошибки для всех не-OAuth ручек.
+    /oidc/token и /oidc/revoke сами формируют RFC-ошибки и сюда не попадут,
+    т.к. возвращают JSONResponse напрямую.
     """
     payload = {"error": {"code": exc.status_code, "message": exc.detail}}
     return JSONResponse(payload, status_code=exc.status_code)
@@ -3604,7 +3547,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Р’Р°Р»РёРґР°С†РёРѕРЅРЅС‹Рµ РѕС€РёР±РєРё Pydantic/FastAPI в†’ РµРґРёРЅС‹Р№ С„РѕСЂРјР°С‚."""
+    """Валидационные ошибки Pydantic/FastAPI → единый формат."""
     details = exc.errors()
     payload = {"error": {"code": 422, "message": "Validation error", "details": details}}
     return JSONResponse(payload, status_code=422)
@@ -3781,7 +3724,8 @@ class Client(Base):
 # id_service/models/email_code.py
 
 from datetime import datetime
-from sqlalchemy import Column, Text, Index, String, DateTime, ForeignKey, Integer, Enum
+from sqlalchemy import Column, Text, Index, String, DateTime, ForeignKey, Integer
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
@@ -3805,7 +3749,14 @@ class EmailCode(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     
     # Code details
-    purpose = Column(Enum(EmailCodePurpose), nullable=False)
+    purpose = Column(
+        SAEnum(
+            EmailCodePurpose,
+            name="emailcodepurpose",
+            values_callable=lambda e: [i.value for i in e],
+        ),
+        nullable=False,
+    )
     code_hash = Column(String(255), nullable=False)
     new_email = Column(String(255), nullable=True)  # For email change
     
@@ -3972,26 +3923,26 @@ class User(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    # Р›РѕРіРёРЅРЅС‹Рµ РїРѕР»СЏ
-    email = Column(String(255), nullable=False)          # С…СЂР°РЅРёРј РІ lower РЅР° СѓСЂРѕРІРЅРµ РїСЂРёР»РѕР¶РµРЅРёСЏ
+    # Логинные поля
+    email = Column(String(255), nullable=False)          # храним в lower на уровне приложения
     username = Column(String(50), nullable=False)
 
-    # Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ
+    # Безопасность
     password_hash = Column(Text, nullable=False)
     email_verified = Column(Boolean, nullable=False, default=False)
     failed_login_attempts = Column(Integer, nullable=False, default=0)
 
-    # РђСѓРґРёС‚
+    # Аудит
     last_login_at = Column(DateTime(timezone=True), nullable=True)
     last_password_change_at = Column(DateTime(timezone=True), nullable=True)
 
-    # РўР°Р№РјСЃС‚РµРјРїС‹ Рё soft-delete
+    # Таймстемпы и soft-delete
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
-        # case-insensitive СѓРЅРёРєР°Р»СЊРЅРѕСЃС‚СЊ e-mail
+        # case-insensitive уникальность e-mail
         Index("ux_users_email_lower", func.lower(email), unique=True),
         Index("ux_users_username", "username", unique=True),
     )
@@ -4146,10 +4097,10 @@ class DeleteAccountResponse(BaseModel):
 
 # id_service/schemas/auth.py
 """
-РЎС…РµРјС‹ (Pydantic v2) РґР»СЏ auth-С„Р»РѕСѓ.
-Р’Р°Р¶РЅРѕ:
-- Р’СЃРµ СЂСѓС‡РєРё, РєСЂРѕРјРµ /oidc/token Рё /oidc/revoke, СЂР°Р±РѕС‚Р°СЋС‚ РІ JSON.
-- Р—РґРµСЃСЊ РѕРїРёСЃС‹РІР°РµРј С‚РѕР»СЊРєРѕ СЃС‚СЂСѓРєС‚СѓСЂС‹ Р·Р°РїСЂРѕСЃРѕРІ/РѕС‚РІРµС‚РѕРІ Рё РІР°Р»РёРґР°С†РёСЋ РїРѕР»РµР№.
+Схемы (Pydantic v2) для auth-флоу.
+Важно:
+- Все ручки, кроме /oidc/token и /oidc/revoke, работают в JSON.
+- Здесь описываем только структуры запросов/ответов и валидацию полей.
 """
 
 from pydantic import BaseModel, EmailStr, ConfigDict
@@ -4162,17 +4113,17 @@ from core.security import security
 
 
 # ---------------------------
-# Р РµРіРёСЃС‚СЂР°С†РёСЏ
+# Регистрация
 # ---------------------------
 
 class RegisterRequest(BaseModel):
-    """Р—Р°РїСЂРѕСЃ РЅР° СЂРµРіРёСЃС‚СЂР°С†РёСЋ."""
+    """Запрос на регистрацию."""
     username: str = Field(..., min_length=3, max_length=30, description="Username")
     email: EmailStr = Field(..., description="Email address")
     password: str = Field(..., min_length=8, description="Password")
     password_confirm: str = Field(..., description="Password confirmation")
 
-    # РћР±С‰РёРµ РЅР°СЃС‚СЂРѕР№РєРё РјРѕРґРµР»Рё
+    # Общие настройки модели
     model_config = ConfigDict(str_strip_whitespace=True)
 
     @field_validator('username')
@@ -4202,21 +4153,22 @@ class RegisterRequest(BaseModel):
         if info.data.get('password') and v != info.data['password']:
             raise ValueError('Passwords do not match')
         return v
-
+    
 
 class RegisterResponse(BaseModel):
-    """РћС‚РІРµС‚ РЅР° СЂРµРіРёСЃС‚СЂР°С†РёСЋ."""
+    """Ответ на регистрацию."""
     user_id: str
+    email: EmailStr
+    requires_verification: bool = True
     message: str = "Registration successful. Please check your email for verification code."
-
-
+    
 # ---------------------------
-# РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ e-mail (OTP)
+# Подтверждение e-mail (OTP)
 # ---------------------------
 
 class VerifyEmailRequest(BaseModel):
-    """РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ e-mail РїРѕ OTP-РєРѕРґСѓ.
-    Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕ РїРѕРґРґРµСЂР¶РёРІР°РµС‚ state РґР»СЏ Р·Р°РІРµСЂС€РµРЅРёСЏ pending /authorize.
+    """Подтверждение e-mail по OTP-коду.
+    Дополнительно поддерживает state для завершения pending /authorize.
     """
     user_id: str = Field(..., description="User ID from registration")
     code: str = Field(..., pattern=r'^\d{4}$', description="4-digit verification code")
@@ -4226,25 +4178,25 @@ class VerifyEmailRequest(BaseModel):
 
 
 class VerifyEmailResponse(BaseModel):
-    """РћС‚РІРµС‚ РЅР° РІРµСЂРёС„РёРєР°С†РёСЋ e-mail."""
+    """Ответ на верификацию e-mail."""
     ok: bool = True
     message: str = "Email verified successfully"
-    redirect_to: Optional[str] = None  # РґР»СЏ SPA-СЂРµРґРёСЂРµРєС‚Р° Р±РµР· 302
+    redirect_to: Optional[str] = None  # для SPA-редиректа без 302
 
 
 # ---------------------------
-# Р›РѕРіРёРЅ РїРѕ РїР°СЂРѕР»СЋ (JSON-only)
+# Логин по паролю (JSON-only)
 # ---------------------------
 
 class LoginPasswordRequest(BaseModel):
-    """Р—Р°РїСЂРѕСЃ Р»РѕРіРёРЅР° РїРѕ РїР°СЂРѕР»СЋ.
-    JSON-only. Р¤РѕСЂРјС‹ РЅРµ РёСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ.
-    Р•СЃР»Рё РїРµСЂРµРґР°РЅС‹ client_id+state Рё РІ Redis РµСЃС‚СЊ pending authreq вЂ” РІРµСЂРЅС‘Рј redirect_to.
+    """Запрос логина по паролю.
+    JSON-only. Формы не используются.
+    Если переданы client_id+state и в Redis есть pending authreq — вернём redirect_to.
     """
     email: EmailStr = Field(..., description="Email address")
     password: str = Field(..., description="Password")
     remember_me: bool = Field(default=False, description="Extended session duration")
-    # Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕ РґР»СЏ OIDC РїСЂРѕРґРѕР»Р¶РµРЅРёСЏ (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ):
+    # Дополнительно для OIDC продолжения (опционально):
     client_id: Optional[str] = Field(default=None, description="OIDC client_id for pending /authorize")
     state: Optional[str] = Field(default=None, description="State from pending /authorize")
 
@@ -4257,18 +4209,18 @@ class LoginPasswordRequest(BaseModel):
 
 
 class LoginPasswordResponse(BaseModel):
-    """РћС‚РІРµС‚ РЅР° Р»РѕРіРёРЅ РїРѕ РїР°СЂРѕР»СЋ."""
+    """Ответ на логин по паролю."""
     ok: bool = True
     message: str = "Login successful"
-    redirect_to: Optional[str] = None  # SPA-СЂРµРґРёСЂРµРєС‚ Р±РµР· 302, Р»РёР±Рѕ null
+    redirect_to: Optional[str] = None  # SPA-редирект без 302, либо null
 
 
 # ---------------------------
-# РЎР±СЂРѕСЃ РїР°СЂРѕР»СЏ (OTP в†’ reset_token)
+# Сброс пароля (OTP → reset_token)
 # ---------------------------
 
 class ForgotPasswordRequest(BaseModel):
-    """Р—Р°РїСЂРѕСЃ РЅР° РѕС‚РїСЂР°РІРєСѓ РєРѕРґР° РґР»СЏ СЃР±СЂРѕСЃР° РїР°СЂРѕР»СЏ."""
+    """Запрос на отправку кода для сброса пароля."""
     email: EmailStr = Field(..., description="Email address")
 
     model_config = ConfigDict(str_strip_whitespace=True)
@@ -4280,14 +4232,14 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class ForgotPasswordResponse(BaseModel):
-    """РћС‚РІРµС‚ РЅР° Р·Р°РїСЂРѕСЃ СЃР±СЂРѕСЃР° РїР°СЂРѕР»СЏ.
-    РўРµРєСЃС‚ РѕРґРёРЅР°РєРѕРІС‹Р№, С‡С‚РѕР±С‹ РЅРµ СЂР°СЃРєСЂС‹РІР°С‚СЊ РЅР°Р»РёС‡РёРµ Р°РєРєР°СѓРЅС‚Р°.
+    """Ответ на запрос сброса пароля.
+    Текст одинаковый, чтобы не раскрывать наличие аккаунта.
     """
     message: str = "If an account exists with this email, a reset code has been sent"
 
 
 class VerifyResetRequest(BaseModel):
-    """РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РєРѕРґР° РґР»СЏ СЃР±СЂРѕСЃР° РїР°СЂРѕР»СЏ."""
+    """Подтверждение кода для сброса пароля."""
     email: EmailStr = Field(..., description="Email address")
     code: str = Field(..., pattern=r'^\d{4}$', description="4-digit reset code")
 
@@ -4300,13 +4252,13 @@ class VerifyResetRequest(BaseModel):
 
 
 class VerifyResetResponse(BaseModel):
-    """РћС‚РІРµС‚ СЃ reset_token РґР»СЏ СѓСЃС‚Р°РЅРѕРІРєРё РЅРѕРІРѕРіРѕ РїР°СЂРѕР»СЏ."""
+    """Ответ с reset_token для установки нового пароля."""
     user_id: str
     reset_token: str
 
 
 class SetNewPasswordRequest(BaseModel):
-    """РЈСЃС‚Р°РЅРѕРІРєР° РЅРѕРІРѕРіРѕ РїР°СЂРѕР»СЏ РїРѕСЃР»Рµ СѓСЃРїРµС€РЅРѕР№ РІРµСЂРёС„РёРєР°С†РёРё СЃР±СЂРѕСЃР°."""
+    """Установка нового пароля после успешной верификации сброса."""
     user_id: str = Field(..., description="User ID from reset verification")
     reset_token: str = Field(..., description="Reset token from verification")
     new_password: str = Field(..., min_length=8, description="New password")
@@ -4329,7 +4281,7 @@ class SetNewPasswordRequest(BaseModel):
 
 
 class SetNewPasswordResponse(BaseModel):
-    """РћС‚РІРµС‚ РЅР° СѓСЃРїРµС€РЅСѓСЋ СѓСЃС‚Р°РЅРѕРІРєСѓ РЅРѕРІРѕРіРѕ РїР°СЂРѕР»СЏ."""
+    """Ответ на успешную установку нового пароля."""
     message: str = "Password has been reset successfully"
 
 
@@ -4338,10 +4290,10 @@ class SetNewPasswordResponse(BaseModel):
 
 # id_service/schemas/oidc.py
 """
-РЎС…РµРјС‹ (Pydantic v2) РґР»СЏ OIDC.
-Р’Р°Р¶РЅРѕ:
-- /oidc/logout С‚РµРїРµСЂСЊ РёРјРµРµС‚ JSON-РІР°СЂРёР°РЅС‚ (POST) СЃ С‚РµР»РѕРј/РѕС‚РІРµС‚РѕРј РЅРёР¶Рµ.
-- /oidc/token Рё /oidc/revoke РѕСЃС‚Р°СЋС‚СЃСЏ RFC-СЃРѕРІРјРµСЃС‚РёРјС‹РјРё Рё СЃРІРѕРё РѕС€РёР±РєРё С„РѕСЂРјРёСЂСѓСЋС‚ СЃР°РјРё.
+Схемы (Pydantic v2) для OIDC.
+Важно:
+- /oidc/logout теперь имеет JSON-вариант (POST) с телом/ответом ниже.
+- /oidc/token и /oidc/revoke остаются RFC-совместимыми и свои ошибки формируют сами.
 """
 
 from __future__ import annotations
@@ -4395,26 +4347,26 @@ class UserInfoResponse(BaseModel):
 # ---------------------------
 
 class LogoutRequest(BaseModel):
-    """JSON-Р·Р°РїСЂРѕСЃ РЅР° Р»РѕРіР°СѓС‚ РїРѕ OIDC.
-    РџСЂРёРјРµС‡Р°РЅРёРµ: post_logout_redirect_uri РІР°Р»РёРґРёСЂСѓРµС‚СЃСЏ РїРѕ РєР»РёРµРЅС‚Сѓ РёР· id_token_hint.
+    """JSON-запрос на логаут по OIDC.
+    Примечание: post_logout_redirect_uri валидируется по клиенту из id_token_hint.
     """
     id_token_hint: Optional[str] = Field(
         default=None,
-        description="ID Token РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РґР»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ РєР»РёРµРЅС‚Р° Рё РІР°Р»РёРґР°С†РёРё post_logout_redirect_uri"
+        description="ID Token пользователя для определения клиента и валидации post_logout_redirect_uri"
     )
     post_logout_redirect_uri: Optional[str] = Field(
         default=None,
-        description="РљСѓРґР° СЂРµРґРёСЂРµРєС‚РёС‚СЊ РїРѕСЃР»Рµ Р»РѕРіР°СѓС‚Р°, РµСЃР»Рё РІР°Р»РёРґРµРЅ РґР»СЏ РєР»РёРµРЅС‚Р°"
+        description="Куда редиректить после логаута, если валиден для клиента"
     )
     state: Optional[str] = Field(
         default=None,
-        description="РћРїС†РёРѕРЅР°Р»СЊРЅРѕРµ СЃРѕСЃС‚РѕСЏРЅРёРµ, РІРµСЂРЅС‘С‚СЃСЏ РєР°Рє РїР°СЂР°РјРµС‚СЂ РІ redirect_to"
+        description="Опциональное состояние, вернётся как параметр в redirect_to"
     )
 
 
 class LogoutResponse(BaseModel):
-    """JSON-РѕС‚РІРµС‚ Р»РѕРіР°СѓС‚Р°.
-    redirect_to: Р°Р±СЃРѕР»СЋС‚РЅС‹Р№ URL РёР»Рё null. Р¤СЂРѕРЅС‚ СЃР°Рј РІС‹РїРѕР»РЅРёС‚ РїРµСЂРµС…РѕРґ, 302 РЅРµС‚.
+    """JSON-ответ логаута.
+    redirect_to: абсолютный URL или null. Фронт сам выполнит переход, 302 нет.
     """
     ok: bool = True
     redirect_to: Optional[str] = None
@@ -4626,7 +4578,12 @@ class BackchannelLogoutService:
         session_id: Optional[str] = None,
         only_client_id: Optional[str] = None
     ) -> List[Client]:
-        """Get all clients with active sessions or tokens for a user"""
+        """Get all clients with active sessions or tokens for a user.
+        Если передан only_client_id — вернуть клиента даже без активных токенов."""
+        if only_client_id:
+            cres = await session.execute(select(Client).where(Client.client_id == only_client_id))
+            client = cres.scalar_one_or_none()
+            return [client] if client else []
         client_ids: set[str] = set()
         clients: list[Client] = []
 
@@ -4778,7 +4735,7 @@ class EmailService:
     
     def __init__(self):
         self.smtp_host = settings.SMTP_HOST
-        self.smtp_port = settings.SMTP_PORT
+        self.smtp_port = int(settings.SMTP_PORT)
         self.smtp_user = settings.SMTP_USER
         self.smtp_password = settings.SMTP_PASSWORD
         self.smtp_tls = settings.SMTP_TLS
@@ -4808,13 +4765,14 @@ class EmailService:
             message.attach(html_part)
             
             # Send email
+            use_tls = int(self.smtp_port) == 465
             async with aiosmtplib.SMTP(
                 hostname=self.smtp_host,
                 port=self.smtp_port,
-                use_tls=False
+                use_tls=use_tls,
+                start_tls=bool(self.smtp_tls) and not use_tls,
             ) as smtp:
-                if self.smtp_tls:
-                    await smtp.starttls()
+
                 await smtp.login(self.smtp_user, self.smtp_password)
                 await smtp.send_message(message)
 
@@ -4835,12 +4793,12 @@ class EmailService:
         """Send verification code email"""
         
         subject_map = {
-            "registration": "РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ СЂРµРіРёСЃС‚СЂР°С†РёРё РЅР° Asynq",
-            "reset": "РЎР±СЂРѕСЃ РїР°СЂРѕР»СЏ РЅР° Asynq",
-            "change_email": "РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ СЃРјРµРЅС‹ email РЅР° Asynq"
+            "registration": "Подтверждение регистрации на Asynq",
+            "reset": "Сброс пароля на Asynq",
+            "change_email": "Подтверждение смены email на Asynq"
         }
         
-        subject = subject_map.get(purpose, "РљРѕРґ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ Asynq")
+        subject = subject_map.get(purpose, "Код подтверждения Asynq")
         
         html_template = """
         <!DOCTYPE html>
@@ -4863,29 +4821,29 @@ class EmailService:
                     <h1 style="margin: 0;">Asynq ID</h1>
                 </div>
                 <div class="content">
-                    <h2>Р—РґСЂР°РІСЃС‚РІСѓР№С‚Рµ, {{ username }}!</h2>
+                    <h2>Здравствуйте, {{ username }}!</h2>
                     
                     {% if purpose == 'registration' %}
-                        <p>РЎРїР°СЃРёР±Рѕ Р·Р° СЂРµРіРёСЃС‚СЂР°С†РёСЋ РЅР° РїР»Р°С‚С„РѕСЂРјРµ Asynq! Р”Р»СЏ Р·Р°РІРµСЂС€РµРЅРёСЏ СЂРµРіРёСЃС‚СЂР°С†РёРё РІРІРµРґРёС‚Рµ РєРѕРґ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ:</p>
+                        <p>Спасибо за регистрацию на платформе Asynq! Для завершения регистрации введите код подтверждения:</p>
                     {% elif purpose == 'reset' %}
-                        <p>Р’С‹ Р·Р°РїСЂРѕСЃРёР»Рё СЃР±СЂРѕСЃ РїР°СЂРѕР»СЏ. РСЃРїРѕР»СЊР·СѓР№С‚Рµ СЌС‚РѕС‚ РєРѕРґ РґР»СЏ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ:</p>
+                        <p>Вы запросили сброс пароля. Используйте этот код для подтверждения:</p>
                     {% elif purpose == 'change_email' %}
-                        <p>Р’С‹ Р·Р°РїСЂРѕСЃРёР»Рё СЃРјРµРЅСѓ email Р°РґСЂРµСЃР°. РСЃРїРѕР»СЊР·СѓР№С‚Рµ СЌС‚РѕС‚ РєРѕРґ РґР»СЏ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РЅРѕРІРѕРіРѕ Р°РґСЂРµСЃР°:</p>
+                        <p>Вы запросили смену email адреса. Используйте этот код для подтверждения нового адреса:</p>
                     {% endif %}
                     
                     <div class="code-box">
                         <div class="code">{{ code }}</div>
                     </div>
                     
-                    <p>РљРѕРґ РґРµР№СЃС‚РІРёС‚РµР»РµРЅ РІ С‚РµС‡РµРЅРёРµ 5 РјРёРЅСѓС‚.</p>
+                    <p>Код действителен в течение 5 минут.</p>
                     
                     <p style="color: #666; font-size: 14px;">
-                        Р•СЃР»Рё РІС‹ РЅРµ Р·Р°РїСЂР°С€РёРІР°Р»Рё СЌС‚РѕС‚ РєРѕРґ, РїСЂРѕСЃС‚Рѕ РїСЂРѕРёРіРЅРѕСЂРёСЂСѓР№С‚Рµ СЌС‚Рѕ РїРёСЃСЊРјРѕ.
+                        Если вы не запрашивали этот код, просто проигнорируйте это письмо.
                     </p>
                     
                     <div class="footer">
-                        <p>РЎ СѓРІР°Р¶РµРЅРёРµРј,<br>РљРѕРјР°РЅРґР° Asynq</p>
-                        <p>Р­С‚Рѕ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ, РїРѕР¶Р°Р»СѓР№СЃС‚Р°, РЅРµ РѕС‚РІРµС‡Р°Р№С‚Рµ РЅР° РЅРµРіРѕ.</p>
+                        <p>С уважением,<br>Команда Asynq</p>
+                        <p>Это автоматическое сообщение, пожалуйста, не отвечайте на него.</p>
                     </div>
                 </div>
             </div>
@@ -4894,24 +4852,24 @@ class EmailService:
         """
         
         text_template = """
-        Р—РґСЂР°РІСЃС‚РІСѓР№С‚Рµ, {{ username }}!
+        Здравствуйте, {{ username }}!
         
         {% if purpose == 'registration' %}
-        РЎРїР°СЃРёР±Рѕ Р·Р° СЂРµРіРёСЃС‚СЂР°С†РёСЋ РЅР° РїР»Р°С‚С„РѕСЂРјРµ Asynq! Р”Р»СЏ Р·Р°РІРµСЂС€РµРЅРёСЏ СЂРµРіРёСЃС‚СЂР°С†РёРё РІРІРµРґРёС‚Рµ РєРѕРґ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ:
+        Спасибо за регистрацию на платформе Asynq! Для завершения регистрации введите код подтверждения:
         {% elif purpose == 'reset' %}
-        Р’С‹ Р·Р°РїСЂРѕСЃРёР»Рё СЃР±СЂРѕСЃ РїР°СЂРѕР»СЏ. РСЃРїРѕР»СЊР·СѓР№С‚Рµ СЌС‚РѕС‚ РєРѕРґ РґР»СЏ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ:
+        Вы запросили сброс пароля. Используйте этот код для подтверждения:
         {% elif purpose == 'change_email' %}
-        Р’С‹ Р·Р°РїСЂРѕСЃРёР»Рё СЃРјРµРЅСѓ email Р°РґСЂРµСЃР°. РСЃРїРѕР»СЊР·СѓР№С‚Рµ СЌС‚РѕС‚ РєРѕРґ РґР»СЏ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РЅРѕРІРѕРіРѕ Р°РґСЂРµСЃР°:
+        Вы запросили смену email адреса. Используйте этот код для подтверждения нового адреса:
         {% endif %}
         
-        РљРѕРґ: {{ code }}
+        Код: {{ code }}
         
-        РљРѕРґ РґРµР№СЃС‚РІРёС‚РµР»РµРЅ РІ С‚РµС‡РµРЅРёРµ 5 РјРёРЅСѓС‚.
+        Код действителен в течение 5 минут.
         
-        Р•СЃР»Рё РІС‹ РЅРµ Р·Р°РїСЂР°С€РёРІР°Р»Рё СЌС‚РѕС‚ РєРѕРґ, РїСЂРѕСЃС‚Рѕ РїСЂРѕРёРіРЅРѕСЂРёСЂСѓР№С‚Рµ СЌС‚Рѕ РїРёСЃСЊРјРѕ.
+        Если вы не запрашивали этот код, просто проигнорируйте это письмо.
         
-        РЎ СѓРІР°Р¶РµРЅРёРµРј,
-        РљРѕРјР°РЅРґР° Asynq
+        С уважением,
+        Команда Asynq
         """
         
         # Render templates
@@ -4941,7 +4899,7 @@ class EmailService:
     ) -> bool:
         """Send notification about password change"""
         
-        subject = "Р’Р°С€ РїР°СЂРѕР»СЊ Р±С‹Р» РёР·РјРµРЅРµРЅ"
+        subject = "Ваш пароль был изменен"
         
         html_content = f"""
         <!DOCTYPE html>
@@ -4962,20 +4920,20 @@ class EmailService:
                     <h1 style="margin: 0;">Asynq ID</h1>
                 </div>
                 <div class="content">
-                    <h2>Р—РґСЂР°РІСЃС‚РІСѓР№С‚Рµ, {username}!</h2>
+                    <h2>Здравствуйте, {username}!</h2>
                     
                     <div class="alert">
-                        <strong>вљ пёЏ Р’Р°Р¶РЅРѕРµ СѓРІРµРґРѕРјР»РµРЅРёРµ Рѕ Р±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё</strong>
-                        <p>Р’Р°С€ РїР°СЂРѕР»СЊ Р±С‹Р» СѓСЃРїРµС€РЅРѕ РёР·РјРµРЅРµРЅ.</p>
+                        <strong>⚠️ Важное уведомление о безопасности</strong>
+                        <p>Ваш пароль был успешно изменен.</p>
                     </div>
                     
-                    <p>Р•СЃР»Рё РІС‹ РЅРµ РјРµРЅСЏР»Рё РїР°СЂРѕР»СЊ, РЅРµРјРµРґР»РµРЅРЅРѕ СЃРІСЏР¶РёС‚РµСЃСЊ СЃ РЅР°С€РµР№ СЃР»СѓР¶Р±РѕР№ РїРѕРґРґРµСЂР¶РєРё.</p>
+                    <p>Если вы не меняли пароль, немедленно свяжитесь с нашей службой поддержки.</p>
                     
-                    <p>Р”Р»СЏ РІР°С€РµР№ Р±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё РІСЃРµ Р°РєС‚РёРІРЅС‹Рµ СЃРµСЃСЃРёРё Р±С‹Р»Рё Р·Р°РІРµСЂС€РµРЅС‹. Р’Р°Рј РїРѕС‚СЂРµР±СѓРµС‚СЃСЏ РІРѕР№С‚Рё Р·Р°РЅРѕРІРѕ РЅР° РІСЃРµС… СѓСЃС‚СЂРѕР№СЃС‚РІР°С….</p>
+                    <p>Для вашей безопасности все активные сессии были завершены. Вам потребуется войти заново на всех устройствах.</p>
                     
                     <div class="footer" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666;">
-                        <p>РЎ СѓРІР°Р¶РµРЅРёРµРј,<br>РљРѕРјР°РЅРґР° Asynq</p>
-                        <p>Р­С‚Рѕ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ, РїРѕР¶Р°Р»СѓР№СЃС‚Р°, РЅРµ РѕС‚РІРµС‡Р°Р№С‚Рµ РЅР° РЅРµРіРѕ.</p>
+                        <p>С уважением,<br>Команда Asynq</p>
+                        <p>Это автоматическое сообщение, пожалуйста, не отвечайте на него.</p>
                     </div>
                 </div>
             </div>
@@ -4984,17 +4942,17 @@ class EmailService:
         """
         
         text_content = f"""
-        Р—РґСЂР°РІСЃС‚РІСѓР№С‚Рµ, {username}!
+        Здравствуйте, {username}!
         
-        Р’Р°Р¶РЅРѕРµ СѓРІРµРґРѕРјР»РµРЅРёРµ Рѕ Р±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё:
-        Р’Р°С€ РїР°СЂРѕР»СЊ Р±С‹Р» СѓСЃРїРµС€РЅРѕ РёР·РјРµРЅРµРЅ.
+        Важное уведомление о безопасности:
+        Ваш пароль был успешно изменен.
         
-        Р•СЃР»Рё РІС‹ РЅРµ РјРµРЅСЏР»Рё РїР°СЂРѕР»СЊ, РЅРµРјРµРґР»РµРЅРЅРѕ СЃРІСЏР¶РёС‚РµСЃСЊ СЃ РЅР°С€РµР№ СЃР»СѓР¶Р±РѕР№ РїРѕРґРґРµСЂР¶РєРё.
+        Если вы не меняли пароль, немедленно свяжитесь с нашей службой поддержки.
         
-        Р”Р»СЏ РІР°С€РµР№ Р±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё РІСЃРµ Р°РєС‚РёРІРЅС‹Рµ СЃРµСЃСЃРёРё Р±С‹Р»Рё Р·Р°РІРµСЂС€РµРЅС‹. Р’Р°Рј РїРѕС‚СЂРµР±СѓРµС‚СЃСЏ РІРѕР№С‚Рё Р·Р°РЅРѕРІРѕ РЅР° РІСЃРµС… СѓСЃС‚СЂРѕР№СЃС‚РІР°С….
+        Для вашей безопасности все активные сессии были завершены. Вам потребуется войти заново на всех устройствах.
         
-        РЎ СѓРІР°Р¶РµРЅРёРµРј,
-        РљРѕРјР°РЅРґР° Asynq
+        С уважением,
+        Команда Asynq
         """
         
         return await self.send_email(
@@ -5118,7 +5076,7 @@ class JWKService:
     
     async def get_jwks(self) -> Dict[str, Any]:
         async with async_session_maker() as session:
-            # РґРµСЂР¶РёРј РїСЂРµРґС‹РґСѓС‰РёРµ РєР»СЋС‡Рё РјРёРЅРёРјСѓРј РґРѕ РёСЃС‚РµС‡РµРЅРёСЏ access/id С‚РѕРєРµРЅРѕРІ
+            # держим предыдущие ключи минимум до истечения access/id токенов
             retention = timedelta(seconds=settings.ACCESS_TOKEN_TTL)
             cutoff = datetime.now(timezone.utc) - retention
 
@@ -5200,7 +5158,7 @@ class SessionService:
         session: AsyncSession,
         user: User,
         request: Request,
-        remember_me: bool = False,   # <вЂ” РґРѕР±Р°РІРёР»Рё
+        remember_me: bool = False,   # <— добавили
     ) -> IDPSession:
         session_id = secrets.token_urlsafe(32)
         now = datetime.now(timezone.utc)
@@ -5212,7 +5170,7 @@ class SessionService:
             user_id=user.id,
             last_seen_at=now,
             idle_expires_at=now + timedelta(seconds=settings.SSO_IDLE_TTL),
-            max_expires_at=now + timedelta(seconds=max_ttl),  # <вЂ” Р±С‹Р»Рѕ SSO_MAX_TTL
+            max_expires_at=now + timedelta(seconds=max_ttl),  # <— было SSO_MAX_TTL
             ip_address=request.client.host,
             user_agent=request.headers.get("User-Agent"),
             created_at=now
@@ -5358,6 +5316,7 @@ from typing import Optional, Dict, Any, Tuple
 from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
+from sqlalchemy.orm import noload
 from cryptography.hazmat.primitives import serialization
 
 from db.session import async_session_maker
@@ -5372,7 +5331,7 @@ logger = logging.getLogger(__name__)
 
 
 def _load_public_key(pem: str):
-    """Р—Р°РіСЂСѓР·РєР° РїСѓР±Р»РёС‡РЅРѕРіРѕ РєР»СЋС‡Р° РёР· PEM."""
+    """Загрузка публичного ключа из PEM."""
     return serialization.load_pem_public_key(pem.encode("utf-8"))
 
 
@@ -5393,8 +5352,8 @@ class TokenService:
         user_agent: Optional[str] = None,
     ) -> str:
         """
-        РЎРѕР·РґР°С‚СЊ РѕРґРЅРѕСЂР°Р·РѕРІС‹Р№ authorization code СЃ Р±РёРЅРґРёРЅРіР°РјРё (PKCE, redirect_uri, scope, nonce, state).
-        РҐСЂР°РЅРёРј С‚РѕР»СЊРєРѕ sha256 РѕС‚ РєРѕРґР°.
+        Создать одноразовый authorization code с биндингами (PKCE, redirect_uri, scope, nonce, state).
+        Храним только sha256 от кода.
         """
         code = secrets.token_urlsafe(32)
         code_hash = hashlib.sha256(code.encode()).hexdigest()
@@ -5429,14 +5388,15 @@ class TokenService:
         code_verifier: Optional[str] = None,
     ) -> Tuple[Optional[AuthCode], Optional[str]]:
         """
-        РћР±РјРµРЅ authorization code в†’ РїСЂРѕРІРµСЂРєР° СЃСЂРѕРєР°, one-time, PKCE Рё Р±РёРЅРґРёРЅРіРѕРІ.
-        Р’РѕР·РІСЂР°С‰Р°РµС‚ РЅР°Р№РґРµРЅРЅС‹Р№ AuthCode РёР»Рё РѕС€РёР±РєСѓ OAuth.
+        Обмен authorization code → проверка срока, one-time, PKCE и биндингов.
+        Возвращает найденный AuthCode или ошибку OAuth.
         """
         code_hash = hashlib.sha256(code.encode()).hexdigest()
         now = datetime.now(timezone.utc)
 
         result = await session.execute(
             select(AuthCode)
+            .options(noload("*"))                      # отключаем eager-join всех связей
             .where(
                 and_(
                     AuthCode.code_hash == code_hash,
@@ -5446,14 +5406,14 @@ class TokenService:
                     AuthCode.used_at.is_(None),
                 )
             )
-            .with_for_update()
+            .with_for_update(of=AuthCode)              # блокируем только auth_codes
         )
         auth_code = result.scalar_one_or_none()
         if not auth_code:
             logger.warning("Invalid code exchange. client_id=%s", client_id)
             return None, "invalid_grant"
 
-        # PKCE РїСЂРѕРІРµСЂСЏРµРј, РµСЃР»Рё Р±С‹Р» С‡РµР»РµРЅРґР¶
+        # PKCE проверяем, если был челендж
         if auth_code.code_challenge_hash:
             if not code_verifier:
                 return None, "invalid_request"
@@ -5461,7 +5421,7 @@ class TokenService:
                 logger.warning("PKCE failed. client_id=%s", client_id)
                 return None, "invalid_grant"
 
-        # РїРѕРјРµС‡Р°РµРј РєРѕРґ РёСЃРїРѕР»СЊР·РѕРІР°РЅРЅС‹Рј РІ С‚СЂР°РЅР·Р°РєС†РёРё
+        # помечаем код использованным в транзакции
         auth_code.used_at = now
         await session.flush()
         return auth_code, None
@@ -5479,15 +5439,15 @@ class TokenService:
         user_agent: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Р’С‹РїСѓСЃРє access/id/refresh С‚РѕРєРµРЅРѕРІ.
-        RS256 СЃ С‚РµРєСѓС‰РёРј Р°РєС‚РёРІРЅС‹Рј РєР»СЋС‡РѕРј. exp/iat вЂ” unix time.
+        Выпуск access/id/refresh токенов.
+        RS256 с текущим активным ключом. exp/iat — unix time.
         """
         now = datetime.now(timezone.utc)
         auth_time = auth_time or now
         ts = lambda dt: int(dt.timestamp())
         scopes = set(scope.split())
 
-        # Р°РєС‚РёРІРЅС‹Р№ JWK
+        # активный JWK
         jwk_key = await jwk_service.get_active_key()
         if not jwk_key:
             raise RuntimeError("No active JWK key available")
@@ -5519,7 +5479,7 @@ class TokenService:
             headers={"kid": jwk_key.kid},
         )
 
-        # id token РїСЂРё scope openid
+        # id token при scope openid
         id_token: Optional[str] = None
         if "openid" in scopes:
             id_claims = {
@@ -5540,7 +5500,7 @@ class TokenService:
             if session_id:
                 id_claims["sid"] = session_id
 
-            # at_hash = left-most 128 bits of SHA-256(access_token), base64url Р±РµР· '='
+            # at_hash = left-most 128 bits of SHA-256(access_token), base64url без '='
             at_hash = hashlib.sha256(access_token.encode()).digest()[:16]
             import base64
             id_claims["at_hash"] = base64.urlsafe_b64encode(at_hash).decode().rstrip("=")
@@ -5553,7 +5513,7 @@ class TokenService:
             )
 
 
-        # refresh РїСЂРё offline_access
+        # refresh при offline_access
         refresh_token: Optional[str] = None
         if "offline_access" in scopes:
             refresh_token_obj = RefreshToken(
@@ -5609,17 +5569,17 @@ class TokenService:
             if not kid:
                 return None, "invalid_grant"
 
-            # Р‘РµСЂС‘Рј РєР»СЋС‡ РїРѕ kid
+            # Берём ключ по kid
             result = await session.execute(select(JWKKey).where(JWKKey.kid == kid))
             jwk_key = result.scalar_one_or_none()
             if not jwk_key:
                 return None, "invalid_grant"
 
-            # Р’РµСЂРёС„РёС†РёСЂСѓРµРј С‚РѕРєРµРЅ
+            # Верифицируем токен
             private_key_pem = jwk_service.decrypt_private_key(jwk_key.private_pem_encrypted)
             claims = jwt.decode(
                 refresh_token,
-                private_key_pem,  # РґРѕРїСѓСЃС‚РёРјРѕ, РєР»СЋС‡ RSA РїСЂРёРІР°С‚РЅС‹Р№ СЃРѕРґРµСЂР¶РёС‚ РїСѓР±Р»РёС‡РЅСѓСЋ С‡Р°СЃС‚СЊ
+                private_key_pem,  # допустимо, ключ RSA приватный содержит публичную часть
                 algorithms=["RS256"],
                 audience=client_id,
                 issuer=settings.ISSUER,
@@ -5630,7 +5590,7 @@ class TokenService:
             jti = claims.get("jti")
             user_id = claims.get("sub")
 
-            # Р›РѕС‡РёРј Р·Р°РїРёСЃСЊ СЂРµС„СЂРµС€Р°
+            # Лочим запись рефреша
             result = await session.execute(
                 select(RefreshToken)
                 .where(
@@ -5645,7 +5605,7 @@ class TokenService:
             refresh_token_obj = result.scalar_one_or_none()
 
             if not refresh_token_obj:
-                # РџСЂРѕРІРµСЂРєР° reuse
+                # Проверка reuse
                 result = await session.execute(select(RefreshToken).where(RefreshToken.jti == jti))
                 used_token = result.scalar_one_or_none()
                 if used_token:
@@ -5656,28 +5616,28 @@ class TokenService:
 
             now = datetime.now(timezone.utc)
 
-            # РџСЂРѕС‚СѓС…
+            # Протух
             if refresh_token_obj.expires_at < now:
                 refresh_token_obj.revoked_at = now
                 refresh_token_obj.revoked_reason = "expired"
                 await session.flush()
                 return None, "invalid_grant"
 
-            # РџРѕР»СѓС‡Р°РµРј СЃСѓС‰РЅРѕСЃС‚Рё РєРѕСЂСЂРµРєС‚РЅРѕ
+            # Получаем сущности корректно
             user = await session.get(User, user_id)
-            # Р’РђР–РќРћ: Client РёС‰РµРј РїРѕ client_id, Р° РЅРµ РїРѕ PK
+            # ВАЖНО: Client ищем по client_id, а не по PK
             cres = await session.execute(select(Client).where(Client.client_id == client_id))
             client = cres.scalar_one_or_none()
             if not user or not client:
                 return None, "invalid_grant"
 
-            # Р–С‘СЃС‚РєР°СЏ СЂРѕС‚Р°С†РёСЏ: СЃС‚Р°СЂС‹Р№ СЃСЂР°Р·Сѓ РЅРµРґРµР№СЃС‚РІРёС‚РµР»РµРЅ
+            # Жёсткая ротация: старый сразу недействителен
             refresh_token_obj.rotated_at = now
             refresh_token_obj.revoked_at = now
             refresh_token_obj.revoked_reason = "rotated"
 
 
-            # Р’С‹РїСѓСЃРєР°РµРј РЅРѕРІСѓСЋ РїР°С‡РєСѓ
+            # Выпускаем новую пачку
             new_tokens = await self.create_tokens(
                 session=session,
                 user=user,
@@ -5687,9 +5647,12 @@ class TokenService:
                 user_agent=user_agent,
             )
 
-            # РЎРІСЏР·С‹РІР°РµРј С†РµРїРѕС‡РєСѓ
+            # Связываем цепочку
             if new_tokens.get("refresh_token"):
-                new_jti = jwt.decode(new_tokens["refresh_token"], private_key_pem, algorithms=["RS256"])["jti"]
+                try:
+                    new_jti = jwt.get_unverified_claims(new_tokens["refresh_token"]).get("jti")
+                except Exception:
+                    new_jti = None
                 res2 = await session.execute(select(RefreshToken).where(RefreshToken.jti == new_jti))
                 new_refresh_obj = res2.scalar_one()
                 new_refresh_obj.parent_jti = refresh_token_obj.jti
@@ -5713,11 +5676,11 @@ class TokenService:
         reason: str = "revoked_by_client",
     ) -> None:
         """
-        RFC 7009: РѕС‚Р·С‹РІ refresh С‚РѕРєРµРЅР°. Р‘РµР·Р±РѕР»РµР·РЅРµРЅРЅРѕ РІРѕР·РІСЂР°С‰Р°РµС‚ 200 РґР°Р¶Рµ РµСЃР»Рё С‚РѕРєРµРЅ РЅРµРІР°Р»РёРґРµРЅ.
-        РњС‹ РѕС‚Р·С‹РІРµРј СЃР°Рј С‚РѕРєРµРЅ Рё РІСЃРµС… РµРіРѕ РїРѕС‚РѕРјРєРѕРІ РїРѕ С†РµРїРѕС‡РєРµ parent_jti.
+        RFC 7009: отзыв refresh токена. Безболезненно возвращает 200 даже если токен невалиден.
+        Мы отзывем сам токен и всех его потомков по цепочке parent_jti.
         """
         try:
-            # Р’С‹С‡РёСЃР»СЏРµРј РєР»СЋС‡ РїРѕ kid Рё РІР°Р»РёРґРёСЂСѓРµРј С‚РѕРєРµРЅ
+            # Вычисляем ключ по kid и валидируем токен
             unverified = jwt.get_unverified_header(refresh_token)
             kid = unverified.get("kid")
             if not kid:
@@ -5731,7 +5694,7 @@ class TokenService:
             private_key_pem = jwk_service.decrypt_private_key(jwk_key.private_pem_encrypted)
             claims = jwt.decode(
                 refresh_token,
-                private_key_pem,  # РІР°Р»РёРґРЅРѕ: РїСЂРёРІР°С‚РЅС‹Р№ РєР»СЋС‡ СЃРѕРґРµСЂР¶РёС‚ РїСѓР±Р»РёС‡РЅСѓСЋ С‡Р°СЃС‚СЊ
+                private_key_pem,  # валидно: приватный ключ содержит публичную часть
                 algorithms=["RS256"],
                 audience=client_id,
                 issuer=settings.ISSUER,
@@ -5740,7 +5703,7 @@ class TokenService:
             if not jti:
                 return
 
-            # РќР°С…РѕРґРёРј СЃР°Рј С‚РѕРєРµРЅ
+            # Находим сам токен
             result = await session.execute(
                 select(RefreshToken)
                 .where(
@@ -5749,7 +5712,7 @@ class TokenService:
                         RefreshToken.client_id == client_id,
                     )
                 )
-                .with_for_update()
+                .with_for_update(of=RefreshToken)
             )
             root = result.scalar_one_or_none()
             if not root:
@@ -5757,7 +5720,7 @@ class TokenService:
 
             now = datetime.now(timezone.utc)
 
-            # РЎРѕР±РёСЂР°РµРј РІСЃРµС… РїРѕС‚РѕРјРєРѕРІ (С€РёСЂРѕРєРёР№ РїРѕРёСЃРє РїРѕ parent_jti)
+            # Собираем всех потомков (широкий поиск по parent_jti)
             to_revoke = [root]
             queue = [root.jti]
             seen = set([root.jti])
@@ -5771,7 +5734,7 @@ class TokenService:
                         to_revoke.append(c)
                         queue.append(c.jti)
 
-            # РћС‚Р·С‹РІР°РµРј
+            # Отзываем
             for t in to_revoke:
                 if not t.revoked_at:
                     t.revoked_at = now
@@ -5788,11 +5751,11 @@ class TokenService:
 
     async def _revoke_token_chain(self, session: AsyncSession, token: RefreshToken) -> None:
         """
-        РћС‚РѕР·РІР°С‚СЊ РІСЃСЋ С†РµРїРѕС‡РєСѓ refresh РїСЂРё reuse. РџР»СЋСЃ SSO Рё back-channel РґР»СЏ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РµРіРѕ РєР»РёРµРЅС‚Р°.
+        Отозвать всю цепочку refresh при reuse. Плюс SSO и back-channel для соответствующего клиента.
         """
         now = datetime.now(timezone.utc)
 
-        # СЃРѕР±РёСЂР°РµРј РІСЃСЋ С†РµРїРѕС‡РєСѓ РІРІРµСЂС… РїРѕ parent_jti
+        # собираем всю цепочку вверх по parent_jti
         tokens_to_revoke = []
         current = token
         while current.parent_jti:
@@ -5804,7 +5767,7 @@ class TokenService:
             else:
                 break
 
-        # Рё РІРЅРёР· РїРѕ РїРѕС‚РѕРјРєР°Рј
+        # и вниз по потомкам
         result = await session.execute(select(RefreshToken).where(RefreshToken.parent_jti == token.jti))
         children = result.scalars().all()
         tokens_to_revoke.extend(children)
@@ -5816,10 +5779,10 @@ class TokenService:
                 t.revoked_reason = "token_reuse_detected"
         await session.flush()
 
-        # РѕС‚Р·С‹РІР°РµС‚ РІСЃРµ IdP-СЃРµСЃСЃРёРё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ (РїРѕРєР° РіР»РѕР±Р°Р»СЊРЅРѕ)
+        # отзывает все IdP-сессии пользователя (пока глобально)
         await session_service.revoke_all_user_sessions(session, token.user_id)
 
-        # back-channel С‚РѕС‡РµС‡РЅРѕ РїРѕ РєР»РёРµРЅС‚Сѓ С‚РѕРєРµРЅР°
+        # back-channel точечно по клиенту токена
         user = await session.get(User, token.user_id)
         try:
             await backchannel_logout_service.initiate_backchannel_logout(
@@ -5838,7 +5801,7 @@ class TokenService:
         required_scope: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
-        Р’РµСЂРёС„РёРєР°С†РёСЏ access: РїРѕРґРїРёСЃСЊ, iss. aud РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ. РџСЂРѕРІРµСЂРєР° С‚СЂРµР±СѓРµРјРѕРіРѕ scope.
+        Верификация access: подпись, iss. aud опционально. Проверка требуемого scope.
         """
         try:
             hdr = jwt.get_unverified_header(token)
@@ -5870,8 +5833,8 @@ class TokenService:
         reason: str = "user_action",
     ) -> list[str]:
         """
-        РћС‚РѕР·РІР°С‚СЊ РІСЃРµ Р°РєС‚РёРІРЅС‹Рµ refresh С‚РѕРєРµРЅС‹ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
-        Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє client_id, Сѓ РєРѕС‚РѕСЂС‹С… Р±С‹Р»Рё Р°РєС‚РёРІРЅС‹Рµ С‚РѕРєРµРЅС‹.
+        Отозвать все активные refresh токены пользователя.
+        Возвращает список client_id, у которых были активные токены.
         """
         now = datetime.now(timezone.utc)
         q = select(RefreshToken).where(
@@ -5928,49 +5891,43 @@ import hmac
 import hashlib
 import secrets
 from typing import Optional
-from fastapi import Depends, Request, HTTPException, status
 
-from core.config import settings
+from fastapi import Request, HTTPException, status
 
 
 class CSRFProtection:
     """CSRF protection using double-submit cookie pattern"""
-    
+
     def __init__(self):
         self.cookie_name = "csrf_token"
         self.header_name = "X-CSRF-Token"
         self.form_field = "csrf_token"
-    
+
     def generate_token(self) -> str:
         """Generate CSRF token"""
         return secrets.token_urlsafe(32)
-    
+
     async def validate_token(
         self,
         request: Request,
         cookie_token: Optional[str] = None,
-        submitted_token: Optional[str] = None
+        submitted_token: Optional[str] = None,
     ) -> bool:
         """
-        Validate CSRF token
-        
-        Args:
-            request: FastAPI request
-            cookie_token: Token from cookie (if not in request)
-            submitted_token: Token from header/form (if not in request)
-            
-        Returns:
-            True if valid, raises HTTPException if invalid
+        Validate CSRF token (double-submit: cookie vs header/form)
+        Raises HTTPException(403) if invalid, returns True if valid.
         """
-        
-        
-        # Get token from cookie
+
+        # 1) token from cookie
         if cookie_token is None:
             cookie_token = request.cookies.get(self.cookie_name)
 
         if not cookie_token:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF cookie not found")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="CSRF cookie not found"
+            )
 
+        # 2) token from header (preferred) or form field (fallback)
         if submitted_token is None:
             submitted_token = request.headers.get(self.header_name)
 
@@ -5982,31 +5939,81 @@ class CSRFProtection:
                     submitted_token = None
 
         if not submitted_token:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF token not provided")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="CSRF token not provided"
+            )
 
+        # 3) constant-time compare
         if not hmac.compare_digest(cookie_token, submitted_token):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token"
+            )
 
         return True
-    
+
     def should_check_csrf(self, request: Request) -> bool:
-        if request.method in {"GET", "HEAD", "OPTIONS"}:
+        """
+        Decide if the current request must pass CSRF check.
+
+        Safe methods are skipped. We explicitly *protect*:
+        - /api/auth/**
+        - /api/account/**
+        - (на всякий случай совместимость с неполным префиксом)
+          /auth/** и /account/**
+        - /oauth/authorize**   (включая /oauth/authorize/consent)
+
+        Exclusions:
+        - /api/auth/csrf (и /auth/csrf)
+        - /.well-known/*
+        - /oauth/token, /oauth/revoke, а также корневые /token, /revoke
+        - /health, /health/ready
+        - Любые запросы с Authorization: Bearer*, КРОМЕ явных protected путей.
+        """
+        method = request.method.upper()
+        if method in {"GET", "HEAD", "OPTIONS"}:
             return False
+
         path = request.url.path
+
+        # --- explicit exclusions ---
         if path in {
-            "/token", "/revoke", "/auth/csrf",
-            "/.well-known/openid-configuration", "/.well-known/jwks.json",
-            "/health", "/health/ready",
+            "/api/auth/csrf",
+            "/auth/csrf",
+            "/.well-known/openid-configuration",
+            "/.well-known/jwks.json",
+            "/health",
+            "/health/ready",
+            "/oauth/token",
+            "/oauth/revoke",
+            "/token",
+            "/revoke",
         }:
             return False
+
+        # --- explicit protected areas ---
+        is_protected = (
+            path.startswith("/api/auth/")
+            or path.startswith("/api/account/")
+            or path.startswith("/auth/")
+            or path.startswith("/account/")
+            or path.startswith("/oauth/authorize")  # covers /oauth/authorize/consent
+            or path == "/logout"  # POST /logout гасит cookie-сессию — защищаем
+        )
+        if is_protected:
+            return True
+
+        # Bearer requests (API calls with JWT) usually don't need CSRF
+        # (keep AFTER explicit protected check so consent stays protected)
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             return False
-        return True
 
+        # default
+        return False
 
 
 csrf_protection = CSRFProtection()
+
 
 
 /* ===== C:\Users\icipa\team-platform-public\id_service\utils\email_sender.py ===== */
@@ -6096,14 +6103,11 @@ def setup_logging():
 
 # id_service/utils/otp.py
 
-import hashlib
-import hmac
-import secrets
-import string
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from sqlalchemy.orm import noload
 
 from models import EmailCode, EmailCodePurpose, User
 from core.config import settings
@@ -6189,16 +6193,21 @@ class OTPService:
         now = datetime.now(timezone.utc)
         
         # Find active code
-        result = await session.execute(
-            select(EmailCode).where(
+        stmt = (
+            select(EmailCode)
+            .options(noload(EmailCode.user))  # опционально: уберёт LEFT OUTER JOIN
+            .where(
                 and_(
                     EmailCode.user_id == user_id,
                     EmailCode.purpose == purpose,
                     EmailCode.expires_at > now,
-                    EmailCode.used_at.is_(None)
+                    EmailCode.used_at.is_(None),
                 )
-            ).with_for_update()
+            )
+            .order_by(EmailCode.expires_at.desc())
+            .with_for_update(of=[EmailCode])
         )
+        result = await session.execute(stmt)
         email_code = result.scalar_one_or_none()
         
         if not email_code:

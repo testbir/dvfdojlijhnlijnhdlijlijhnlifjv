@@ -9,18 +9,20 @@ export const API_ENDPOINTS = {
     RESEND_CODE: '/api/auth/resend-code',
     FORGOT_PASSWORD: '/api/auth/forgot-password',
     RESET_PASSWORD: '/api/auth/reset-password',
-    ME: '/api/auth/me',
+    ME: '/api/account/profile',
   },
   
   // OAuth endpoints
   OAUTH: {
-    AUTHORIZE: '/oauth/authorize',
-    TOKEN: '/oauth/token',
-    USERINFO: '/oauth/userinfo',
-    REVOKE: '/oauth/revoke',
+    AUTHORIZE: '/authorize',
+    TOKEN: '/token',
+    USERINFO: '/userinfo',
+    REVOKE: '/revoke',
+    CONSENT: '/authorize/consent',
     JWKS: '/.well-known/jwks.json',
     DISCOVERY: '/.well-known/openid-configuration',
   },
+
   
   // Session endpoints
   SESSION: {

@@ -7,8 +7,7 @@ import { CodeInput } from '../components/CodeInput/CodeInput';
 import { LoadingOverlay } from '../components/LoadingOverlay/LoadingOverlay';
 import { authService } from '../services/auth.service';
 import { handleApiError } from '../utils/errors';
-import { ROUTES, CODE_RESEND_TIMEOUT } from '../utils/constants';
-import '../styles/pages.scss';
+import { ROUTES, CODE_RESEND_TIMEOUT, CODE_LENGTH } from '../utils/constants';
 
 export const VerifyEmailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -17,7 +16,7 @@ export const VerifyEmailPage: React.FC = () => {
   const userId = searchParams.get('user_id');
   const email = searchParams.get('email');
   
-  const [code, setCode] = useState('');
+  const [, setCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -81,6 +80,7 @@ export const VerifyEmailPage: React.FC = () => {
         </p>
         
         <CodeInput
+          length={CODE_LENGTH}
           onChange={setCode}
           onComplete={handleVerify}
           error={!!error}

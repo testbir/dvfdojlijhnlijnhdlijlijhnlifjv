@@ -2,7 +2,7 @@
 
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\Dockerfile ===== */
 
-# build
+# id_frontend/Dockerfile
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
@@ -17,7 +17,7 @@ RUN npm run build
 # serve
 FROM nginx:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
-# SPA fallback + РєСЌС€ Р°СЃСЃРµС‚РѕРІ
+# SPA fallback + кэш ассетов
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
@@ -58,7 +58,7 @@ export default tseslint.config([
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <title>Asynq ID</title>
   </head>
   <body>
     <div id="root"></div>
@@ -105,85 +105,15 @@ export default tseslint.config([
 
 
 
-/* ===== C:\Users\icipa\team-platform-public\id_frontend\README.md ===== */
-
-# React + TypeScript + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-
-
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\api\client.ts ===== */
 
 // ============= src/api/client.ts =============
-
-import axios, { type AxiosInstance, AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import axios, {
+  type AxiosInstance,
+  type AxiosError,
+  type InternalAxiosRequestConfig,
+  AxiosHeaders,
+} from 'axios'
 import { type TokenResponse } from '../types/oauth.types'
 import {
   TOKEN_STORAGE_KEY,
@@ -191,15 +121,16 @@ import {
   ID_TOKEN_STORAGE_KEY,
 } from '../utils/constants'
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? ''
+const API_BASE = import.meta.env.VITE_API_BASE ?? '' // '' в dev, '/idp' в prod
 
 class ApiClient {
   private client: AxiosInstance
   private refreshPromise: Promise<TokenResponse> | null = null
+  private csrfToken: string | null = null
 
   constructor() {
     this.client = axios.create({
-      baseURL: API_BASE,          // '' РІ dev, '/idp' РІ prod
+      baseURL: API_BASE,
       timeout: 30000,
       headers: { 'Content-Type': 'application/json' },
       withCredentials: true,
@@ -207,14 +138,26 @@ class ApiClient {
     this.setupInterceptors()
   }
 
+  // ---------- Interceptors ----------
   private setupInterceptors() {
-    this.client.interceptors.request.use((config) => {
+    this.client.interceptors.request.use(async (config) => {
+      const headers = (config.headers ??= new AxiosHeaders(config.headers))
       const token = this.getAccessToken()
-      if (token) {
-        config.headers = { ...config.headers, Authorization: `Bearer ${token}` }
+      if (token) headers.set('Authorization', `Bearer ${token}`)
+
+      if (this.needsCsrf(config)) {
+        // лениво получаем CSRF из ответа или cookie
+        if (!this.csrfToken && !this.getCookie('csrf_token')) {
+          await this.fetchCsrf()
+        }
+        const csrf = this.csrfToken || this.getCookie('csrf_token')
+        if (csrf) headers.set('X-CSRF-Token', csrf)
+
       }
       return config
     })
+
+    
 
     this.client.interceptors.response.use(
       (r) => r,
@@ -222,19 +165,16 @@ class ApiClient {
         const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined
         const status = error.response?.status
         const url = original?.url || ''
-        // РЅРµ СЂРµС„СЂРµС€РёРј СЃР°Рј /oauth/token Рё РёР·Р±РµРіР°РµРј С†РёРєР»РѕРІ
-        if (
-          status === 401 &&
-          original &&
-          !original._retry &&
-          !url.startsWith('/oauth/token') &&
-          this.getRefreshToken()
-        ) {
+
+        // Не пытаемся рефрешить /oauth/token|/oauth/revoke и избегаем циклов
+        const isTokenEndpoint = url.startsWith('/token') || url.startsWith('/revoke')
+        if (status === 401 && original && !original._retry && !isTokenEndpoint && this.getRefreshToken()) {
+
           original._retry = true
           try {
             await this.refreshToken()
             const token = this.getAccessToken()
-            if (token && original.headers) original.headers.Authorization = `Bearer ${token}`
+            if (token && original.headers) (original.headers as AxiosHeaders).set('Authorization', `Bearer ${token}`)
             return this.client(original)
           } catch (e) {
             this.clearTokens()
@@ -247,45 +187,112 @@ class ApiClient {
     )
   }
 
-  private getAccessToken() { return localStorage.getItem(TOKEN_STORAGE_KEY) }
-  private getRefreshToken() { return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) }
+  private async fetchCsrf(): Promise<string | null> {
+    try {
+      const resp = await this.client.get('/api/auth/csrf', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      })
+      const headers = resp.headers as any
+      const fromHeader = headers['x-csrf-token'] || headers['x-csrf']
+      const body: any = resp.data
+      const fromBody = body?.csrf || body?.csrf_token || body?.token
+      const fromCookie = this.getCookie('csrf_token')
+      const token = fromHeader || fromBody || fromCookie || null
+      this.csrfToken = token
+      return token
+    } catch {
+      return null
+    }
+  }
 
+
+  // ---------- Helpers ----------
+  private getAccessToken() {
+    return localStorage.getItem(TOKEN_STORAGE_KEY)
+  }
+  private getRefreshToken() {
+    return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY)
+  }
   private setTokens(tokens: TokenResponse) {
     localStorage.setItem(TOKEN_STORAGE_KEY, tokens.access_token)
     if (tokens.refresh_token) localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, tokens.refresh_token)
     if (tokens.id_token) localStorage.setItem(ID_TOKEN_STORAGE_KEY, tokens.id_token)
   }
-
   private clearTokens() {
     localStorage.removeItem(TOKEN_STORAGE_KEY)
     localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY)
     localStorage.removeItem(ID_TOKEN_STORAGE_KEY)
   }
 
-private async refreshToken(): Promise<TokenResponse> {
-  if (this.refreshPromise) return this.refreshPromise
-  const refreshToken = this.getRefreshToken()
-  if (!refreshToken) throw new Error('No refresh token')
+  private getCookie(name: string): string | null {
+    const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'))
+    return m ? decodeURIComponent(m[1]) : null
+  }
 
-  const body = new URLSearchParams({
-    grant_type: 'refresh_token',
-    refresh_token: refreshToken,
-    client_id: import.meta.env.VITE_CLIENT_ID || 'id_frontend',
-  })
+private needsCsrf(config: InternalAxiosRequestConfig): boolean {
+  const method = (config.method ?? 'get').toUpperCase()
+  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return false
+  const url = config.url ?? ''
 
-  this.refreshPromise = this.client
-    .post<TokenResponse>('/oauth/token', body, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    })
-    .then(({ data }) => { this.setTokens(data); this.refreshPromise = null; return data })
-    .catch((e) => { this.refreshPromise = null; throw e })
+  // исключения
+  if (
+    url.startsWith('/token') ||            url.startsWith('/revoke') ||       
+    url.startsWith('/api/auth/csrf') ||
+    url.startsWith('/.well-known') ||
+    url.startsWith('/health')
+  ) { return false }
 
-  return this.refreshPromise
+  // вот здесь добавляем oauth/authorize (закроет POST /oauth/authorize/consent)
+  return (
+    url.startsWith('/api/auth/') ||
+    url.startsWith('/api/account/') ||
+    url.startsWith('/authorize')
+    // при необходимости — если logout у вас под CSRF:
+    // || url.startsWith('/api/session/')
+  )
 }
 
-  getClient() { return this.client }
-  saveTokens(tokens: TokenResponse) { this.setTokens(tokens) }
-  logout() { this.clearTokens() }
+  // ---------- Refresh ----------
+  private async refreshToken(): Promise<TokenResponse> {
+    if (this.refreshPromise) return this.refreshPromise
+
+    const refreshToken = this.getRefreshToken()
+    if (!refreshToken) throw new Error('No refresh token')
+
+    const body = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      // Для public-клиента client_id обязателен
+      client_id: import.meta.env.VITE_CLIENT_ID || 'id_frontend',
+    })
+
+      this.refreshPromise = this.client
+        .post<TokenResponse>('/token', body, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        })
+      .then(({ data }) => {
+        this.setTokens(data)
+        this.refreshPromise = null
+        return data
+      })
+      .catch((e) => {
+        this.refreshPromise = null
+        throw e
+      })
+
+    return this.refreshPromise
+  }
+
+  // ---------- Public API ----------
+  getClient() {
+    return this.client
+  }
+  saveTokens(tokens: TokenResponse) {
+    this.setTokens(tokens)
+  }
+  logout() {
+    this.clearTokens()
+  }
 }
 
 export const apiClient = new ApiClient()
@@ -306,18 +313,20 @@ export const API_ENDPOINTS = {
     RESEND_CODE: '/api/auth/resend-code',
     FORGOT_PASSWORD: '/api/auth/forgot-password',
     RESET_PASSWORD: '/api/auth/reset-password',
-    ME: '/api/auth/me',
+    ME: '/api/account/profile',
   },
   
   // OAuth endpoints
   OAUTH: {
-    AUTHORIZE: '/oauth/authorize',
-    TOKEN: '/oauth/token',
-    USERINFO: '/oauth/userinfo',
-    REVOKE: '/oauth/revoke',
+    AUTHORIZE: '/authorize',
+    TOKEN: '/token',
+    USERINFO: '/userinfo',
+    REVOKE: '/revoke',
+    CONSENT: '/authorize/consent',
     JWKS: '/.well-known/jwks.json',
     DISCOVERY: '/.well-known/openid-configuration',
   },
+
   
   // Session endpoints
   SESSION: {
@@ -337,7 +346,7 @@ export const API_ENDPOINTS = {
 import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
-import './App.css'
+import './app.scss'
 
 function App() {
   const [count, setCount] = useState(0)
@@ -372,151 +381,16 @@ export default App
 
 
 
-/* ===== C:\Users\icipa\team-platform-public\id_frontend\src\components\AuthForm\AuthForm.scss ===== */
-
-// ============= src/components/AuthForm/AuthForm.scss =============
-
-@import '../../styles/variables.scss';
-
-.auth-form {
-  width: 100%;
-  
-  &__title {
-    font-family: 'Open Sans', sans-serif;
-    font-size: 32px;
-    font-weight: 700;
-    color: #258DFF;
-    text-align: center;
-    margin: 0 0 32px;
-    
-    @media (max-width: 768px) {
-      font-size: 28px;
-      margin-bottom: 24px;
-    }
-  }
-  
-  &__error {
-    background: linear-gradient(135deg, rgba(255, 94, 94, 0.1), rgba(255, 36, 36, 0.1));
-    border: 1px solid rgba(255, 94, 94, 0.3);
-    border-radius: 12px;
-    padding: 12px 16px;
-    margin-bottom: 20px;
-    color: #d32f2f;
-    font-size: 14px;
-    font-family: 'Open Sans', sans-serif;
-    text-align: center;
-    animation: shake 0.3s ease;
-  }
-  
-  &__field {
-    margin-bottom: 20px;
-    position: relative;
-    
-    &-error {
-      display: block;
-      color: #d32f2f;
-      font-size: 12px;
-      margin-top: 4px;
-      font-family: 'Open Sans', sans-serif;
-    }
-  }
-  
-  &__input {
-    width: 100%;
-    height: 50px;
-    padding: 0 20px;
-    font-family: 'Open Sans', sans-serif;
-    font-size: 16px;
-    font-weight: 500;
-    color: #333;
-    background: #F5F7FA;
-    border: 2px solid transparent;
-    border-radius: 12px;
-    outline: none;
-    transition: all 0.2s ease;
-    
-    &::placeholder {
-      color: rgba(0, 0, 0, 0.4);
-    }
-    
-    &:focus {
-      background: white;
-      border-color: #258DFF;
-      box-shadow: 0 0 0 3px rgba(37, 141, 255, 0.1);
-    }
-    
-    &--error {
-      border-color: #ff4444;
-      
-      &:focus {
-        border-color: #ff4444;
-        box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.1);
-      }
-    }
-    
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  }
-  
-  &__link {
-    display: inline-block;
-    color: #258DFF;
-    font-size: 14px;
-    font-family: 'Open Sans', sans-serif;
-    text-decoration: none;
-    margin-bottom: 20px;
-    transition: color 0.2s ease;
-    
-    &:hover {
-      color: #1976d2;
-      text-decoration: underline;
-    }
-  }
-  
-  &__submit {
-    width: 100%;
-    height: 50px;
-    background: linear-gradient(135deg, #258DFF, #1976d2);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-family: 'Sora', sans-serif;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-    
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(37, 141, 255, 0.3);
-    }
-    
-    &:active:not(:disabled) {
-      transform: translateY(0);
-    }
-    
-  &:disabled {
-    opacity: 0.7;
-  }
-}
-}
-
-
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\components\AuthForm\LoginForm.tsx ===== */
 
 // ============= src/components/AuthForm/LoginForm.tsx =============
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { authService } from '../../services/auth.service';
 import { validators } from '../../utils/validators';
 import { handleApiError } from '../../utils/errors';
 import { ROUTES } from '../../utils/constants';
-import './AuthForm.scss';
+import { useAuth } from '../../hooks/useAuth'
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -531,10 +405,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectUrl }) 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState('');
+  const { login } = useAuth();
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // РћС‡РёС‰Р°РµРј РѕС€РёР±РєСѓ РїРѕР»СЏ РїСЂРё РёР·РјРµРЅРµРЅРёРё
+    // Очищаем ошибку поля при изменении
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -569,25 +444,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectUrl }) 
     setGeneralError('');
     
     try {
-      await authService.login(formData);
-      
-      if (onSuccess) {
-        onSuccess();
-      } else if (redirectUrl) {
-        window.location.href = redirectUrl;
-      } else {
-        window.location.href = ROUTES.PROFILE;
-      }
+      await login(formData.email, formData.password)   // было: authService.login(formData)
+      if (onSuccess) onSuccess()
+      else if (redirectUrl) window.location.href = redirectUrl
+      else window.location.href = ROUTES.PROFILE
     } catch (error) {
-      setGeneralError(handleApiError(error));
+      setGeneralError(handleApiError(error))
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   };
 
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
-      <h1 className="auth-form__title">Р’С…РѕРґ</h1>
+      <h1 className="auth-form__title">Вход</h1>
       
       {generalError && (
         <div className="auth-form__error">
@@ -598,13 +468,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectUrl }) 
       <div className="auth-form__field">
         <input
           type="email"
-          placeholder="Email"
+          placeholder=" "
           value={formData.email}
           onChange={(e) => handleChange('email', e.target.value)}
           className={`auth-form__input ${errors.email ? 'auth-form__input--error' : ''}`}
           disabled={isLoading}
           autoFocus
         />
+        <span className="auth-form__placeholder">Email</span>
         {errors.email && (
           <span className="auth-form__field-error">{errors.email}</span>
         )}
@@ -613,21 +484,27 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectUrl }) 
       <div className="auth-form__field">
         <input
           type="password"
-          placeholder="РџР°СЂРѕР»СЊ"
+          placeholder=" "
           value={formData.password}
           onChange={(e) => handleChange('password', e.target.value)}
           className={`auth-form__input ${errors.password ? 'auth-form__input--error' : ''}`}
           disabled={isLoading}
         />
+        <span className="auth-form__placeholder">Пароль</span>
         {errors.password && (
           <span className="auth-form__field-error">{errors.password}</span>
         )}
       </div>
       
-      <Link to={ROUTES.FORGOT_PASSWORD} className="auth-form__link">
-        Р—Р°Р±С‹Р»Рё РїР°СЂРѕР»СЊ?
-      </Link>
-      
+      <div className="auth-form__links">
+        <Link to={ROUTES.REGISTER} className="auth-form__link auth-form__link--register">
+          Создать аккаунт
+        </Link>
+        <Link to={ROUTES.FORGOT_PASSWORD} className="auth-form__link auth-form__link--forgot">
+          Забыли пароль?
+        </Link>
+      </div>
+            
       <button
         type="submit"
         className="auth-form__submit"
@@ -636,270 +513,163 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectUrl }) 
         {isLoading ? (
           <span className="auth-form__submit-spinner" />
         ) : (
-          'Р’РѕР№С‚Рё'
+          'Войти'
         )}
       </button>
-      
-      <div className="auth-form__footer">
-        <span>РќРµС‚ Р°РєРєР°СѓРЅС‚Р°?</span>
-        <Link to={ROUTES.REGISTER} className="auth-form__link">
-          Р—Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊСЃСЏ
-        </Link>
-      </div>
+    
     </form>
   );
 };
 
 
+
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\components\AuthForm\RegisterForm.tsx ===== */
 
-// ============= src/components/AuthForm/RegisterForm.tsx =============
+/* ============= src/components/AuthForm/RegisterForm.tsx ============= */
 
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { authService } from '../../services/auth.service';
-import { validators } from '../../utils/validators';
-import { handleApiError } from '../../utils/errors';
-import { ROUTES } from '../../utils/constants';
-import { PasswordStrength } from '../PasswordStrength/PasswordStrength';
-import './AuthForm.scss';
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { authService } from '../../services/auth.service'
+import { validators, isWeakPassword } from '../../utils/validators'
+import { handleApiError } from '../../utils/errors'
+import { ROUTES } from '../../utils/constants'
 
 interface RegisterFormProps {
-  onSuccess?: (userId: string, email: string) => void;
+  onSuccess?: (userId: string, email: string) => void
 }
 
 export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
     passwordConfirm: '',
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [generalError, setGeneralError] = useState('');
+  })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isLoading, setIsLoading] = useState(false)
+  const [generalError, setGeneralError] = useState('')
+  const [weakPassword, setWeakPassword] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // РћС‡РёС‰Р°РµРј РѕС€РёР±РєСѓ РїРѕР»СЏ РїСЂРё РёР·РјРµРЅРµРЅРёРё
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-    if (generalError) {
-      setGeneralError('');
-    }
-  };
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }))
+    if (generalError) setGeneralError('')
+    if (field === 'password') setWeakPassword(false)
+  }
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    
-    const usernameValidation = validators.username(formData.username);
-    if (!usernameValidation.isValid) {
-      newErrors.username = usernameValidation.error!;
-    }
-    
-    const emailValidation = validators.email(formData.email);
-    if (!emailValidation.isValid) {
-      newErrors.email = emailValidation.error!;
-    }
-    
-    const passwordValidation = validators.password(formData.password);
-    if (!passwordValidation.isValid) {
-      newErrors.password = passwordValidation.error!;
-    }
-    
-    const passwordConfirmValidation = validators.passwordConfirm(
-      formData.password,
-      formData.passwordConfirm
-    );
-    if (!passwordConfirmValidation.isValid) {
-      newErrors.passwordConfirm = passwordConfirmValidation.error!;
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    const newErrors: Record<string, string> = {}
+    const u = validators.username(formData.username); if (!u.isValid) newErrors.username = u.error!
+    const e = validators.email(formData.email); if (!e.isValid) newErrors.email = e.error!
+    const p = validators.password(formData.password); if (!p.isValid) newErrors.password = p.error!
+    const pc = validators.passwordConfirm(formData.password, formData.passwordConfirm); if (!pc.isValid) newErrors.passwordConfirm = pc.error!
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
-    
-    setIsLoading(true);
-    setGeneralError('');
-    
+    e.preventDefault()
+    setSubmitted(true)
+
+    if (!validateForm()) return
+    if (isWeakPassword(formData.password)) { setWeakPassword(true); return }
+
+    setIsLoading(true)
+    setGeneralError('')
+
     try {
-      const response = await authService.register({
+      const r = await authService.register({
         username: formData.username,
         email: formData.email,
         password: formData.password,
         password_confirm: formData.passwordConfirm,
-      });
-      
-      if (response.requires_verification) {
-        if (onSuccess) {
-          onSuccess(response.user_id, response.email);
-        } else {
-          navigate(`${ROUTES.VERIFY_EMAIL}?user_id=${response.user_id}&email=${encodeURIComponent(response.email)}`);
-        }
+      })
+
+      if (r.requires_verification) {
+        const url = `${ROUTES.VERIFY_EMAIL}?user_id=${r.user_id}&email=${encodeURIComponent(r.email)}`
+        onSuccess ? onSuccess(r.user_id, r.email) : navigate(url)
       } else {
-        // Р•СЃР»Рё РІРµСЂРёС„РёРєР°С†РёСЏ РЅРµ С‚СЂРµР±СѓРµС‚СЃСЏ, РїРµСЂРµС…РѕРґРёРј РЅР° СЃС‚СЂР°РЅРёС†Сѓ РІС…РѕРґР°
-        navigate(ROUTES.LOGIN);
+        navigate(ROUTES.LOGIN)
       }
     } catch (error) {
-      setGeneralError(handleApiError(error));
+      setGeneralError(handleApiError(error))
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
-    <form className="auth-form" onSubmit={handleSubmit}>
-      <h1 className="auth-form__title">Р РµРіРёСЃС‚СЂР°С†РёСЏ</h1>
-      
-      {generalError && (
-        <div className="auth-form__error">
-          {generalError}
-        </div>
-      )}
-      
+    <form className={`auth-form ${submitted ? 'auth-form--submitted' : ''}`} onSubmit={handleSubmit}>
+      <h1 className="auth-form__title">Регистрация</h1>
+
+      {generalError && <div className="auth-form__error">{generalError}</div>}
+
       <div className="auth-form__field">
         <input
           type="text"
-          placeholder="РРјСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ"
+          placeholder=" "
           value={formData.username}
           onChange={(e) => handleChange('username', e.target.value)}
           className={`auth-form__input ${errors.username ? 'auth-form__input--error' : ''}`}
           disabled={isLoading}
           autoFocus
         />
-        {errors.username && (
-          <span className="auth-form__field-error">{errors.username}</span>
-        )}
+        <span className="auth-form__placeholder">Имя пользователя</span>
+        {errors.username && <span className="auth-form__field-error">{errors.username}</span>}
       </div>
-      
+
       <div className="auth-form__field">
         <input
           type="email"
-          placeholder="Email"
+          placeholder=" "
           value={formData.email}
           onChange={(e) => handleChange('email', e.target.value)}
           className={`auth-form__input ${errors.email ? 'auth-form__input--error' : ''}`}
           disabled={isLoading}
         />
-        {errors.email && (
-          <span className="auth-form__field-error">{errors.email}</span>
-        )}
+        <span className="auth-form__placeholder">Email</span>
+        {errors.email && <span className="auth-form__field-error">{errors.email}</span>}
       </div>
-      
-      <div className="auth-form__field">
+
+      <div className={`auth-form__field auth-form__field--password ${weakPassword ? 'is-weak' : ''}`}>
         <input
           type="password"
-          placeholder="РџР°СЂРѕР»СЊ"
+          placeholder=" "
           value={formData.password}
           onChange={(e) => handleChange('password', e.target.value)}
           className={`auth-form__input ${errors.password ? 'auth-form__input--error' : ''}`}
           disabled={isLoading}
         />
-        {formData.password && <PasswordStrength password={formData.password} />}
-        {errors.password && (
-          <span className="auth-form__field-error">{errors.password}</span>
-        )}
+        <span className="auth-form__placeholder">Пароль</span>
+        {errors.password && <span className="auth-form__field-error">{errors.password}</span>}
       </div>
-      
+
       <div className="auth-form__field">
         <input
           type="password"
-          placeholder="РџРѕРІС‚РѕСЂРёС‚Рµ РїР°СЂРѕР»СЊ"
+          placeholder=" "
           value={formData.passwordConfirm}
           onChange={(e) => handleChange('passwordConfirm', e.target.value)}
           className={`auth-form__input ${errors.passwordConfirm ? 'auth-form__input--error' : ''}`}
           disabled={isLoading}
         />
-        {errors.passwordConfirm && (
-          <span className="auth-form__field-error">{errors.passwordConfirm}</span>
-        )}
+        <span className="auth-form__placeholder">Повторите пароль</span>
+        {errors.passwordConfirm && <span className="auth-form__field-error">{errors.passwordConfirm}</span>}
       </div>
-      
-      <button
-        type="submit"
-        className="auth-form__submit"
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <span className="auth-form__submit-spinner" />
-        ) : (
-          'Р—Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊСЃСЏ'
-        )}
+
+      <div className="auth-form__links">
+        <Link to={ROUTES.LOGIN} className="auth-form__link auth-form__link--register">Войти в аккаунт</Link>
+      </div>
+
+      <button type="submit" className="auth-form__submit" disabled={isLoading}>
+        {isLoading ? <span className="auth-form__submit-spinner" /> : 'Зарегистрироваться'}
       </button>
-      
-      <div className="auth-form__footer">
-        <span>РЈР¶Рµ РµСЃС‚СЊ Р°РєРєР°СѓРЅС‚?</span>
-        <Link to={ROUTES.LOGIN} className="auth-form__link">
-          Р’РѕР№С‚Рё
-        </Link>
-      </div>
     </form>
-  );
-};
-
-
-/* ===== C:\Users\icipa\team-platform-public\id_frontend\src\components\CodeInput\CodeInput.scss ===== */
-
-// ============= src/components/CodeInput/CodeInput.scss =============
-
-.code-input {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin: 24px 0;
-
-  &__field {
-    width: 50px;
-    height: 60px;
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
-    text-align: center;
-    font-size: 24px;
-    font-weight: 600;
-    font-family: 'Space Grotesk', monospace;
-    transition: all 0.2s ease;
-    background: white;
-    
-    @media (max-width: 480px) {
-      width: 45px;
-      height: 55px;
-      font-size: 20px;
-    }
-
-    &:focus {
-      outline: none;
-      border-color: #258DFF;
-      box-shadow: 0 0 0 3px rgba(37, 141, 255, 0.1);
-      transform: translateY(-2px);
-    }
-
-    &:disabled {
-      background: #f5f5f5;
-      cursor: not-allowed;
-    }
-  }
-
-  &--error {
-    .code-input__field {
-      border-color: #ff4444;
-      
-      &:focus {
-        box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.1);
-      }
-    }
-  }
-
-  &--disabled {
-    opacity: 0.6;
-  }
+  )
 }
+
 
 
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\components\CodeInput\CodeInput.tsx ===== */
@@ -907,8 +677,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
 // ============= src/components/CodeInput/CodeInput.tsx =============
 
 import React, { useState, useRef, useEffect } from 'react';
-import './CodeInput.scss';
-
 interface CodeInputProps {
   length?: number;
   onChange: (code: string) => void;
@@ -919,7 +687,7 @@ interface CodeInputProps {
 }
 
 export const CodeInput: React.FC<CodeInputProps> = ({
-  length = 6,
+  length = 4,
   onChange,
   onComplete,
   error = false,
@@ -938,7 +706,7 @@ export const CodeInput: React.FC<CodeInputProps> = ({
   const handleChange = (index: number, value: string) => {
     if (disabled) return;
 
-    // Р Р°Р·СЂРµС€Р°РµРј С‚РѕР»СЊРєРѕ С†РёС„СЂС‹
+    // Разрешаем только цифры
     const numericValue = value.replace(/[^0-9]/g, '');
     
     if (numericValue.length <= 1) {
@@ -949,12 +717,12 @@ export const CodeInput: React.FC<CodeInputProps> = ({
       const code = newValues.join('');
       onChange(code);
       
-      // РџРµСЂРµС…РѕРґ Рє СЃР»РµРґСѓСЋС‰РµРјСѓ РїРѕР»СЋ
+      // Переход к следующему полю
       if (numericValue && index < length - 1) {
         inputRefs.current[index + 1]?.focus();
       }
       
-      // Р’С‹Р·С‹РІР°РµРј onComplete РµСЃР»Рё РІСЃРµ РїРѕР»СЏ Р·Р°РїРѕР»РЅРµРЅС‹
+      // Вызываем onComplete если все поля заполнены
       if (code.length === length && onComplete) {
         onComplete(code);
       }
@@ -984,7 +752,7 @@ export const CodeInput: React.FC<CodeInputProps> = ({
     const code = newValues.join('');
     onChange(code);
     
-    // Р¤РѕРєСѓСЃ РЅР° РїРѕСЃР»РµРґРЅРµРµ Р·Р°РїРѕР»РЅРµРЅРЅРѕРµ РїРѕР»Рµ РёР»Рё СЃР»РµРґСѓСЋС‰РµРµ РїСѓСЃС‚РѕРµ
+    // Фокус на последнее заполненное поле или следующее пустое
     const lastFilledIndex = Math.min(pastedData.length - 1, length - 1);
     inputRefs.current[lastFilledIndex]?.focus();
     
@@ -998,7 +766,7 @@ export const CodeInput: React.FC<CodeInputProps> = ({
       {values.map((value, index) => (
         <input
           key={index}
-          ref={(el) => (inputRefs.current[index] = el)}
+          ref={(el) => { inputRefs.current[index] = el; }}  
           type="text"
           inputMode="numeric"
           maxLength={1}
@@ -1016,106 +784,12 @@ export const CodeInput: React.FC<CodeInputProps> = ({
 };
 
 
-/* ===== C:\Users\icipa\team-platform-public\id_frontend\src\components\Layout\Layout.scss ===== */
-
-
-// ============= src/components/Layout/Layout.scss =============
-
-.layout {
-  min-height: 100vh;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-
-  &-background {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    
-    &::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(37,141,255,0) 0%, rgba(225, 236, 254, 0.5) 100%);
-      pointer-events: none;
-    }
-  }
-
-  &-container {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    max-width: 470px;
-    
-    @media (max-width: 768px) {
-      max-width: 100%;
-    }
-  }
-
-  &-content {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-radius: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-    padding: 40px;
-    
-    @media (max-width: 768px) {
-      padding: 30px 20px;
-      border-radius: 20px;
-    }
-  }
-}
-
-.id-badge {
-  position: absolute;
-  top: -60px;
-  left: 20px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 10;
-  
-  @media (max-width: 768px) {
-    top: -50px;
-    left: 15px;
-  }
-
-  .id-icon {
-    width: 40px;
-    height: 40px;
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    
-    svg {
-      width: 23px;
-      height: 22px;
-    }
-  }
-
-  .id-text {
-    font-family: 'Sora', sans-serif;
-    font-size: 24px;
-    font-weight: 700;
-    color: white;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-}
-
-
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\components\Layout\Layout.tsx ===== */
 
 // ============= src/components/Layout/Layout.tsx =============
 
 import React from 'react';
-import './Layout.scss';
+import { useAuth } from '../../hooks/useAuth';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -1123,21 +797,26 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, showLogo = true }) => {
+  const { logout } = useAuth();
   return (
     <div className="layout">
-      <div className="layout-background" />
-      <div className="layout-container">
-        {showLogo && (
-          <div className="id-badge">
+              {showLogo && (
+        <div className="id-badge">
             <div className="id-icon">
               <svg width="23" height="22" viewBox="0 0 23 22" xmlns="http://www.w3.org/2000/svg">
-                <path d="M16.4131 19.3398L12.4463 13.0098L12.082 12.4287L11.6406 12.9531L7.85742 17.4482L7.73926 17.5879V20.9697H3.66211L4.19629 16.7354L9.09277 11.2275L9.51465 10.7539L8.95605 10.4541L5.6875 8.70312L5.65234 8.68359L5.61523 8.6709L2.07422 7.44922L21.7803 1.28809L16.4131 19.3398Z" 
-                      fill="#69A2FF" stroke="#69A2FF"/>
+                <path d="M16.4131 19.3398L12.4463 13.0098L12.082 12.4287L11.6406 12.9531L7.85742 17.4482L7.73926 17.5879V20.9697H3.66211L4.19629 16.7354L9.09277 11.2275L9.51465 10.7539L8.95605 10.4541L5.6875 8.70312L5.65234 8.68359L5.61523 8.6709L2.07422 7.44922L21.7803 1.28809L16.4131 19.3398Z" fill="#69A2FF" stroke="#69A2FF"/>
               </svg>
             </div>
             <span className="id-text">ID</span>
           </div>
         )}
+
+        <div className="logout-btn" onClick={() => { void logout(); }}>
+            <span className="material-symbols-outlined">close</span>
+        </div>
+      <div className="layout-background" />
+      <div className="layout-container">
+
         
         <div className="layout-content">
           {children}
@@ -1148,75 +827,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, showLogo = true }) => 
 };
 
 
-/* ===== C:\Users\icipa\team-platform-public\id_frontend\src\components\LoadingOverlay\LoadingOverlay.scss ===== */
-
-// ============= src/components/LoadingOverlay/LoadingOverlay.scss =============
-
-.loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(4px);
-  z-index: 9999;
-  border-radius: inherit;
-
-  &--fullscreen {
-    position: fixed;
-    border-radius: 0;
-    background: rgba(0, 0, 0, 0.5);
-  }
-
-  &__content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    padding: 32px;
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  }
-
-  &__spinner {
-    width: 48px;
-    height: 48px;
-    border: 4px solid rgba(37, 141, 255, 0.2);
-    border-top-color: #258DFF;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  &__message {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 500;
-    color: #333;
-    font-family: 'Open Sans', sans-serif;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\components\LoadingOverlay\LoadingOverlay.tsx ===== */
 
 // ============= src/components/LoadingOverlay/LoadingOverlay.tsx =============
 
 import React from 'react';
-import './LoadingOverlay.scss';
 
 interface LoadingOverlayProps {
   message?: string;
@@ -1224,7 +839,7 @@ interface LoadingOverlayProps {
 }
 
 export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({ 
-  message = 'Р—Р°РіСЂСѓР·РєР°...', 
+  message = 'Загрузка...', 
   fullScreen = true 
 }) => {
   return (
@@ -1238,43 +853,12 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
 };
 
 
-/* ===== C:\Users\icipa\team-platform-public\id_frontend\src\components\PasswordStrength\PasswordStrength.scss ===== */
-
-// ============= src/components/PasswordStrength/PasswordStrength.scss =============
-
-.password-strength {
-  margin-top: 8px;
-  margin-bottom: 16px;
-
-  &__bars {
-    height: 4px;
-    background: #e0e0e0;
-    border-radius: 2px;
-    overflow: hidden;
-    margin-bottom: 4px;
-  }
-
-  &__bar {
-    height: 100%;
-    border-radius: 2px;
-    transition: all 0.3s ease;
-  }
-
-  &__label {
-    font-size: 12px;
-    font-weight: 500;
-    font-family: 'Open Sans', sans-serif;
-  }
-}
-
-
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\components\PasswordStrength\PasswordStrength.tsx ===== */
 
 // ============= src/components/PasswordStrength/PasswordStrength.tsx =============
 
 import React, { useMemo } from 'react';
 import { getPasswordStrength } from '../../utils/validators';
-import './PasswordStrength.scss';
 
 interface PasswordStrengthProps {
   password: string;
@@ -1321,8 +905,7 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 import { authService } from '../services/auth.service';
 import { storageService } from '../services/storage.service';
 import { type User } from '../types/auth.types';
-import { TOKEN_STORAGE_KEY, REFRESH_TOKEN_STORAGE_KEY } from '../utils/constants'
-
+import { TOKEN_STORAGE_KEY, REFRESH_TOKEN_STORAGE_KEY, ID_TOKEN_STORAGE_KEY } from '../utils/constants'
 
 interface AuthContextType {
   user: User | null;
@@ -1341,15 +924,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
 const checkAuth = async () => {
+  setIsLoading(true)
   try {
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY)
-    if (!token) { setIsLoading(false); return }
-    const userData = await authService.getCurrentUser()
+    const userData = await authService.getCurrentUser() // по cookie или по Bearer
     setUser(userData)
-  } catch (error) {
-    console.error('Auth check failed:', error)
+  } catch {
     localStorage.removeItem(TOKEN_STORAGE_KEY)
     localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY)
+    localStorage.removeItem(ID_TOKEN_STORAGE_KEY)
+    setUser(null)
   } finally {
     setIsLoading(false)
   }
@@ -1406,7 +989,8 @@ export const useAuth = () => {
 
 // ============= src/hooks/useForm.tsx =============
 
-import { useState, useCallback, ChangeEvent, FormEvent } from 'react';
+import { useState, useCallback } from 'react'
+import type { ChangeEvent, FormEvent, FocusEvent } from 'react'
 
 interface UseFormOptions<T> {
   initialValues: T;
@@ -1429,20 +1013,14 @@ export function useForm<T extends Record<string, any>>({
   ) => {
     const { name, value } = e.target;
     setValues(prev => ({ ...prev, [name]: value }));
-    
-    // РћС‡РёС‰Р°РµРј РѕС€РёР±РєСѓ РїСЂРё РёР·РјРµРЅРµРЅРёРё
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   }, [errors]);
 
   const handleBlur = useCallback((
-    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name } = e.target;
     setTouched(prev => ({ ...prev, [name]: true }));
-    
-    // Р’Р°Р»РёРґРёСЂСѓРµРј РїРѕР»Рµ РїСЂРё РїРѕС‚РµСЂРµ С„РѕРєСѓСЃР°
     if (validate) {
       const validationErrors = validate(values);
       if (validationErrors[name]) {
@@ -1453,30 +1031,16 @@ export function useForm<T extends Record<string, any>>({
 
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
-    
-    // Р’Р°Р»РёРґР°С†РёСЏ РІСЃРµС… РїРѕР»РµР№
     if (validate) {
       const validationErrors = validate(values);
-      const hasErrors = Object.keys(validationErrors).length > 0;
-      
-      if (hasErrors) {
+      if (Object.keys(validationErrors).length) {
         setErrors(validationErrors);
-        // РџРѕРјРµС‡Р°РµРј РІСЃРµ РїРѕР»СЏ РєР°Рє touched
-        const allTouched = Object.keys(values).reduce(
-          (acc, key) => ({ ...acc, [key]: true }),
-          {}
-        );
-        setTouched(allTouched);
+        setTouched(Object.keys(values).reduce((acc, k) => ({ ...acc, [k]: true }), {}));
         return;
       }
     }
-    
     setIsSubmitting(true);
-    try {
-      await onSubmit(values);
-    } finally {
-      setIsSubmitting(false);
-    }
+    try { await onSubmit(values); } finally { setIsSubmitting(false); }
   }, [validate, values, onSubmit]);
 
   const reset = useCallback(() => {
@@ -1494,19 +1058,9 @@ export function useForm<T extends Record<string, any>>({
     setErrors(prev => ({ ...prev, [name]: error }));
   }, []);
 
-  return {
-    values,
-    errors,
-    touched,
-    isSubmitting,
-    handleChange,
-    handleBlur,
-    handleSubmit,
-    reset,
-    setFieldValue,
-    setFieldError,
-  };
+  return { values, errors, touched, isSubmitting, handleChange, handleBlur, handleSubmit, reset, setFieldValue, setFieldError };
 }
+
 
 
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\hooks\useOAuth.tsx ===== */
@@ -1526,45 +1080,46 @@ export const useOAuth = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const random = (len = 32) =>
+    Array.from(crypto.getRandomValues(new Uint8Array(len)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+
   const initializeAuthorization = useCallback(async () => {
-    // РџРѕР»СѓС‡Р°РµРј РїР°СЂР°РјРµС‚СЂС‹ РёР· URL
-    const clientId = searchParams.get('client_id');
-    const redirectUri = searchParams.get('redirect_uri');
-    const responseType = searchParams.get('response_type') || 'code';
-    const scope = searchParams.get('scope') || 'openid profile email';
-    const state = searchParams.get('state') || undefined;
-    const nonce = searchParams.get('nonce') || undefined;
-    const prompt = searchParams.get('prompt') as any || undefined;
+    const clientId = searchParams.get('client_id')
+    const redirectUri = searchParams.get('redirect_uri')
+    const responseType = (searchParams.get('response_type') || 'code') as 'code' | 'token'
+    const scope = searchParams.get('scope') || 'openid profile email'
+    const state = searchParams.get('state') || random()
+    const nonce = searchParams.get('nonce') || random()
+    const prompt = (searchParams.get('prompt') as any) || undefined
 
     if (!clientId || !redirectUri) {
-      setError('РћС‚СЃСѓС‚СЃС‚РІСѓСЋС‚ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїР°СЂР°РјРµС‚СЂС‹');
-      return null;
+      setError('Отсутствуют обязательные параметры')
+      return null
     }
 
-    // Р“РµРЅРµСЂРёСЂСѓРµРј PKCE
-    const pkce = await oauthService.generatePKCE();
-    
-    // РЎРѕС…СЂР°РЅСЏРµРј РґР°РЅРЅС‹Рµ РґР»СЏ РїРѕСЃР»РµРґСѓСЋС‰РµРіРѕ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ
+    const pkce = await oauthService.generatePKCE()
+
     const authRequest: AuthorizationRequest = {
       client_id: clientId,
       redirect_uri: redirectUri,
-      response_type: responseType as 'code' | 'token',
+      response_type: responseType,
       scope,
-      state,
+      state,                         // <= всегда есть
       code_challenge: pkce.challenge,
       code_challenge_method: 'S256',
       nonce,
       prompt,
-    };
-
-    // РЎРѕС…СЂР°РЅСЏРµРј РІ storage
-    if (state) {
-      storageService.saveOAuthState(state, authRequest);
-      storageService.savePKCEVerifier(state, pkce.verifier);
     }
 
-    return authRequest;
-  }, [searchParams]);
+    // всегда сохраняем по state
+    storageService.saveOAuthState(state, authRequest)
+    storageService.savePKCEVerifier(state, pkce.verifier)
+
+    return authRequest
+  }, [searchParams])
+
 
   const authorizeWithConsent = useCallback(async (
     authRequest: AuthorizationRequest,
@@ -1580,7 +1135,7 @@ export const useOAuth = () => {
         window.location.href = response.redirect_url;
       }
     } catch (err: any) {
-      setError(err.message || 'РћС€РёР±РєР° Р°РІС‚РѕСЂРёР·Р°С†РёРё');
+      setError(err.message || 'Ошибка авторизации');
       setIsProcessing(false);
     }
   }, []);
@@ -1603,7 +1158,7 @@ export const useOAuth = () => {
     setIsProcessing(true);
 
     try {
-      // РџРѕР»СѓС‡Р°РµРј СЃРѕС…СЂР°РЅРµРЅРЅС‹Рµ РґР°РЅРЅС‹Рµ
+      // Получаем сохраненные данные
       const authRequest = storageService.getAndRemoveOAuthState(state);
       const verifier = storageService.getPKCEVerifier(state);
 
@@ -1611,7 +1166,7 @@ export const useOAuth = () => {
         throw new Error('Invalid state or expired session');
       }
 
-      // РћР±РјРµРЅРёРІР°РµРј РєРѕРґ РЅР° С‚РѕРєРµРЅС‹
+      // Обмениваем код на токены
       await oauthService.exchangeCodeForTokens({
         grant_type: 'authorization_code',
         code,
@@ -1620,7 +1175,7 @@ export const useOAuth = () => {
         client_id: authRequest.client_id,
       });
 
-      // РџРµСЂРµРЅР°РїСЂР°РІР»СЏРµРј РЅР° РїСЂРѕС„РёР»СЊ РёР»Рё РіР»Р°РІРЅСѓСЋ
+      // Перенаправляем на профиль или главную
       navigate(ROUTES.PROFILE);
     } catch (err: any) {
       navigate(`${ROUTES.ERROR}?error=exchange_failed`);
@@ -1654,7 +1209,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { VerifyEmailPage } from './pages/VerifyEmailPage'
 import OAuthCallbackPage from './pages/OAuthCallbackPage'
-import './styles/global.scss'
+import './styles/app.scss'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -1691,7 +1246,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useOAuth } from '../hooks/useOAuth';
 import { oauthService } from '../services/oauth.service';
 import { ROUTES } from '../utils/constants';
-import '../styles/pages.scss';
 
 export const AuthorizePage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -1707,7 +1261,7 @@ export const AuthorizePage: React.FC = () => {
       if (request) {
         setAuthRequest(request);
         
-        // Р—Р°РіСЂСѓР¶Р°РµРј РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РєР»РёРµРЅС‚Рµ
+        // Загружаем информацию о клиенте
         try {
           const client = await oauthService.getClientInfo(request.client_id);
           setClientInfo(client);
@@ -1722,7 +1276,7 @@ export const AuthorizePage: React.FC = () => {
   }, [initializeAuthorization]);
 
   if (authLoading || isLoadingClient) {
-    return <LoadingOverlay message="Р—Р°РіСЂСѓР·РєР°..." />;
+    return <LoadingOverlay message="Загрузка..." />;
   }
 
   if (!isAuthenticated) {
@@ -1735,8 +1289,8 @@ export const AuthorizePage: React.FC = () => {
       <Layout>
         <div className="authorize-page">
           <div className="authorize-page__error">
-            <h2>РћС€РёР±РєР° Р°РІС‚РѕСЂРёР·Р°С†РёРё</h2>
-            <p>{error || 'РќРµРІРµСЂРЅС‹Рµ РїР°СЂР°РјРµС‚СЂС‹ Р·Р°РїСЂРѕСЃР°'}</p>
+            <h2>Ошибка авторизации</h2>
+            <p>{error || 'Неверные параметры запроса'}</p>
           </div>
         </div>
       </Layout>
@@ -1764,11 +1318,11 @@ export const AuthorizePage: React.FC = () => {
           )}
           
           <h2 className="authorize-page__title">
-            {clientInfo?.client_name || authRequest.client_id} Р·Р°РїСЂР°С€РёРІР°РµС‚ РґРѕСЃС‚СѓРї
+            {clientInfo?.client_name || authRequest.client_id} запрашивает доступ
           </h2>
           
           <div className="authorize-page__scopes">
-            <p>РџСЂРёР»РѕР¶РµРЅРёРµ Р·Р°РїСЂР°С€РёРІР°РµС‚ СЃР»РµРґСѓСЋС‰РёРµ СЂР°Р·СЂРµС€РµРЅРёСЏ:</p>
+            <p>Приложение запрашивает следующие разрешения:</p>
             <ul>
               {authRequest.scope.split(' ').map((scope: string) => (
                 <li key={scope}>{getScopeDescription(scope)}</li>
@@ -1782,19 +1336,19 @@ export const AuthorizePage: React.FC = () => {
               onClick={handleDeny}
               disabled={isProcessing}
             >
-              РћС‚РєР»РѕРЅРёС‚СЊ
+              Отклонить
             </button>
             <button
               className="authorize-page__approve"
               onClick={handleApprove}
               disabled={isProcessing}
             >
-              Р Р°Р·СЂРµС€РёС‚СЊ
+              Разрешить
             </button>
           </div>
         </div>
         
-        {isProcessing && <LoadingOverlay message="РћР±СЂР°Р±РѕС‚РєР°..." />}
+        {isProcessing && <LoadingOverlay message="Обработка..." />}
       </div>
     </Layout>
   );
@@ -1802,10 +1356,10 @@ export const AuthorizePage: React.FC = () => {
 
 function getScopeDescription(scope: string): string {
   const descriptions: Record<string, string> = {
-    openid: 'Р‘Р°Р·РѕРІР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ РїСЂРѕС„РёР»СЏ',
-    profile: 'РРјСЏ Рё С„РѕС‚Рѕ РїСЂРѕС„РёР»СЏ',
-    email: 'РђРґСЂРµСЃ СЌР»РµРєС‚СЂРѕРЅРЅРѕР№ РїРѕС‡С‚С‹',
-    offline_access: 'Р”РѕСЃС‚СѓРї Рє РґР°РЅРЅС‹Рј РІ Р°РІС‚РѕРЅРѕРјРЅРѕРј СЂРµР¶РёРјРµ',
+    openid: 'Базовая информация профиля',
+    profile: 'Имя и фото профиля',
+    email: 'Адрес электронной почты',
+    offline_access: 'Доступ к данным в автономном режиме',
   };
   return descriptions[scope] || scope;
 }
@@ -1820,7 +1374,6 @@ import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Layout } from '../components/Layout/Layout';
 import { ROUTES } from '../utils/constants';
-import '../styles/pages.scss';
 
 export const ErrorPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -1832,28 +1385,28 @@ export const ErrorPage: React.FC = () => {
     switch (error) {
       case 'invalid_request':
         return {
-          title: 'РќРµРІРµСЂРЅС‹Р№ Р·Р°РїСЂРѕСЃ',
-          message: description || 'Р—Р°РїСЂРѕСЃ СЃРѕРґРµСЂР¶РёС‚ РЅРµРґРѕРїСѓСЃС‚РёРјС‹Рµ РїР°СЂР°РјРµС‚СЂС‹',
+          title: 'Неверный запрос',
+          message: description || 'Запрос содержит недопустимые параметры',
         };
       case 'unauthorized_client':
         return {
-          title: 'РќРµР°РІС‚РѕСЂРёР·РѕРІР°РЅРЅС‹Р№ РєР»РёРµРЅС‚',
-          message: description || 'РљР»РёРµРЅС‚ РЅРµ Р°РІС‚РѕСЂРёР·РѕРІР°РЅ РґР»СЏ РІС‹РїРѕР»РЅРµРЅРёСЏ СЌС‚РѕРіРѕ Р·Р°РїСЂРѕСЃР°',
+          title: 'Неавторизованный клиент',
+          message: description || 'Клиент не авторизован для выполнения этого запроса',
         };
       case 'access_denied':
         return {
-          title: 'Р”РѕСЃС‚СѓРї Р·Р°РїСЂРµС‰РµРЅ',
-          message: description || 'Р’С‹ РѕС‚РєР»РѕРЅРёР»Рё Р·Р°РїСЂРѕСЃ РЅР° Р°РІС‚РѕСЂРёР·Р°С†РёСЋ',
+          title: 'Доступ запрещен',
+          message: description || 'Вы отклонили запрос на авторизацию',
         };
       case 'server_error':
         return {
-          title: 'РћС€РёР±РєР° СЃРµСЂРІРµСЂР°',
-          message: description || 'РџСЂРѕРёР·РѕС€Р»Р° РІРЅСѓС‚СЂРµРЅРЅСЏСЏ РѕС€РёР±РєР° СЃРµСЂРІРµСЂР°',
+          title: 'Ошибка сервера',
+          message: description || 'Произошла внутренняя ошибка сервера',
         };
       default:
         return {
-          title: 'РћС€РёР±РєР°',
-          message: description || 'РџСЂРѕРёР·РѕС€Р»Р° РЅРµРёР·РІРµСЃС‚РЅР°СЏ РѕС€РёР±РєР°',
+          title: 'Ошибка',
+          message: description || 'Произошла неизвестная ошибка',
         };
     }
   };
@@ -1867,7 +1420,7 @@ export const ErrorPage: React.FC = () => {
           <h1 className="error-page__title">{title}</h1>
           <p className="error-page__message">{message}</p>
           <Link to={ROUTES.HOME} className="error-page__link">
-            Р’РµСЂРЅСѓС‚СЊСЃСЏ РЅР° РіР»Р°РІРЅСѓСЋ
+            Вернуться на главную
           </Link>
         </div>
       </div>
@@ -1880,100 +1433,234 @@ export const ErrorPage: React.FC = () => {
 
 // ============= src/pages/ForgotPasswordPage.tsx =============
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout/Layout';
+import { CodeInput } from '../components/CodeInput/CodeInput';
 import { authService } from '../services/auth.service';
-import { validators } from '../utils/validators';
+import { validators, isWeakPassword } from '../utils/validators';
 import { handleApiError } from '../utils/errors';
-import { ROUTES } from '../utils/constants';
-import '../styles/pages.scss';
+import { ROUTES, CODE_RESEND_TIMEOUT, CODE_LENGTH } from '../utils/constants';
+
+function parseCooldownSeconds(msg: string): number | null {
+  const m = msg.match(/Please wait (\d+) seconds/i);
+  return m ? Number(m[1]) : null;
+}
 
 export const ForgotPasswordPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const validation = validators.email(email);
-    if (!validation.isValid) {
-      setError(validation.error!);
+  // step= "request" -> ввод email, "confirm" -> код + новый пароль
+  const [step, setStep] = useState<'request' | 'confirm'>('request');
+
+  // request
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // confirm
+  const [code, setCode] = useState('');
+  const [pwd, setPwd] = useState('');
+  const [pwd2, setPwd2] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [weakPassword, setWeakPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // resend
+  const [isResending, setIsResending] = useState(false);
+  const [resendTimer, setResendTimer] = useState<number>(0);
+
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const id = setInterval(() => setResendTimer((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, [resendTimer]);
+
+  const sendCode = async () => {
+    const v = validators.email(email);
+    if (!v.isValid) {
+      setEmailError(v.error!);
       return;
     }
-    
-    setError('');
+    setEmailError('');
     setIsLoading(true);
-    
     try {
       await authService.forgotPassword({ email });
-      setIsSuccess(true);
+      setStep('confirm');
+      setResendTimer(CODE_RESEND_TIMEOUT);
     } catch (err) {
-      setError(handleApiError(err));
+      const msg = handleApiError(err);
+      setEmailError(msg);
+      const s = parseCooldownSeconds(msg);
+      if (typeof s === 'number') setResendTimer(s);
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isSuccess) {
-    return (
-      <Layout>
-        <div className="forgot-page">
-          <div className="forgot-page__success">
-            <h2>РџСЂРѕРІРµСЂСЊС‚Рµ РїРѕС‡С‚Сѓ</h2>
-            <p>РњС‹ РѕС‚РїСЂР°РІРёР»Рё РёРЅСЃС‚СЂСѓРєС†РёРё РїРѕ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЋ РїР°СЂРѕР»СЏ РЅР° {email}</p>
-            <Link to={ROUTES.LOGIN} className="forgot-page__link">
-              Р’РµСЂРЅСѓС‚СЊСЃСЏ Рє РІС…РѕРґСѓ
-            </Link>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  const resend = async () => {
+    if (resendTimer > 0 || !email) return;
+    setIsResending(true);
+    try {
+      await authService.forgotPassword({ email });
+      setResendTimer(CODE_RESEND_TIMEOUT);
+      setCode('');
+    } catch (err) {
+      const msg = handleApiError(err);
+      const s = parseCooldownSeconds(msg);
+      if (typeof s === 'number') setResendTimer(s);
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const submitNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: Record<string, string> = {};
+
+    const c = validators.code(code); if (!c.isValid) newErrors.code = c.error!;
+    const p = validators.password(pwd); if (!p.isValid) newErrors.password = p.error!;
+    const pc = validators.passwordConfirm(pwd, pwd2); if (!pc.isValid) newErrors.passwordConfirm = pc.error!;
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+
+    if (isWeakPassword(pwd)) { setWeakPassword(true); return; }
+
+    setIsSubmitting(true);
+    try {
+      await authService.resetPassword({
+        email,
+        code,
+        new_password: pwd,
+        new_password_confirm: pwd2,
+      });
+      navigate(ROUTES.LOGIN);
+    } catch (err) {
+      setErrors({ general: handleApiError(err) });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <Layout>
       <div className="forgot-page">
-        <h1 className="forgot-page__title">Р’РѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ РїР°СЂРѕР»СЏ</h1>
-        <p className="forgot-page__description">
-          Р’РІРµРґРёС‚Рµ email, СѓРєР°Р·Р°РЅРЅС‹Р№ РїСЂРё СЂРµРіРёСЃС‚СЂР°С†РёРё
-        </p>
-        
-        <form className="forgot-page__form" onSubmit={handleSubmit}>
-          <input
-            type="email"
-            className={`forgot-page__input ${error ? 'forgot-page__input--error' : ''}`}
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={isLoading}
-            autoFocus
-          />
-          
-          {error && (
-            <div className="forgot-page__error">
-              {error}
+        <h1 className="forgot-page__title">Сменить пароль</h1>
+
+        {step === 'request' && (
+          <>
+            <p className="forgot-page__description">
+              Введите email, указанный при регистрации
+            </p>
+
+            <form className="forgot-page__form" onSubmit={(e) => { e.preventDefault(); void sendCode(); }}>
+              <input
+                type="email"
+                className={`forgot-page__input ${emailError ? 'forgot-page__input--error' : ''}`}
+                placeholder="Email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
+                disabled={isLoading}
+                autoFocus
+              />
+
+              {emailError && <div className="forgot-page__error">{emailError}</div>}
+
+              <Link to={ROUTES.LOGIN} className="auth-form__link auth-form__link--register">
+                Вернуться к входу
+              </Link>
+
+              <button type="submit" className="forgot-page__submit" disabled={isLoading}>
+                {isLoading ? 'Отправка...' : 'Отправить код'}
+              </button>
+            </form>
+          </>
+        )}
+
+        {step === 'confirm' && (
+          <>
+            <p className="forgot-page__description">
+              Мы отправили код на <b>{email}</b>. Введите код и новый пароль.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <CodeInput
+                length={CODE_LENGTH}
+                onChange={(val) => { setCode(val); if (errors.code) setErrors((e) => ({ ...e, code: '' })); }}
+                error={!!errors.code}
+                disabled={isSubmitting}
+              />
             </div>
-          )}
-          
-          <button
-            type="submit"
-            className="forgot-page__submit"
-            disabled={isLoading}
-          >
-            {isLoading ? 'РћС‚РїСЂР°РІРєР°...' : 'РћС‚РїСЂР°РІРёС‚СЊ'}
-          </button>
-        </form>
-        
-        <Link to={ROUTES.LOGIN} className="forgot-page__link">
-          Р’РµСЂРЅСѓС‚СЊСЃСЏ Рє РІС…РѕРґСѓ
-        </Link>
+            {errors.code && <div className="forgot-page__error">{errors.code}</div>}
+
+            <form className={`reset-page__form auth-form ${weakPassword ? 'auth-form--submitted' : ''}`} onSubmit={submitNewPassword}>
+              <div className={`auth-form__field auth-form__field--password ${weakPassword ? 'is-weak' : ''}`}>
+                <input
+                  type="password"
+                  placeholder=" "
+                  value={pwd}
+                  onChange={(e) => { setPwd(e.target.value); setWeakPassword(false); if (errors.password) setErrors((er) => ({ ...er, password: '' })); }}
+                  className={`auth-form__input ${errors.password ? 'auth-form__input--error' : ''}`}
+                  disabled={isSubmitting}
+                />
+                <span className="auth-form__placeholder">Новый пароль</span>
+                {errors.password && <span className="auth-form__field-error">{errors.password}</span>}
+              </div>
+
+              <div className="auth-form__field">
+                <input
+                  type="password"
+                  placeholder=" "
+                  value={pwd2}
+                  onChange={(e) => { setPwd2(e.target.value); if (errors.passwordConfirm) setErrors((er) => ({ ...er, passwordConfirm: '' })); }}
+                  className={`auth-form__input ${errors.passwordConfirm ? 'auth-form__input--error' : ''}`}
+                  disabled={isSubmitting}
+                />
+                <span className="auth-form__placeholder">Повторите пароль</span>
+                {errors.passwordConfirm && <span className="auth-form__field-error">{errors.passwordConfirm}</span>}
+              </div>
+
+              {errors.general && (
+                <div className="reset-page__error reset-page__error--general">{errors.general}</div>
+              )}
+
+              <button type="submit" className="auth-form__submit" disabled={isSubmitting || code.length !== CODE_LENGTH}>
+                {isSubmitting ? 'Сохранение...' : 'Сменить пароль'}
+              </button>
+            </form>
+
+            <div className="verify-page__resend" style={{ marginTop: 16, textAlign: 'center' }}>
+              {resendTimer > 0 ? (
+                <span className="verify-page__timer">
+                  Отправить код повторно через {resendTimer}с
+                </span>
+              ) : (
+                <button
+                  className="verify-page__resend-btn"
+                  onClick={() => { void resend(); }}
+                  disabled={isResending}
+                >
+                  {isResending ? 'Отправка...' : 'Отправить код повторно'}
+                </button>
+              )}
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <button
+                className="verify-page__resend-btn"
+                onClick={() => setStep('request')}
+                disabled={isSubmitting || isResending}
+              >
+                Изменить email
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </Layout>
   );
 };
+
 
 
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\pages\LoginPage.tsx ===== */
@@ -1994,6 +1681,11 @@ export const LoginPage: React.FC = () => {
   
   const redirectUrl = searchParams.get('redirect_uri') || ROUTES.PROFILE;
 
+  const isSafe = (u: string) => {
+    try { const url = new URL(u); return url.origin === window.location.origin }
+    catch { return u.startsWith('/') }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       navigate(redirectUrl);
@@ -2001,9 +1693,13 @@ export const LoginPage: React.FC = () => {
   }, [isAuthenticated, navigate, redirectUrl]);
 
   const handleSuccess = () => {
-    navigate(redirectUrl);
-  };
-
+    if (isSafe(redirectUrl)) {
+      if (/^https?:\/\//i.test(redirectUrl)) window.location.href = redirectUrl;
+      else navigate(redirectUrl);
+    } else {
+      navigate(ROUTES.PROFILE);
+    }
+  }
   return (
     <Layout>
       <LoginForm onSuccess={handleSuccess} redirectUrl={redirectUrl} />
@@ -2015,14 +1711,19 @@ export const LoginPage: React.FC = () => {
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\pages\OAuthCallbackPage.tsx ===== */
 
 // src/pages/OAuthCallbackPage.tsx
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useOAuth } from '../hooks/useOAuth'
 import { LoadingOverlay } from '../components/LoadingOverlay/LoadingOverlay'
 
 export default function OAuthCallbackPage() {
   const { handleCallback } = useOAuth()
-  useEffect(() => { void handleCallback() }, [handleCallback])
-  return <LoadingOverlay message="РћР±СЂР°Р±РѕС‚РєР°..." />
+  const ran = useRef(false)
+  useEffect(() => {
+    if (ran.current) return
+    ran.current = true
+    void handleCallback()
+  }, [handleCallback])
+  return <LoadingOverlay message="Обработка..." />
 }
 
 
@@ -2037,13 +1738,12 @@ import { Layout } from '../components/Layout/Layout';
 import { LoadingOverlay } from '../components/LoadingOverlay/LoadingOverlay';
 import { useAuth } from '../hooks/useAuth';
 import { ROUTES } from '../utils/constants';
-import '../styles/pages.scss';
 
 export const ProfilePage: React.FC = () => {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
 
   if (isLoading) {
-    return <LoadingOverlay message="Р—Р°РіСЂСѓР·РєР° РїСЂРѕС„РёР»СЏ..." />;
+    return <LoadingOverlay message="Загрузка профиля..." />;
   }
 
   if (!isAuthenticated) {
@@ -2057,12 +1757,12 @@ export const ProfilePage: React.FC = () => {
   return (
     <Layout>
       <div className="profile-page">
-        <h1 className="profile-page__title">РџСЂРѕС„РёР»СЊ</h1>
+        <h1 className="profile-page__title">Профиль</h1>
         
         <div className="profile-page__card">
           <div className="profile-page__info">
             <div className="profile-page__field">
-              <span className="profile-page__label">РРјСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ:</span>
+              <span className="profile-page__label">Имя пользователя:</span>
               <span className="profile-page__value">{user?.username}</span>
             </div>
             
@@ -2071,7 +1771,7 @@ export const ProfilePage: React.FC = () => {
               <span className="profile-page__value">
                 {user?.email}
                 {user?.email_verified && (
-                  <span className="profile-page__verified">вњ“</span>
+                  <span className="profile-page__verified">✓</span>
                 )}
               </span>
             </div>
@@ -2086,7 +1786,7 @@ export const ProfilePage: React.FC = () => {
             className="profile-page__logout"
             onClick={handleLogout}
           >
-            Р’С‹Р№С‚Рё
+            Выйти
           </button>
         </div>
       </div>
@@ -2131,60 +1831,46 @@ export const RegisterPage: React.FC = () => {
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\pages\ResetPasswordPage.tsx ===== */
 
 // ============= src/pages/ResetPasswordPage.tsx =============
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '../components/Layout/Layout';
-import { PasswordStrength } from '../components/PasswordStrength/PasswordStrength';
 import { authService } from '../services/auth.service';
-import { validators } from '../utils/validators';
+import { validators, isWeakPassword } from '../utils/validators';
 import { handleApiError } from '../utils/errors';
 import { ROUTES } from '../utils/constants';
-import '../styles/pages.scss';
 
 export const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
+
   const userId = searchParams.get('user_id');
   const code = searchParams.get('code');
-  
+
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [weakPassword, setWeakPassword] = useState(false);
 
   useEffect(() => {
-    if (!userId || !code) {
-      navigate(ROUTES.FORGOT_PASSWORD);
-    }
+    if (!userId || !code) navigate(ROUTES.FORGOT_PASSWORD);
   }, [userId, code, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setSubmitted(true);
+
     const newErrors: Record<string, string> = {};
-    
-    const passwordValidation = validators.password(password);
-    if (!passwordValidation.isValid) {
-      newErrors.password = passwordValidation.error!;
-    }
-    
-    const confirmValidation = validators.passwordConfirm(password, passwordConfirm);
-    if (!confirmValidation.isValid) {
-      newErrors.passwordConfirm = confirmValidation.error!;
-    }
-    
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-    
+    const p = validators.password(password); if (!p.isValid) newErrors.password = p.error!;
+    const pc = validators.passwordConfirm(password, passwordConfirm); if (!pc.isValid) newErrors.passwordConfirm = pc.error!;
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+
+    if (isWeakPassword(password)) { setWeakPassword(true); return; }
     if (!userId || !code) return;
-    
+
     setIsLoading(true);
     setErrors({});
-    
     try {
       await authService.resetPassword({
         user_id: userId,
@@ -2203,57 +1889,45 @@ export const ResetPasswordPage: React.FC = () => {
   return (
     <Layout>
       <div className="reset-page">
-        <h1 className="reset-page__title">РќРѕРІС‹Р№ РїР°СЂРѕР»СЊ</h1>
-        
-        <form className="reset-page__form" onSubmit={handleSubmit}>
-          <div className="reset-page__field">
+        <h1 className="reset-page__title">Новый пароль</h1>
+
+        <form className={`reset-page__form auth-form ${submitted ? 'auth-form--submitted' : ''}`} onSubmit={handleSubmit}>
+          <div className={`reset-page__field auth-form__field auth-form__field--password ${weakPassword ? 'is-weak' : ''}`}>
             <input
               type="password"
-              className={`reset-page__input ${errors.password ? 'reset-page__input--error' : ''}`}
-              placeholder="РќРѕРІС‹Р№ РїР°СЂРѕР»СЊ"
+              className={`reset-page__input auth-form__input ${errors.password ? 'reset-page__input--error auth-form__input--error' : ''}`}
+              placeholder="Новый пароль"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); setWeakPassword(false); }}
               disabled={isLoading}
               autoFocus
             />
-            {password && <PasswordStrength password={password} />}
-            {errors.password && (
-              <span className="reset-page__error">{errors.password}</span>
-            )}
+            {errors.password && <span className="reset-page__error">{errors.password}</span>}
           </div>
-          
-          <div className="reset-page__field">
+
+          <div className="reset-page__field auth-form__field">
             <input
               type="password"
-              className={`reset-page__input ${errors.passwordConfirm ? 'reset-page__input--error' : ''}`}
-              placeholder="РџРѕРІС‚РѕСЂРёС‚Рµ РїР°СЂРѕР»СЊ"
+              className={`reset-page__input auth-form__input ${errors.passwordConfirm ? 'reset-page__input--error auth-form__input--error' : ''}`}
+              placeholder="Повторите пароль"
               value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
               disabled={isLoading}
             />
-            {errors.passwordConfirm && (
-              <span className="reset-page__error">{errors.passwordConfirm}</span>
-            )}
+            {errors.passwordConfirm && <span className="reset-page__error">{errors.passwordConfirm}</span>}
           </div>
-          
-          {errors.general && (
-            <div className="reset-page__error reset-page__error--general">
-              {errors.general}
-            </div>
-          )}
-          
-          <button
-            type="submit"
-            className="reset-page__submit"
-            disabled={isLoading}
-          >
-            {isLoading ? 'РЎРѕС…СЂР°РЅРµРЅРёРµ...' : 'РЎРѕС…СЂР°РЅРёС‚СЊ РїР°СЂРѕР»СЊ'}
+
+          {errors.general && <div className="reset-page__error reset-page__error--general">{errors.general}</div>}
+
+          <button type="submit" className="reset-page__submit auth-form__submit" disabled={isLoading}>
+            {isLoading ? 'Сохранение...' : 'Сохранить пароль'}
           </button>
         </form>
       </div>
     </Layout>
   );
 };
+
 
 
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\pages\VerifyEmailPage.tsx ===== */
@@ -2267,8 +1941,7 @@ import { CodeInput } from '../components/CodeInput/CodeInput';
 import { LoadingOverlay } from '../components/LoadingOverlay/LoadingOverlay';
 import { authService } from '../services/auth.service';
 import { handleApiError } from '../utils/errors';
-import { ROUTES, CODE_RESEND_TIMEOUT } from '../utils/constants';
-import '../styles/pages.scss';
+import { ROUTES, CODE_RESEND_TIMEOUT, CODE_LENGTH } from '../utils/constants';
 
 export const VerifyEmailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -2277,7 +1950,7 @@ export const VerifyEmailPage: React.FC = () => {
   const userId = searchParams.get('user_id');
   const email = searchParams.get('email');
   
-  const [code, setCode] = useState('');
+  const [, setCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -2335,12 +2008,13 @@ export const VerifyEmailPage: React.FC = () => {
   return (
     <Layout>
       <div className="verify-page">
-        <h1 className="verify-page__title">РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ Email</h1>
+        <h1 className="verify-page__title">Подтверждение Email</h1>
         <p className="verify-page__description">
-          РњС‹ РѕС‚РїСЂР°РІРёР»Рё РєРѕРґ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РЅР° {email}
+          Мы отправили код подтверждения на {email}
         </p>
         
         <CodeInput
+          length={CODE_LENGTH}
           onChange={setCode}
           onComplete={handleVerify}
           error={!!error}
@@ -2356,7 +2030,7 @@ export const VerifyEmailPage: React.FC = () => {
         <div className="verify-page__resend">
           {resendTimer > 0 ? (
             <span className="verify-page__timer">
-              РћС‚РїСЂР°РІРёС‚СЊ РїРѕРІС‚РѕСЂРЅРѕ С‡РµСЂРµР· {resendTimer}СЃ
+              Отправить повторно через {resendTimer}с
             </span>
           ) : (
             <button
@@ -2364,12 +2038,12 @@ export const VerifyEmailPage: React.FC = () => {
               onClick={handleResend}
               disabled={isResending}
             >
-              {isResending ? 'РћС‚РїСЂР°РІРєР°...' : 'РћС‚РїСЂР°РІРёС‚СЊ РєРѕРґ РїРѕРІС‚РѕСЂРЅРѕ'}
+              {isResending ? 'Отправка...' : 'Отправить код повторно'}
             </button>
           )}
         </div>
         
-        {isLoading && <LoadingOverlay message="РџСЂРѕРІРµСЂРєР° РєРѕРґР°..." />}
+        {isLoading && <LoadingOverlay message="Проверка кода..." />}
       </div>
     </Layout>
   );
@@ -2378,10 +2052,10 @@ export const VerifyEmailPage: React.FC = () => {
 
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\services\auth.service.ts ===== */
 
-// ============= src/services/auth.service.ts =============
+/* ============= src/services/auth.service.ts ============= */
 
-import { api } from '../api/client';
-import { API_ENDPOINTS } from '../api/endpoints';
+import { api, apiClient } from '../api/client'
+import { API_ENDPOINTS } from '../api/endpoints'
 import type {
   LoginRequest,
   LoginResponse,
@@ -2391,68 +2065,90 @@ import type {
   ForgotPasswordRequest,
   ResetPasswordRequest,
   User,
-} from '../types/auth.types';
-import { apiClient } from '../api/client';
+} from '../types/auth.types'
+import { AppError } from '../utils/errors'
 
+type RegisterPayload = {
+  user_id: string
+  email: string
+  requires_verification: boolean
+  message?: string
+}
+
+function assertRegisterPayload(r: any): asserts r is RegisterPayload {
+  const ok =
+    r &&
+    typeof r.user_id === 'string' &&
+    typeof r.email === 'string' &&
+    typeof r.requires_verification === 'boolean'
+  if (!ok) throw new AppError('Некорректный ответ сервера регистрации')
+}
 
 class AuthService {
   async login(data: LoginRequest): Promise<LoginResponse> {
-    const response = await api.post<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, data);
+    const response = await api.post<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, data)
     if (response.data.access_token) {
-      apiClient.saveTokens(response.data);
+      apiClient.saveTokens(response.data)
     }
-    return response.data;
+    return response.data
   }
 
   async register(data: RegisterRequest): Promise<RegisterResponse> {
-    const response = await api.post<RegisterResponse>(API_ENDPOINTS.AUTH.REGISTER, data);
-    return response.data;
+    const { data: raw } = await api.post<unknown>(API_ENDPOINTS.AUTH.REGISTER, data)
+    assertRegisterPayload(raw)
+    return {
+      user_id: raw.user_id,
+      email: raw.email,
+      message: raw.message ?? '',
+      requires_verification: raw.requires_verification,
+    }
   }
 
   async verifyEmail(data: VerifyEmailRequest): Promise<LoginResponse> {
-    const response = await api.post<LoginResponse>(API_ENDPOINTS.AUTH.VERIFY_EMAIL, data);
+    const response = await api.post<LoginResponse>(API_ENDPOINTS.AUTH.VERIFY_EMAIL, data)
     if (response.data.access_token) {
-      apiClient.saveTokens(response.data);
+      apiClient.saveTokens(response.data)
     }
-    return response.data;
+    return response.data
   }
 
   async resendVerificationCode(userId: string): Promise<void> {
-    await api.post(API_ENDPOINTS.AUTH.RESEND_CODE, { user_id: userId });
+    await api.post(API_ENDPOINTS.AUTH.RESEND_CODE, { user_id: userId })
   }
 
   async forgotPassword(data: ForgotPasswordRequest): Promise<void> {
-    await api.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, data);
+    await api.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, data)
   }
 
   async resetPassword(data: ResetPasswordRequest): Promise<void> {
-    await api.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, data);
+    await api.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, data)
   }
 
   async getCurrentUser(): Promise<User> {
-    const response = await api.get<User>(API_ENDPOINTS.AUTH.ME);
-    return response.data;
+    const response = await api.get<User>(API_ENDPOINTS.AUTH.ME)
+    return response.data
   }
 
   async logout(): Promise<void> {
     try {
-      await api.post(API_ENDPOINTS.SESSION.LOGOUT);
+      await api.post(API_ENDPOINTS.SESSION.LOGOUT)
     } finally {
-      apiClient.logout();
+      apiClient.logout()
     }
   }
 
   async checkSession(): Promise<boolean> {
     try {
-      const response = await api.get(API_ENDPOINTS.SESSION.STATUS);
-      return response.data.active;
+      const response = await api.get(API_ENDPOINTS.SESSION.STATUS)
+      return response.data.active
     } catch {
-      return false;
+      return false
     }
   }
 }
 
-export const authService = new AuthService();
+export const authService = new AuthService()
+
 
 
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\services\oauth.service.ts ===== */
@@ -2471,7 +2167,7 @@ import type {
 
 class OAuthService {
   /**
-   * Р“РµРЅРµСЂР°С†РёСЏ PKCE verifier Рё challenge
+   * Генерация PKCE verifier и challenge
    */
   async generatePKCE(): Promise<{ verifier: string; challenge: string }> {
     const verifier = this.generateRandomString(128);
@@ -2503,7 +2199,7 @@ class OAuthService {
   }
 
   /**
-   * РџРѕСЃС‚СЂРѕРµРЅРёРµ URL РґР»СЏ Р°РІС‚РѕСЂРёР·Р°С†РёРё
+   * Построение URL для авторизации
    */
   buildAuthorizationUrl(params: AuthorizationRequest): string {
     const searchParams = new URLSearchParams({
@@ -2520,11 +2216,12 @@ class OAuthService {
     if (params.prompt) searchParams.append('prompt', params.prompt);
     if (params.max_age) searchParams.append('max_age', params.max_age.toString());
 
-    return `${API_ENDPOINTS.OAUTH.AUTHORIZE}?${searchParams.toString()}`;
+    const base = import.meta.env.VITE_API_BASE || '';
+    return `${base}${API_ENDPOINTS.OAUTH.AUTHORIZE}?${searchParams.toString()}`;
   }
 
   /**
-   * РћР±РјРµРЅ authorization code РЅР° С‚РѕРєРµРЅС‹
+   * Обмен authorization code на токены
    */
 async exchangeCodeForTokens(params: TokenRequest): Promise<TokenResponse> {
   const body = new URLSearchParams({
@@ -2555,7 +2252,7 @@ async refreshTokens(refreshToken: string): Promise<TokenResponse> {
 }
 
   /**
-   * РџРѕР»СѓС‡РµРЅРёРµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ РїРѕР»СЊР·РѕРІР°С‚РµР»Рµ
+   * Получение информации о пользователе
    */
   async getUserInfo(): Promise<UserInfo> {
     const response = await api.get<UserInfo>(API_ENDPOINTS.OAUTH.USERINFO);
@@ -2563,7 +2260,7 @@ async refreshTokens(refreshToken: string): Promise<TokenResponse> {
   }
 
   /**
-   * РџРѕР»СѓС‡РµРЅРёРµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ РєР»РёРµРЅС‚Рµ
+   * Получение информации о клиенте
    */
   async getClientInfo(clientId: string): Promise<OAuthClient> {
     const response = await api.get<OAuthClient>(API_ENDPOINTS.CLIENTS.GET(clientId));
@@ -2571,23 +2268,26 @@ async refreshTokens(refreshToken: string): Promise<TokenResponse> {
   }
 
   /**
-   * РћС‚Р·С‹РІ С‚РѕРєРµРЅР°
+   * Отзыв токена
    */
-  async revokeToken(token: string, tokenType: 'access_token' | 'refresh_token' = 'access_token'): Promise<void> {
-    await api.post(API_ENDPOINTS.OAUTH.REVOKE, {
-      token,
-      token_type_hint: tokenType,
+  async revokeToken(
+    token: string,
+    tokenType: 'access_token' | 'refresh_token' = 'access_token'
+  ): Promise<void> {
+    const body = new URLSearchParams({ token, token_type_hint: tokenType });
+    await api.post(API_ENDPOINTS.OAUTH.REVOKE, body, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
   }
 
   /**
-   * РђРІС‚РѕСЂРёР·Р°С†РёСЏ СЃ СЃРѕРіР»Р°СЃРёРµРј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
+   * Авторизация с согласием пользователя
    */
   async authorizeWithConsent(
     authRequest: AuthorizationRequest,
     consent: boolean
   ): Promise<{ redirect_url: string }> {
-    const response = await api.post<{ redirect_url: string }>('/oauth/authorize/consent', {
+    const response = await api.post<{ redirect_url: string }>(API_ENDPOINTS.OAUTH.CONSENT, {
       ...authRequest,
       consent,
     });
@@ -2610,7 +2310,7 @@ class StorageService {
   private prefix = 'id_app_';
 
   /**
-   * РЎРѕС…СЂР°РЅРµРЅРёРµ РґР°РЅРЅС‹С…
+   * Сохранение данных
    */
   set<T>(key: string, value: T): void {
     try {
@@ -2622,7 +2322,7 @@ class StorageService {
   }
 
   /**
-   * РџРѕР»СѓС‡РµРЅРёРµ РґР°РЅРЅС‹С…
+   * Получение данных
    */
   get<T>(key: string): T | null {
     try {
@@ -2636,14 +2336,14 @@ class StorageService {
   }
 
   /**
-   * РЈРґР°Р»РµРЅРёРµ РґР°РЅРЅС‹С…
+   * Удаление данных
    */
   remove(key: string): void {
     localStorage.removeItem(this.prefix + key);
   }
 
   /**
-   * РћС‡РёСЃС‚РєР° РІСЃРµС… РґР°РЅРЅС‹С… РїСЂРёР»РѕР¶РµРЅРёСЏ
+   * Очистка всех данных приложения
    */
   clear(): void {
     const keys = Object.keys(localStorage);
@@ -2655,7 +2355,7 @@ class StorageService {
   }
 
   /**
-   * РЎРѕС…СЂР°РЅРµРЅРёРµ OAuth state РґР»СЏ РїСЂРѕРІРµСЂРєРё
+   * Сохранение OAuth state для проверки
    */
   saveOAuthState(state: string, data: any): void {
     this.set(`oauth_state_${state}`, {
@@ -2665,7 +2365,7 @@ class StorageService {
   }
 
   /**
-   * РџРѕР»СѓС‡РµРЅРёРµ Рё СѓРґР°Р»РµРЅРёРµ OAuth state
+   * Получение и удаление OAuth state
    */
   getAndRemoveOAuthState(state: string): any | null {
     const key = `oauth_state_${state}`;
@@ -2673,7 +2373,7 @@ class StorageService {
     
     if (!stored) return null;
     
-    // РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ state РЅРµ СѓСЃС‚Р°СЂРµР» (5 РјРёРЅСѓС‚)
+    // Проверяем, что state не устарел (5 минут)
     if (Date.now() - stored.timestamp > 5 * 60 * 1000) {
       this.remove(key);
       return null;
@@ -2684,7 +2384,7 @@ class StorageService {
   }
 
   /**
-   * РЎРѕС…СЂР°РЅРµРЅРёРµ PKCE verifier
+   * Сохранение PKCE verifier
    */
   savePKCEVerifier(state: string, verifier: string): void {
     this.set(`pkce_${state}`, {
@@ -2694,7 +2394,7 @@ class StorageService {
   }
 
   /**
-   * РџРѕР»СѓС‡РµРЅРёРµ PKCE verifier
+   * Получение PKCE verifier
    */
   getPKCEVerifier(state: string): string | null {
     const key = `pkce_${state}`;
@@ -2702,7 +2402,7 @@ class StorageService {
     
     if (!stored) return null;
     
-    // РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ verifier РЅРµ СѓСЃС‚Р°СЂРµР» (10 РјРёРЅСѓС‚)
+    // Проверяем, что verifier не устарел (10 минут)
     if (Date.now() - stored.timestamp > 10 * 60 * 1000) {
       this.remove(key);
       return null;
@@ -2714,1274 +2414,6 @@ class StorageService {
 }
 
 export const storageService = new StorageService();
-
-
-/* ===== C:\Users\icipa\team-platform-public\id_frontend\src\styles\auth.scss ===== */
-
-// styles.auth.scss
-
-
-/* ========================================================================
-   РЁР РР¤РўР« Р Р‘РђР—РћР’Р«Р• РџР•Р Р•РњР•РќРќР«Р•
-   ======================================================================== */
-
-$font-sora: 'Sora', sans-serif;          // Р”Р»СЏ РєРЅРѕРїРѕРє
-$font-opensans: 'Open Sans', sans-serif; // Р”Р»СЏ Р·Р°РіРѕР»РѕРІРєРѕРІ, РїРѕР»РµР№, РїР»РµР№СЃС…РѕР»РґРµСЂРѕРІ
-$font-spaceglotesk: 'Space Grotesk', sans-serif;
-
-/* ========================================================================
-   Р›Р•Р™РђРЈРў: Р’РќР•РЁРќРР™ РљРћРќРўР•Р™РќР•Р  Р РљРђР РўРћР§РљРђ Р¤РћР РњР«
-   ======================================================================== */
-
-// Р’РЅРµС€РЅРёР№ РєРѕРЅС‚РµР№РЅРµСЂ. Р¦РµРЅС‚СЂРёСЂСѓРµС‚ РєР°СЂС‚РѕС‡РєСѓ РїРѕ СЌРєСЂР°РЅСѓ.
-// РќР° РјРѕР±РёР»СЊРЅС‹С… вЂ” РїСЂРёР¶РёРјР°РµРј Рє РІРµСЂС…Сѓ СЃ РѕС‚СЃС‚СѓРїР°РјРё.
-.auth-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  position: relative;
-
-    // С‚РІРѕР№ РѕСЃРЅРѕРІРЅРѕР№ С„РѕРЅ СѓР¶Рµ Р·Р°РґР°С‘С‚СЃСЏ РіРґРµ-С‚Рѕ РіР»РѕР±Р°Р»СЊРЅРѕ
-  // РјС‹ РїРѕРІРµСЂС… РЅРµРіРѕ РєРёРґР°РµРј РґРѕРї. РіСЂР°РґРёРµРЅС‚
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0; // Р·Р°РјРµРЅСЏРµС‚ top/left/right/bottom: 0;
-    background: linear-gradient(180deg, rgba(37,141,255,0) 0%, rgba(225, 236, 254, 1) 100%);
-    pointer-events: none; // С‡С‚РѕР±С‹ РЅРµ РјРµС€Р°Р» РєР»РёРєР°Рј
-    z-index: 0;
-  }
-
-  // С‡С‚РѕР±С‹ РІРЅСѓС‚СЂРµРЅРЅРѕСЃС‚Рё Р±С‹Р»Рё РїРѕРІРµСЂС… РіСЂР°РґРёРµРЅС‚Р°
-  > * {
-    position: relative;
-    z-index: 1;
-  }
-
-  @media (max-width: 768px) {
-    align-items: flex-start;
-    padding: 40px 10px 10px;
-  }
-}
-
-// РљР°СЂС‚РѕС‡РєР° С„РѕСЂРјС‹ (РµРґРёРЅР°СЏ РєРѕР»РѕРЅРєР°).
-.auth-content {
-  width: 100%;
-  max-width: 470px;   // С„РёРєСЃ С€РёСЂРёРЅР° РєР°СЂС‚РѕС‡РєРё
-  height: 650px;      // С„РёРєСЃ РІС‹СЃРѕС‚Р° РєР°СЂС‚РѕС‡РєРё
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 30px;
-  border: 1px solid #ffffff;
-  box-shadow: 0 20px 20px rgba(0,0,0,0.05);
-  padding: 40px 45px 75px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-
-  @media (max-width: 768px) {
-    height: auto;         // РЅР° РјРѕР±РёР»РєРµ СѓР±РёСЂР°РµРј С„РёРєСЃ РІС‹СЃРѕС‚Сѓ
-    margin-top: 20px;
-    border-radius: 20px;
-    padding: 15px 20px 70px 20px;
-  }
-}
-
-
-// Р’РЅСѓС‚СЂРµРЅРЅСЏСЏ РѕР±РµСЂС‚РєР° С„РѕСЂРјС‹.
-.auth-form {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-
-/* ========================================================================
-   РўРРџРћР“Р РђР¤РРљРђ
-   ======================================================================== */
-
-// Р—Р°РіРѕР»РѕРІРєРё auth-СЃС‚СЂР°РЅРёС†.
-.auth-title {
-  font-family: $font-opensans;
-  font-size: 33px;
-  font-weight: 700;
-  color: #258DFF;
-  text-align: center;
-  align-self: center;
-
-  @media (max-width: 768px) {
-    margin-top: 45px;
-    font-size: 30px;
-
-    @media (max-width: 430px) {
-      font-size: 25px;
-    }
-  }
-}
-
-
-/* ========================================================================
-   РРќРџРЈРўР«: Р”Рћ Р’Р’РћР”Рђ / Р’Рћ Р’Р Р•РњРЇ Р’Р’РћР”Рђ / РџРћРЎР›Р• Р’Р’РћР”Рђ
-   ======================================================================== */
-
-.auth-input-wrapper {
-  position: relative;
-  width: 100%;
-  align-self: center;
-  margin-bottom: 16px;
-
-  @media (max-width: 768px) {
-    width: 90%;
-  }
-
-  /* --- 1) Р”Рћ Р’Р’РћР”Рђ (РїСѓСЃС‚РѕРµ, РЅРµ РІ С„РѕРєСѓСЃРµ) --- */
-  .auth-input {
-    width: 100%;
-    height: 47px;
-    padding: 10px 20px;
-    font-family: $font-opensans;
-    font-size: 18px;
-    font-weight: 600;
-    color: rgba(0, 0, 0, 0.5);       /* С‚РµРєСЃС‚ РґРѕ РІРІРѕРґР° Р±РѕР»РµРµ РїСЂРёРіР»СѓС€С‘РЅРЅС‹Р№ */
-    background: #E9EDF1;             /* СЃРІРµС‚Р»С‹Р№ С„РѕРЅ */
-    border-radius: 15px;
-    outline: none;
-    border: 1.5px solid transparent;  /* Р±Р°Р·РѕРІРѕ Р±РµР· СЂР°РјРєРё (РґР»СЏ РїР»Р°РІРЅРѕР№ Р°РЅРёРјР°С†РёРё) */
-    transition:
-      border-color 0.18s ease,
-      box-shadow 0.18s ease,
-      background-color 0.18s ease,
-      color 0.18s ease;
-
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-
-    &:hover:not(:focus) {
-      /* Р»С‘РіРєР°СЏ РїРѕРґСЃРєР°Р·РєР° РїСЂРё РЅР°РІРµРґРµРЅРёРё */
-      border-color: rgba(0, 0, 0, 0.08);
-    }
-  }
-
-  .auth-placeholder {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-family: $font-opensans;
-    font-weight: 600;
-    font-size: 17px;
-    color: rgba(0, 0, 0, 0.5);
-    background: #E9EDF1;
-    padding: 0 8px;
-    pointer-events: none;
-    transition: all 0.18s ease;
-  }
-
-  /* --- 2) Р’Рћ Р’Р Р•РњРЇ Р’Р’РћР”Рђ (С„РѕРєСѓСЃ) --- */
-  &.focused {
-    .auth-input {
-      font-family: $font-spaceglotesk;
-      letter-spacing: 1.1px;
-      background: #F5F7FA;                 /* С‡СѓС‚СЊ СЃРІРµС‚Р»РµРµ РїСЂРё С„РѕРєСѓСЃРµ */
-      color: rgba(0, 0, 0, 0.85);          /* С‚РµРєСЃС‚ СЏСЂС‡Рµ РІРѕ РІСЂРµРјСЏ РІРІРѕРґР° */
-      border-color: #258DFE;               /* Р°РєС‚РёРІРЅР°СЏ СЂР°РјРєР° */
-      box-shadow: 0 0 0 3px rgba(37, 141, 255, 0.12);
-    }
-
-    .auth-placeholder {
-      top: 0;
-      left: 10px;
-      padding: 0 4px;
-      font-size: 12px;
-      background: #F5F7FA;                 /* РїРѕРґ С†РІРµС‚ РёРЅРїСѓС‚Р° РІ С„РѕРєСѓСЃРµ */
-      color: #258DFE;
-    }
-  }
-
-  /* --- 3) РџРћРЎР›Р• Р’Р’РћР”Рђ (Р·Р°РїРѕР»РЅРµРЅРѕ, РјРѕР¶РµС‚ Р±С‹С‚СЊ Р±РµР· С„РѕРєСѓСЃР°) --- */
-  &.filled {
-    .auth-input {
-      font-family: $font-spaceglotesk;
-      background: #F9FAFC;                 /* В«Р·Р°РїРѕР»РЅРµРЅРЅС‹Р№В» С„РѕРЅ */
-      color: rgba(0, 0, 0, 0.7);          /* С„РёРЅР°Р»СЊРЅС‹Р№ С†РІРµС‚ С‚РµРєСЃС‚Р° */
-      border-color: #258DFE;
-      letter-spacing: 1.1px;
-    }
-
-    .auth-placeholder {
-      top: 0;
-      left: 10px;
-      font-size: 12px;
-      background: #F9FAFC;                 /* РїРѕРґ С†РІРµС‚ Р·Р°РїРѕР»РЅРµРЅРЅРѕРіРѕ РёРЅРїСѓС‚Р° */
-      border-radius: 10px;
-      color: #258DFE;
-      padding: 0 4px;
-    }
-  }
-
-  /* Р”РѕРї. СЃС‚РёР»Рё РґР»СЏ РїР°СЂРѕР»РµР№ */
-  .password-input {
-    letter-spacing: 1.8px;
-    font-size: 18px;
-  }
-}
-
-/* ========================================================================
-   РљРќРћРџРљР
-   ======================================================================== */
-
-// Р“Р»Р°РІРЅС‹Рµ РєРЅРѕРїРєРё РґРµР№СЃС‚РІРёР№. РЁСЂРёС„С‚ вЂ” Sora.
-.auth-button {
-  font-family: $font-sora;
-  font-size: 19px;
-  font-weight: 600;
-  color: #FFFFFF;
-  background: linear-gradient(to top, rgba(28, 121, 221, 1), rgba(0, 122, 255, 0.7));
-  border: none;
-  border-radius: 15px;
-  width: 100%;
-  height: 50px;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  align-self: center;
-  margin-top: auto;
-
-  @media (max-width: 768px) {
-    width: 90%;
-    height: 45px;
-  }
-
-  &:hover {
-    background: linear-gradient(to top, rgba(28, 121, 221, 0.95), rgba(0, 122, 255, 0.65));
-  }
-
-  &:active {
-    transform: translateY(0.5px);
-    box-shadow: 0 2px 6px rgba(0, 122, 255, 0.1);
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.7;
-    transition: opacity 0.1s;
-  }
-
-  // РЎРѕСЃС‚РѕСЏРЅРёРµ Р·Р°РіСЂСѓР·РєРё Сѓ РєРЅРѕРїРѕРє.
-  &.loading {
-    color: transparent !important;
-    position: relative;
-
-    .button-spinner {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-  }
-}
-
-
-/* ========================================================================
-   Р‘Р›РћРљР РћРЁРР‘РћРљ
-   ======================================================================== */
-
-// РљР°СЂС‚РѕС‡РєР° РѕС€РёР±РєРё РїРѕРґ С„РѕСЂРјРѕР№.
-.auth-error {
-  width: 100%;
-  align-self: center;
-  margin-top: 10px;
-  margin-bottom: 14px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, rgba(255, 94, 94, 0.7), rgba(255, 36, 36, 0.7));
-  backdrop-filter: blur(10px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 10px;
-  padding: 8px 14px;
-  font-size: 10px;
-  font-family: "Sora", sans-serif; // РѕСЃС‚Р°РІР»РµРЅРѕ РєР°Рє РІ РёСЃС…РѕРґРЅРёРєРµ
-  color: #fff;
-  text-align: center;
-  box-shadow: 0 4px 12px rgba(255, 36, 36, 0.2);
-  position: relative;
-  overflow: hidden;
-  animation: fadeSlideIn 0.2s ease, shake 0.3s ease 0.4s;
-
-  @media (max-width: 768px) {
-    width: 90%;
-    gap: 4px;
-  }
-
-  &::before {
-    content: 'вљ ';
-    font-size: 18px;
-    color: #fff;
-  }
-
-  // РљРЅРѕРїРєР° РІРЅСѓС‚СЂРё РѕС€РёР±РєРё (РЅР°РїСЂРёРјРµСЂ, В«РђРєС‚РёРІРёСЂРѕРІР°С‚СЊВ»).
-  .activation-btn {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 8px;
-    padding: 8px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: "Sora", sans-serif; // РѕСЃС‚Р°РІР»РµРЅРѕ РєР°Рє РІ РёСЃС…РѕРґРЅРёРєРµ
-    cursor: pointer;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(10px);
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.3);
-      border-color: rgba(255, 255, 255, 0.6);
-      transform: translateY(-1px);
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
-  }
-
-  // Р•СЃР»Рё РЅРµС‚ РєРЅРѕРїРєРё РІРЅСѓС‚СЂРё вЂ” Р°РІС‚Рѕ-РёСЃС‡РµР·РЅРѕРІРµРЅРёРµ.
-  &:not(:has(.activation-btn)) {
-    animation: fadeSlideIn 0.2s ease, shake 0.3s ease 0.4s, fadeOut 0.6s ease 4.2s forwards;
-  }
-}
-
-
-/* ========================================================================
-   РњРђРўР•Р РРђР› РРљРћРќРљР
-   ======================================================================== */
-
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
-  font-style: normal;
-  font-weight: normal;
-  font-display: block;
-  white-space: nowrap;
-  direction: ltr;
-  -webkit-font-feature-settings: 'liga';
-  font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
-}
-
-
-/* ========================================================================
-   РњРћР‘РР›Р¬РќР«Р• Р­Р›Р•РњР•РќРўР« (РµСЃР»Рё РёСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ РІ РјР°РєРµС‚Рµ)
-   ======================================================================== */
-
-// РљРѕРЅС‚РµР№РЅРµСЂ РјРѕР±РёР»СЊРЅРѕРіРѕ Р»РѕРіРѕС‚РёРїР° + СЂР°Р·РґРµР»РёС‚РµР»СЊРЅР°СЏ Р»РёРЅРёСЏ.
-.mobile-logo-container {
-  display: none;
-
-  @media (max-width: 768px) {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 90%;
-    align-self: center;
-    position: relative;
-
-    &::after {
-      content: '';
-      position: absolute;
-      left: -13%;
-      right: -13%;
-      height: 3px;
-      background: #EEF1F6;
-      bottom: -15px;
-    }
-  }
-}
-
-
-/* ========================================================================
-   РћР’Р•Р Р›Р•Р™ Р—РђР“Р РЈР—РљР Р РЎРџРРќРќР•Р Р«
-   ======================================================================== */
-
-// РћР±С‰РёР№ overlay Р·Р°РіСЂСѓР·РєРё.
-.auth-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  animation: fadeIn 0.2s ease-out;
-}
-
-// РљР°СЂС‚РѕС‡РєР° РІРЅСѓС‚СЂРё overlay.
-.auth-overlay-content {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 32px 40px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-
-  @media (max-width: 768px) {
-    padding: 24px 32px;
-    border-radius: 16px;
-    margin: 0 20px;
-  }
-}
-
-// РЎРїРёРЅРЅРµСЂ РІ overlay.
-.auth-overlay-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(0, 122, 255, 0.2);
-  border-top: 3px solid #007AFF;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-// РўРµРєСЃС‚ РІ overlay.
-.auth-overlay-message {
-  font-family: 'Montserrat', sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  margin: 0;
-  text-align: center;
-
-  @media (max-width: 768px) {
-    font-size: 15px;
-  }
-}
-
-// РРЅР»Р°Р№РЅ-СЃРїРёРЅРЅРµСЂС‹.
-.inline-spinner {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.inline-spinner-icon {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(102, 102, 102, 0.3);
-  border-top: 2px solid #666;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-// РўР°Р№РјРµСЂ-СЃРїРёРЅРЅРµСЂС‹.
-.timer-spinner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: center;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 14px;
-  color: #666;
-}
-
-.timer-spinner-icon {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(102, 102, 102, 0.3);
-  border-top: 2px solid #666;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-
-////////
-// ID - Р­РєРѕСЃРёСЃС‚РµРјР° Asynq
-////////
-
-
-.id-badge {
-  position: absolute;
-  top: 41px;
-  left: 47px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-
-  width: 82px;
-  height: 40px;
-  padding: 1px 5px 1px 7px;
-
-  background: linear-gradient(180deg, rgba(50,50,50,0.9) 0%, rgba(0,0,0,0.9) 100%);
-  border-radius: 19px;
-}
-
-.id-icon {
-  width: 22px;
-  height: 21px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  svg {
-    width: 100%;
-    height: 100%;
-  }
-}
-
-.id-text {
-  font-family: 'Open Sans', sans-serif;
-  font-weight: 700;
-  font-size: 27px;
-  line-height: 26px;
-  color: #fff;
-  display: flex;
-  align-items: center;
-}
-
-.id-badge {
-  transform: scale(0.85); // 85% РѕС‚ С‚РµРєСѓС‰РµРіРѕ СЂР°Р·РјРµСЂР°
-  transform-origin: top left; // С‡С‚РѕР±С‹ СѓРјРµРЅСЊС€РµРЅРёРµ С€Р»Рѕ РѕС‚ Р»РµРІРѕРіРѕ РІРµСЂС…РЅРµРіРѕ СѓРіР»Р°
-}
-
-
-////////
-// Р’Р«РҐРћР”
-////////
-
-
-.logout-btn {
-  position: absolute;
-  top: 41px;
-  right: 47px; // РІРјРµСЃС‚Рѕ left:1342px вЂ” С‚Р°Рє Р°РґР°РїС‚РёРІРЅРµРµ
-  width: 45px;
-  height: 45px;
-
-  background: #E9EDF1;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  cursor: pointer;
-  transition: background 0.2s ease;
-
-  &:hover {
-    background: #dce0e5;
-  }
-
-  .material-symbols-outlined {
-    font-size: 35px; // Р±Р»РёР·РєРѕ Рє 46px РёР· С„РёРіРјС‹, РЅРѕ Р»СѓС‡С€Рµ РїСЂРѕРїРѕСЂС†РёРѕРЅР°Р»СЊРЅРѕ
-    color: #333333d2;
-      font-variation-settings:
-    'FILL' 0,        // 0 вЂ” РєРѕРЅС‚СѓСЂРЅР°СЏ, 1 вЂ” Р·Р°Р»РёРІРєР°
-    'wght' 200,      // С‚РѕР»С‰РёРЅР° (100вЂ“700)
-    'GRAD' 0,        // РЅР°РєР»РѕРЅ
-    'opsz' 48;       // "РѕРїС‚РёС‡РµСЃРєРёР№ СЂР°Р·РјРµСЂ" (Р°РґР°РїС‚РёРІРЅРѕСЃС‚СЊ)
-  }
-}
-
-
-
-
-/* ========================================================================
-   РђРќРРњРђР¦РР
-   ======================================================================== */
-
-@keyframes fadeSlideIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes shake {
-  0% { transform: translateX(0); }
-  20% { transform: translateX(-1px); }
-  40% { transform: translateX(1px); }
-  60% { transform: translateX(-1px); }
-  80% { transform: translateX(1px); }
-  100% { transform: translateX(0); }
-}
-
-@keyframes fadeOut {
-  0%   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-  100% { opacity: 0; transform: translateY(-10px) scale(0.95); filter: blur(3px); }
-}
-
-@keyframes spin {
-  0%   { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@keyframes fadeIn {
-  0%   { opacity: 0; transform: scale(0.95); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-
-
-/* ===== C:\Users\icipa\team-platform-public\id_frontend\src\styles\global.scss ===== */
-
-// ============= src/styles/global.scss =============
-
-@import './variables.scss';
-
-// Fonts
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&family=Sora:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
-
-// Reset
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html {
-  font-size: 16px;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  font-family: $font-primary;
-  color: $text-primary;
-  background: $background;
-  line-height: 1.6;
-  overflow-x: hidden;
-}
-
-// Links
-a {
-  color: $primary-color;
-  text-decoration: none;
-  transition: color $transition-base;
-
-  &:hover {
-    color: $primary-dark;
-  }
-}
-
-// Buttons
-button {
-  font-family: inherit;
-  cursor: pointer;
-  transition: all $transition-base;
-  
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-}
-
-// Inputs
-input,
-textarea,
-select {
-  font-family: inherit;
-  font-size: inherit;
-  
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-}
-
-// Scrollbar
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-  
-  &:hover {
-    background: rgba(0, 0, 0, 0.3);
-  }
-}
-
-// Animations
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes fadeOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideDown {
-  from {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes shake {
-  0%, 100% {
-    transform: translateX(0);
-  }
-  10%, 30%, 50%, 70%, 90% {
-    transform: translateX(-2px);
-  }
-  20%, 40%, 60%, 80% {
-    transform: translateX(2px);
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-// Utility classes
-.container {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 $spacing-md;
-  
-  @media (max-width: $tablet) {
-    padding: 0 $spacing-sm;
-  }
-}
-
-.text-center {
-  text-align: center;
-}
-
-.text-left {
-  text-align: left;
-}
-
-.text-right {
-  text-align: right;
-}
-
-.mt-1 { margin-top: $spacing-xs; }
-.mt-2 { margin-top: $spacing-sm; }
-.mt-3 { margin-top: $spacing-md; }
-.mt-4 { margin-top: $spacing-lg; }
-.mt-5 { margin-top: $spacing-xl; }
-
-.mb-1 { margin-bottom: $spacing-xs; }
-.mb-2 { margin-bottom: $spacing-sm; }
-.mb-3 { margin-bottom: $spacing-md; }
-.mb-4 { margin-bottom: $spacing-lg; }
-.mb-5 { margin-bottom: $spacing-xl; }
-
-.p-1 { padding: $spacing-xs; }
-.p-2 { padding: $spacing-sm; }
-.p-3 { padding: $spacing-md; }
-.p-4 { padding: $spacing-lg; }
-.p-5 { padding: $spacing-xl; }
-
-
-/* ===== C:\Users\icipa\team-platform-public\id_frontend\src\styles\pages.scss ===== */
-
-@import './variables.scss';
-
-// Verify Email Page
-.verify-page {
-  text-align: center;
-
-  &__title {
-    font-size: 28px;
-    font-weight: 700;
-    color: $primary-color;
-    margin-bottom: $spacing-md;
-  }
-
-  &__description {
-    font-size: 16px;
-    color: $text-secondary;
-    margin-bottom: $spacing-xl;
-  }
-
-  &__error {
-    background: rgba($error-color, 0.1);
-    border: 1px solid rgba($error-color, 0.3);
-    border-radius: $radius-md;
-    padding: $spacing-md;
-    margin: $spacing-lg 0;
-    color: $error-color;
-    font-size: 14px;
-  }
-
-  &__resend {
-    margin-top: $spacing-xl;
-  }
-
-  &__timer {
-    color: $text-secondary;
-    font-size: 14px;
-  }
-
-  &__resend-btn {
-    background: none;
-    border: none;
-    color: $primary-color;
-    font-size: 14px;
-    font-weight: 500;
-    text-decoration: underline;
-
-    &:hover:not(:disabled) {
-      color: $primary-dark;
-    }
-  }
-}
-
-// Forgot Password Page
-.forgot-page {
-  &__title {
-    font-size: 28px;
-    font-weight: 700;
-    color: $primary-color;
-    text-align: center;
-    margin-bottom: $spacing-md;
-  }
-
-  &__description {
-    text-align: center;
-    color: $text-secondary;
-    margin-bottom: $spacing-xl;
-  }
-
-  &__form {
-    display: flex;
-    flex-direction: column;
-    gap: $spacing-md;
-  }
-
-  &__input {
-    width: 100%;
-    height: 50px;
-    padding: 0 $spacing-lg;
-    font-size: 16px;
-    background: $background;
-    border: 2px solid transparent;
-    border-radius: $radius-md;
-    transition: all $transition-base;
-
-    &:focus {
-      outline: none;
-      background: white;
-      border-color: $primary-color;
-      box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
-    }
-
-    &--error {
-      border-color: $error-color;
-    }
-  }
-
-  &__error {
-    color: $error-color;
-    font-size: 14px;
-  }
-
-  &__submit {
-    height: 50px;
-    background: linear-gradient(135deg, $primary-color, $primary-dark);
-    color: white;
-    border: none;
-    border-radius: $radius-md;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all $transition-base;
-
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba($primary-color, 0.3);
-    }
-  }
-
-  &__link {
-    display: block;
-    text-align: center;
-    margin-top: $spacing-lg;
-    color: $primary-color;
-    font-size: 14px;
-  }
-
-  &__success {
-    text-align: center;
-
-    h2 {
-      color: $success-color;
-      margin-bottom: $spacing-md;
-    }
-
-    p {
-      color: $text-secondary;
-      margin-bottom: $spacing-xl;
-    }
-  }
-}
-
-// Reset Password Page
-.reset-page {
-  &__title {
-    font-size: 28px;
-    font-weight: 700;
-    color: $primary-color;
-    text-align: center;
-    margin-bottom: $spacing-xl;
-  }
-
-  &__form {
-    display: flex;
-    flex-direction: column;
-    gap: $spacing-lg;
-  }
-
-  &__field {
-    position: relative;
-  }
-
-  &__input {
-    width: 100%;
-    height: 50px;
-    padding: 0 $spacing-lg;
-    font-size: 16px;
-    background: $background;
-    border: 2px solid transparent;
-    border-radius: $radius-md;
-    transition: all $transition-base;
-
-    &:focus {
-      outline: none;
-      background: white;
-      border-color: $primary-color;
-      box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
-    }
-
-    &--error {
-      border-color: $error-color;
-    }
-  }
-
-  &__error {
-    display: block;
-    color: $error-color;
-    font-size: 12px;
-    margin-top: $spacing-xs;
-
-    &--general {
-      background: rgba($error-color, 0.1);
-      border: 1px solid rgba($error-color, 0.3);
-      border-radius: $radius-md;
-      padding: $spacing-md;
-      font-size: 14px;
-    }
-  }
-
-  &__submit {
-    height: 50px;
-    background: linear-gradient(135deg, $primary-color, $primary-dark);
-    color: white;
-    border: none;
-    border-radius: $radius-md;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all $transition-base;
-
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba($primary-color, 0.3);
-    }
-  }
-}
-
-// Profile Page
-.profile-page {
-  &__title {
-    font-size: 28px;
-    font-weight: 700;
-    color: $primary-color;
-    text-align: center;
-    margin-bottom: $spacing-xl;
-  }
-
-  &__card {
-    background: white;
-    border-radius: $radius-lg;
-    padding: $spacing-xl;
-    box-shadow: $shadow-md;
-  }
-
-  &__info {
-    margin-bottom: $spacing-xl;
-  }
-
-  &__field {
-    display: flex;
-    justify-content: space-between;
-    padding: $spacing-md 0;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-
-    &:last-child {
-      border-bottom: none;
-    }
-  }
-
-  &__label {
-    font-weight: 500;
-    color: $text-secondary;
-  }
-
-  &__value {
-    font-weight: 600;
-    color: $text-primary;
-    display: flex;
-    align-items: center;
-    gap: $spacing-sm;
-  }
-
-  &__verified {
-    color: $success-color;
-    font-size: 18px;
-  }
-
-  &__logout {
-    width: 100%;
-    height: 45px;
-    background: linear-gradient(135deg, #ff4444, #cc0000);
-    color: white;
-    border: none;
-    border-radius: $radius-md;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all $transition-base;
-
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  }
-}
-
-// Authorize Page
-.authorize-page {
-  &__card {
-    background: white;
-    border-radius: $radius-lg;
-    padding: $spacing-xl;
-    box-shadow: $shadow-md;
-    text-align: center;
-  }
-
-  &__logo {
-    width: 64px;
-    height: 64px;
-    object-fit: contain;
-    margin-bottom: $spacing-md;
-  }
-
-  &__title {
-    font-size: 22px;
-    font-weight: 700;
-    color: $text-primary;
-    margin-bottom: $spacing-md;
-  }
-
-  &__scopes {
-    text-align: left;
-    margin: $spacing-md 0 $spacing-lg;
-
-    p {
-      color: $text-secondary;
-      margin-bottom: $spacing-sm;
-    }
-
-    ul {
-      padding-left: $spacing-lg;
-    }
-  }
-
-  &__actions {
-    display: flex;
-    gap: $spacing-md;
-    justify-content: center;
-  }
-
-  &__deny,
-  &__approve {
-    min-width: 140px;
-    height: 44px;
-    border-radius: $radius-md;
-    border: none;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all $transition-base;
-  }
-
-  &__deny {
-    background: #eef1f6;
-    color: $text-primary;
-
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-    }
-  }
-
-  &__approve {
-    background: linear-gradient(135deg, $primary-color, $primary-dark);
-    color: white;
-
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba($primary-color, 0.3);
-    }
-  }
-}
-
-// Error Page
-.error-page {
-  &__content {
-    background: white;
-    border-radius: $radius-lg;
-    padding: $spacing-xl;
-    box-shadow: $shadow-md;
-    text-align: center;
-  }
-
-  &__title {
-    font-size: 24px;
-    font-weight: 700;
-    color: $error-color;
-    margin-bottom: $spacing-md;
-  }
-
-  &__message {
-    color: $text-secondary;
-    margin-bottom: $spacing-lg;
-  }
-
-  &__link {
-    color: $primary-color;
-    text-decoration: underline;
-
-    &:hover {
-      color: $primary-dark;
-    }
-  }
-}
-
-
-
-/* ===== C:\Users\icipa\team-platform-public\id_frontend\src\styles\variables.scss ===== */
-
-// ============= src/styles/variables.scss =============
-
-// Colors
-$primary-color: #258DFF;
-$primary-dark: #1976d2;
-$primary-light: #69A2FF;
-
-$error-color: #ff4444;
-$success-color: #00cc00;
-$warning-color: #ffbb00;
-
-$text-primary: #333333;
-$text-secondary: #666666;
-$text-light: rgba(0, 0, 0, 0.5);
-
-$background: #f5f7fa;
-$background-light: #ffffff;
-$background-glass: rgba(255, 255, 255, 0.95);
-
-// Typography
-$font-primary: 'Open Sans', sans-serif;
-$font-secondary: 'Sora', sans-serif;
-$font-mono: 'Space Grotesk', monospace;
-
-// Breakpoints
-$mobile: 480px;
-$tablet: 768px;
-$desktop: 1024px;
-$wide: 1440px;
-
-// Spacing
-$spacing-xs: 4px;
-$spacing-sm: 8px;
-$spacing-md: 16px;
-$spacing-lg: 24px;
-$spacing-xl: 32px;
-$spacing-xxl: 48px;
-
-// Border radius
-$radius-sm: 8px;
-$radius-md: 12px;
-$radius-lg: 16px;
-$radius-xl: 20px;
-$radius-xxl: 30px;
-
-// Shadows
-$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
-$shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-$shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.1);
-$shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.15);
-
-// Transitions
-$transition-fast: 0.15s ease;
-$transition-base: 0.2s ease;
-$transition-slow: 0.3s ease;
-
-// Z-index
-$z-dropdown: 100;
-$z-modal: 1000;
-$z-overlay: 9999;
-$z-notification: 10000;
-
-
 
 
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\types\api.types.ts ===== */
@@ -4037,12 +2469,15 @@ export interface LoginRequest { email: string; password: string; }
 export interface RegisterRequest { username: string; email: string; password: string; password_confirm: string; }
 export interface VerifyEmailRequest { user_id: string; code: string; }
 export interface ForgotPasswordRequest { email: string; }
-export interface ResetPasswordRequest {
-  user_id: string;
+export interface ResetPasswordRequestBase {
   code: string;
   new_password: string;
   new_password_confirm: string;
 }
+
+export type ResetPasswordRequest =
+  | (ResetPasswordRequestBase & { user_id: string })
+  | (ResetPasswordRequestBase & { email: string });
 
 export interface LoginResponse {
   access_token: string;
@@ -4144,7 +2579,7 @@ export const PASSWORD_MIN_LENGTH = 8;
 export const USERNAME_MIN_LENGTH = 3;
 export const USERNAME_MAX_LENGTH = 20;
 
-export const CODE_LENGTH = 6;
+export const CODE_LENGTH = 4;
 export const CODE_RESEND_TIMEOUT = 60; // seconds
 
 export const TOKEN_STORAGE_KEY = 'access_token';
@@ -4159,13 +2594,13 @@ export const OAUTH_SCOPES = {
 };
 
 export const ERROR_MESSAGES = {
-  NETWORK_ERROR: 'РћС€РёР±РєР° СЃРµС‚Рё. РџСЂРѕРІРµСЂСЊС‚Рµ РїРѕРґРєР»СЋС‡РµРЅРёРµ Рє РёРЅС‚РµСЂРЅРµС‚Сѓ.',
-  UNAUTHORIZED: 'РќРµРѕР±С…РѕРґРёРјР° Р°РІС‚РѕСЂРёР·Р°С†РёСЏ.',
-  FORBIDDEN: 'Р”РѕСЃС‚СѓРї Р·Р°РїСЂРµС‰РµРЅ.',
-  NOT_FOUND: 'Р РµСЃСѓСЂСЃ РЅРµ РЅР°Р№РґРµРЅ.',
-  VALIDATION_ERROR: 'РџСЂРѕРІРµСЂСЊС‚Рµ РїСЂР°РІРёР»СЊРЅРѕСЃС‚СЊ РІРІРµРґРµРЅРЅС‹С… РґР°РЅРЅС‹С….',
-  SERVER_ERROR: 'РћС€РёР±РєР° СЃРµСЂРІРµСЂР°. РџРѕРїСЂРѕР±СѓР№С‚Рµ РїРѕР·Р¶Рµ.',
-  UNKNOWN_ERROR: 'РџСЂРѕРёР·РѕС€Р»Р° РЅРµРёР·РІРµСЃС‚РЅР°СЏ РѕС€РёР±РєР°.',
+  NETWORK_ERROR: 'Ошибка сети. Проверьте подключение к интернету.',
+  UNAUTHORIZED: 'Необходима авторизация.',
+  FORBIDDEN: 'Доступ запрещен.',
+  NOT_FOUND: 'Ресурс не найден.',
+  VALIDATION_ERROR: 'Проверьте правильность введенных данных.',
+  SERVER_ERROR: 'Ошибка сервера. Попробуйте позже.',
+  UNKNOWN_ERROR: 'Произошла неизвестная ошибка.',
 };
 
 export const ROUTES = {
@@ -4186,7 +2621,6 @@ export const ROUTES = {
 // ============= src/utils/errors.ts =============
 
 import { AxiosError } from 'axios';
-import type { ApiError } from '../types/auth.types';
 import { ERROR_MESSAGES } from './constants';
 
 export class AppError extends Error {
@@ -4201,45 +2635,42 @@ export class AppError extends Error {
   }
 }
 
+// replace handleApiError with:
 export const handleApiError = (error: unknown): string => {
   if (error instanceof AxiosError) {
-    const apiError = error.response?.data as ApiError;
-    
-    if (apiError?.message) {
-      return apiError.message;
-    }
-    
-    if (apiError?.error) {
-      return apiError.error;
-    }
-    
+    const data = error.response?.data as any;
+
+    const flatten = (v: any): string => {
+      if (!v) return '';
+      if (typeof v === 'string') return v;
+      if (Array.isArray(v)) return v.map(flatten).filter(Boolean).join('\n');
+      if (typeof v === 'object') return Object.values(v).map(flatten).filter(Boolean).join('\n') || JSON.stringify(v);
+      return String(v);
+    };
+
+    const msg =
+      flatten(data?.message) ||
+      flatten(data?.error) ||
+      flatten(data?.details);
+
+    if (msg) return msg;
+
     switch (error.response?.status) {
-      case 400:
-        return ERROR_MESSAGES.VALIDATION_ERROR;
-      case 401:
-        return ERROR_MESSAGES.UNAUTHORIZED;
-      case 403:
-        return ERROR_MESSAGES.FORBIDDEN;
-      case 404:
-        return ERROR_MESSAGES.NOT_FOUND;
+      case 400: return ERROR_MESSAGES.VALIDATION_ERROR;
+      case 401: return ERROR_MESSAGES.UNAUTHORIZED;
+      case 403: return ERROR_MESSAGES.FORBIDDEN;
+      case 404: return ERROR_MESSAGES.NOT_FOUND;
       case 500:
       case 502:
-      case 503:
-        return ERROR_MESSAGES.SERVER_ERROR;
+      case 503: return ERROR_MESSAGES.SERVER_ERROR;
       default:
-        if (!error.response) {
-          return ERROR_MESSAGES.NETWORK_ERROR;
-        }
-        return ERROR_MESSAGES.UNKNOWN_ERROR;
+        return error.response ? ERROR_MESSAGES.UNKNOWN_ERROR : ERROR_MESSAGES.NETWORK_ERROR;
     }
   }
-  
-  if (error instanceof Error) {
-    return error.message;
-  }
-  
+  if (error instanceof Error) return error.message;
   return ERROR_MESSAGES.UNKNOWN_ERROR;
 };
+
 
 export const isNetworkError = (error: unknown): boolean => {
   if (error instanceof AxiosError) {
@@ -4260,7 +2691,7 @@ export const isUnauthorizedError = (error: unknown): boolean => {
 
 // ============= src/utils/validators.ts =============
 
-import { PASSWORD_MIN_LENGTH, USERNAME_MIN_LENGTH, USERNAME_MAX_LENGTH } from './constants';
+import { PASSWORD_MIN_LENGTH, USERNAME_MIN_LENGTH, USERNAME_MAX_LENGTH, CODE_LENGTH } from './constants';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -4270,58 +2701,62 @@ export interface ValidationResult {
 export const validators = {
   email: (email: string): ValidationResult => {
     if (!email) {
-      return { isValid: false, error: 'Email РѕР±СЏР·Р°С‚РµР»РµРЅ' };
+      return { isValid: false, error: 'Email обязателен' };
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return { isValid: false, error: 'РќРµРІРµСЂРЅС‹Р№ С„РѕСЂРјР°С‚ email' };
+      return { isValid: false, error: 'Неверный формат email' };
     }
     return { isValid: true };
   },
 
   username: (username: string): ValidationResult => {
     if (!username) {
-      return { isValid: false, error: 'РРјСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ' };
+      return { isValid: false, error: 'Имя пользователя обязательно' };
     }
     if (username.length < USERNAME_MIN_LENGTH) {
-      return { isValid: false, error: `РњРёРЅРёРјСѓРј ${USERNAME_MIN_LENGTH} СЃРёРјРІРѕР»Р°` };
+      return { isValid: false, error: `Минимум ${USERNAME_MIN_LENGTH} символа` };
     }
     if (username.length > USERNAME_MAX_LENGTH) {
-      return { isValid: false, error: `РњР°РєСЃРёРјСѓРј ${USERNAME_MAX_LENGTH} СЃРёРјРІРѕР»РѕРІ` };
+      return { isValid: false, error: `Максимум ${USERNAME_MAX_LENGTH} символов` };
     }
     const usernameRegex = /^[a-zA-Z0-9_-]+$/;
     if (!usernameRegex.test(username)) {
-      return { isValid: false, error: 'РўРѕР»СЊРєРѕ Р±СѓРєРІС‹, С†РёС„СЂС‹, _ Рё -' };
+      return { isValid: false, error: 'Только буквы, цифры, _ и -' };
     }
     return { isValid: true };
   },
 
   password: (password: string): ValidationResult => {
     if (!password) {
-      return { isValid: false, error: 'РџР°СЂРѕР»СЊ РѕР±СЏР·Р°С‚РµР»РµРЅ' };
+      return { isValid: false, error: 'Пароль обязателен' };
     }
     if (password.length < PASSWORD_MIN_LENGTH) {
-      return { isValid: false, error: `РњРёРЅРёРјСѓРј ${PASSWORD_MIN_LENGTH} СЃРёРјРІРѕР»РѕРІ` };
+      return { isValid: false, error: `Минимум ${PASSWORD_MIN_LENGTH} символов` };
+    }
+    if (/^\d+$/.test(password)) {
+      return { isValid: false, error: 'Пароль не может состоять только из цифр' };
     }
     return { isValid: true };
   },
 
   passwordConfirm: (password: string, confirmPassword: string): ValidationResult => {
     if (!confirmPassword) {
-      return { isValid: false, error: 'РџРѕРґС‚РІРµСЂРґРёС‚Рµ РїР°СЂРѕР»СЊ' };
+      return { isValid: false, error: 'Подтвердите пароль' };
     }
     if (password !== confirmPassword) {
-      return { isValid: false, error: 'РџР°СЂРѕР»Рё РЅРµ СЃРѕРІРїР°РґР°СЋС‚' };
+      return { isValid: false, error: 'Пароли не совпадают' };
     }
     return { isValid: true };
   },
 
   code: (code: string): ValidationResult => {
     if (!code) {
-      return { isValid: false, error: 'РљРѕРґ РѕР±СЏР·Р°С‚РµР»РµРЅ' };
+      return { isValid: false, error: 'Код обязателен' };
     }
-    if (!/^\d{6}$/.test(code)) {
-      return { isValid: false, error: 'РљРѕРґ РґРѕР»Р¶РµРЅ СЃРѕСЃС‚РѕСЏС‚СЊ РёР· 6 С†РёС„СЂ' };
+    const re = new RegExp(`^\\d{${CODE_LENGTH}}$`)
+    if (!re.test(code)) {
+      return { isValid: false, error: `Код должен состоять из ${CODE_LENGTH} цифр` };
     }
     return { isValid: true };
   },
@@ -4342,11 +2777,11 @@ export const getPasswordStrength = (password: string): {
   if (/[^a-zA-Z0-9]/.test(password)) score++;
   
   const strength = [
-    { min: 0, label: 'РћС‡РµРЅСЊ СЃР»Р°Р±С‹Р№', color: '#ff4444' },
-    { min: 2, label: 'РЎР»Р°Р±С‹Р№', color: '#ff8800' },
-    { min: 3, label: 'РЎСЂРµРґРЅРёР№', color: '#ffbb00' },
-    { min: 4, label: 'РҐРѕСЂРѕС€РёР№', color: '#88dd00' },
-    { min: 5, label: 'РћС‚Р»РёС‡РЅС‹Р№', color: '#00cc00' },
+    { min: 0, label: 'Очень слабый', color: '#ff4444' },
+    { min: 2, label: 'Слабый', color: '#ff8800' },
+    { min: 3, label: 'Средний', color: '#ffbb00' },
+    { min: 4, label: 'Хороший', color: '#88dd00' },
+    { min: 5, label: 'Отличный', color: '#00cc00' },
   ];
   
   const result = strength.reverse().find(s => score >= s.min) || strength[0];
@@ -4357,6 +2792,10 @@ export const getPasswordStrength = (password: string): {
     color: result.color,
   };
 };
+
+
+export const isWeakPassword = (_pwd: string): boolean => false;
+
 
 
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\src\vite-env.d.ts ===== */
@@ -4444,31 +2883,22 @@ declare module '*.scss';
 
 /* ===== C:\Users\icipa\team-platform-public\id_frontend\vite.config.ts ===== */
 
+// vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
-  },
+  resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   server: {
+    host: true,
     port: 5173,
-    proxy: {
-      '/api': { target: 'http://localhost:8000', changeOrigin: true },
-      '/.well-known': { target: 'http://localhost:8000', changeOrigin: true },
-      '/oauth': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        bypass(req) {
-          // SPA С‚РѕР»СЊРєРѕ РґР»СЏ Р±СЂР°СѓР·РµСЂРЅРѕРіРѕ GET РЅР° /oauth/authorize
-          if (req.method === 'GET' && req.url === '/oauth/authorize') {
-            return req.url
-          }
-        },
-      },
+    hmr: {
+      protocol: 'ws',
+      clientPort: 80,   
     },
   },
 })
+
 

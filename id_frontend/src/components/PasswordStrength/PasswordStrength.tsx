@@ -2,7 +2,6 @@
 
 import React, { useMemo } from 'react';
 import { getPasswordStrength } from '../../utils/validators';
-import './PasswordStrength.scss';
 
 interface PasswordStrengthProps {
   password: string;
